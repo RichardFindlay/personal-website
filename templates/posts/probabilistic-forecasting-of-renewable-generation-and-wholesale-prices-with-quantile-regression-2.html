@@ -1,0 +1,1007 @@
+{% extends "base.html" %}
+{% block title %}Richard Findlay | Probabilistic Forecasting of Renewable Generation & Wholesale Prices with Quantile-Regression{% endblock %}
+{% load static  %}
+{% block content %}
+<style>
+
+    body {
+        font-family: "Quicksand";
+        font-size: 16.5px;
+        background-color: #ffffff !important;
+    }
+
+
+    .card {
+        border: 0;
+        background-color: #ffffff !important;
+
+    }
+
+
+
+    .title {
+        font-size: 2.85rem;
+        line-height: 1.143;
+        letter-spacing: -0.05rem;
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        margin-top: 1rem;
+        /*font-size:2.25vw;*/
+    }
+
+    .sub-title {
+        font-size: 1.25rem;
+        letter-spacing: 0rem;
+        margin-top: 0;
+        margin-bottom: 1rem;
+        margin-top: 0rem;
+        font-style: italic;
+/*        font-size:1.0vw;*/
+
+    }
+
+    .title-img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        margin-left: auto;
+        margin-right: auto;
+        position: relative;
+        z-index: 1;
+        margin: 0 auto;
+        /*border: 5px solid #555;*/
+        text-align: center;
+    }
+
+
+    .subheadings {
+        font-size: 1.15rem;
+        /*letter-spacing: -0.05rem;*/
+        margin-top: 0;
+        /*margin-bottom: 2rem;*/
+        margin-top: 2rem;
+        font-weight: 550;
+
+    }
+
+    figcaption {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        text-align: center;
+        font-style: italic;
+    }
+
+
+    pre {
+        background: #1d2021;
+        /*overflow-x: auto;*/
+        border: none;
+    }
+
+    pre-inline {
+        background: #dadada;
+        /*overflow-x: auto;*/
+        border: none;
+    }
+
+    code {
+        font-size: 0.8rem !important; 
+        margin: 0.5rem;
+        /*padding: 1rem;*/
+        /*white-space: nowrap;*/
+        background: #263238;
+        color: #000000;
+        border-radius: 0px;
+        overflow-y: scroll;
+        overflow-x: scroll;
+        height: 500px;
+    }
+
+    code::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Hide scrollbar for IE, Edge and Firefox */
+    code {
+        -ms-overflow-style: none; 
+        scrollbar-width: none;  
+    }
+
+    /* Style the tab */
+    .tab {
+        overflow: hidden;
+        border: 1px solid #ccc;
+        background-color: #f1f1f1;
+        /*transform: translate(0%,40%);*/
+    }
+
+    /* Style the buttons inside the tab */
+    .tab button {
+        background-color: inherit;
+        float: left;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 10px 12px;
+        transition: 0.3s;
+        font-size: 14px;
+    }
+
+    /* Change background color of buttons on hover */
+    .tab button:hover {
+        background-color: #f1f1f1;
+    }
+
+    /* Create an active/current tablink class */
+    .tab button.active {
+        background-color: #f1f1f1;
+    }
+
+    #env.py, #run.py{
+        display: none;
+        border: none;    
+    }
+
+    .date {
+        margin-top: 0rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.8rem !important; 
+        /*position: absolute;*/
+        float: right;
+        background-color: yellow;
+        z-index: 9;
+    }
+
+    #twitter-share {
+        opacity: 1.0 !important;
+    }
+
+    #linkedin-share {
+        opacity: 1.0 !important;
+        /*color: rgba(255,255,255,0.7) !important;*/
+    }
+
+/*    .center-img {
+      background: yellow;
+      display: block;
+      width: 100%;
+      justify-content: center;
+      align-items: center;
+      text-align: center
+
+    }*/
+
+    #my_dataviz_solar {
+        /*position: relative;*/
+        /*float: left;*/
+        width: 100%;
+        height: 100%;
+        /*transform: translate(-8%,0);*/
+        /*margin-top: 20px;*/
+
+    }
+
+    #my_dataviz_wind {
+        /*position: relative;*/
+        /*float: left;*/
+        width: 100%;
+        height: 100%;
+        /*float: left;*/
+        /*float: right;*/
+        /*transform: translate(50%,0) !important*/
+    }
+
+    #my_dataviz_demand {
+        /*position: relative;*/
+        /*float: left;*/
+        width: 100%;
+        height: 100%;
+
+    }
+
+    #my_dataviz_price {
+        /*position: relative;*/
+        width: 100%;
+        height: 100%;
+        /*transform: translate(50%,0) !important*/
+    }
+
+
+    .graphs_ {
+        margin-top: 30px;
+        transform: translate(-5%,0);
+
+    }
+
+    .graphs_2 {
+        margin-top: 30px;
+        transform: translate(-5%,0);
+
+    }
+
+
+
+    .graph_overlay {
+        width: 107%;
+    }
+
+    .graph_overlay2 {
+        width: 107%;
+    }
+
+
+    .column {
+      /*border: 1px solid red;*/
+      /*text-align: center;*/
+      /*display: inline-block;*/
+      /*margin-left: 30px;*/
+      float: left;
+      width: 50%;
+      padding: none;
+    }
+
+    .column2 {
+      /*border: 1px solid red;*/
+      /*text-align: center;*/
+      /*display: inline-block;*/
+      /*margin-left: 30px;*/
+      float: left;
+      width: 50%;
+      padding: none;
+    }
+
+
+    td, th {
+      border: 1px solid #dddddd;
+      text-align: left;
+      padding: 8px;
+    }
+
+
+
+
+    @media screen and (max-width: 850px) {
+    .column {
+      float: left;
+      width: 100%;
+      padding: none;
+    }
+    .title {
+        font-size: 2.10rem;
+    }
+    .sub-title {
+        font-size: 0.95rem;
+    }
+    }
+    
+
+    @media screen and (max-width: 850px) {
+    .column2 {
+      float: left;
+      width: 100%;
+      padding: none;
+    }}
+
+/*    @media screen and (max-width: 850px) {
+    #context_graph {
+      width: 100%;
+      height:  200px;
+      padding: none;
+    }
+*/
+
+}
+
+    * {box-sizing:border-box}
+
+    /* Slideshow container */
+    .slideshow-container {
+      max-width: 1000px;
+      position: relative;
+      margin: auto;
+    }
+
+    /* Hide the images by default */
+    .mySlides {
+      display: none;
+    }
+
+    /* Next & previous buttons */
+    .prev, .next {
+      cursor: pointer;
+      position: absolute;
+      /*top: 50%;*/
+      width: auto;
+      /*margin-top: -80px;*/
+      /*padding: 16px;*/
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+      transition: 0.6s ease;
+      border-radius: 15 15px 6px 6;
+      user-select: none;
+    }
+
+    /* Position the "next button" to the right */
+    .next {
+      /*right: 0;*/
+      border-radius: 3px 0 0 3px;
+    }
+
+    /* On hover, add a black background color with a little bit see-through */
+    .prev:hover, .next:hover {
+      background-color: rgba(0,0,0,0.8);
+    }
+
+    /* Caption text */
+    .text {
+      color: #f2f2f2;
+      font-size: 15px;
+      padding: 8px 12px;
+      position: absolute;
+      bottom: 8px;
+      width: 100%;
+      text-align: center;
+    }
+
+    /* Number text (1/3 etc) */
+    .numbertext {
+      color: #f2f2f2;
+      font-size: 12px;
+      padding: 8px 12px;
+      position: absolute;
+      top: 0;
+    }
+
+    /* The dots/bullets/indicators */
+    .dot {
+      cursor: pointer;
+      height: 10px;
+      width: 10px;
+      margin: 0 2px;
+      background-color: #bbb;
+      border-radius: 50%;
+      display: inline-block;
+      transition: background-color 0.6s ease;
+    }
+
+    .active, .dot:hover {
+      background-color: #717171;
+    }
+
+    /* Fading animation */
+    .fade {
+      animation-name: fade;
+      animation-duration: 1.5s;
+      animation-fill-mode: forwards;
+    }
+
+    tr, th, td {
+        padding: 10px;
+        text-align: center;
+    }
+
+    @keyframes fade {
+      from {opacity: .4}
+      to {opacity: 1}
+    }
+
+    /* If the screen size is 601px wide or more, set the font-size of <div> to 80px */
+    @media screen and (min-width: 901px) {
+      .overflow_mobile {
+
+      }
+    }
+
+    /* If the screen size is 600px wide or less, set the font-size of <div> to 30px */
+    @media screen and (max-width: 900px) {
+      .overflow_mobile {
+        overflow-x:auto;
+        /*margin-left:100px; */
+      }
+    }
+    
+    /*format results table*/
+    .model_test_results tr { line-height: 7px; }
+
+    .model_test_results td:first-child {
+          width: 20em;
+          min-width: 20em;
+          max-width: 20em;
+          border-top: none;
+        }
+
+    .model_test_results td {
+        border:1px solid black;
+        border-top: none;
+        border-bottom: none;
+        }
+
+    .model_test_results th {
+        border:1px solid black;
+        font-weight:normal
+        }
+
+    .main_text {
+        text-align: justify; 
+        line-height: 1.75;
+    }
+
+</style>
+    
+
+
+<div class="container">
+  <div class="row">
+    <div class="col-md-14 card mb-4 mt-4 center top">
+      <div class="card-body">
+
+        
+        <div>
+            <h1 class="title">Probabilistic Forecasting of Renewable Generation & Wholesale Prices with Quantile-Regression</h1>
+            <h2 class="sub-title">Sequence-to-Sequence Networks with Spatial-Temporal Attention to Forecast Day-Ahead UK Power Generation and Wholesale Auction Prices</h2>
+            <hr style="border-width: 1px; color: #1d2021; margin-bottom: 0.3rem;">
+            <a style="float:right; font-size: 0.8rem; ">Jun 15, 2022</a>
+        </div>
+
+        <div>
+            <a style="position: absolute; transform: translate(10%, -20%);" id="twitter-share" href="https://twitter.com/share?ref_src=twsrc%5Etfw" class="twitter-share-button" data-show-count="false"></a>
+            <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+            <a style="position: absolute; transform: translate(10%, -20%);" id="linkedin-share"><script src="https://platform.linkedin.com/in.js" type="text/javascript">lang: en_US</script>
+            <script type="IN/Share" data-url={{ request.get_full_path }}></script></a>
+        </div>
+
+        <!-- declare some unique varaibles for graphs -->
+        <script>
+
+            // store color gradients for quantile plots
+            var color_gradient = ['#c1d6e1', '#a2c1d2', '#83adc3', '#74a2bc', 'lightgrey', '#1c2f33']
+
+            // file paths to forecasts
+            var forecasts_solar = "{% static '/js/Post_2/quantile_forecasts/solar_forecasts.csv' %}"
+            var forecasts_wind = "{% static '/js/Post_2/quantile_forecasts/wind_forecasts.csv' %}"
+            var forecasts_demand = "{% static '/js/Post_2/quantile_forecasts/demand_forecasts.csv' %}"
+            var forecasts_price = "{% static '/js/Post_2/quantile_forecasts/price_forecasts.csv' %}"
+
+            // file paths to attention plots
+            var heatmap_data_solar = "{% static '/js/Post_2/attention_graph/heatmap_solar.csv' %}"
+            var heatmap_data_demand = "{% static '/js/Post_2/attention_graph/heatmap_demand.csv' %}"
+            var heatmap_data_price = "{% static '/js/Post_2/attention_graph/heatmap_price.csv' %}"
+            var heatmap_data_wind = "{% static '/js/Post_2/attention_graph/heatmap_wind.csv' %}"
+
+            // reference names
+            var ref_solar = "solar"
+            var ref_demand = "demand"
+            var ref_price = "price"
+            var ref_wind = "wind"
+
+        </script>
+
+        <body onload="prob_forecast(forecasts_solar, ref_solar, color_gradient); prob_forecast(forecasts_demand, ref_demand, color_gradient); prob_forecast(forecasts_price, ref_price, color_gradient); prob_forecast(forecasts_wind, ref_wind, color_gradient); context_graph(heatmap_data_solar, ref_solar)">
+
+        <h3 class="subheadings">Introduction</h3>
+            <p class="main_text">With the 2022 UK energy security strategy anticipating to further accelerate the development of offshore wind capacity to 50GW by 2030, alongside solar capacity potentially quintupling by 2035, the importance of increasing energy forecasting accuracy is ever growing. As power generation moves away from traditional synchronous assets, becoming increasingly decentralised and heterogenous, accurate forecasting is not only pertinent for the system operator to sustain the security of the network, but the intermittency of renewable generation is expected to result in volatile market conditions, especially in the short term, making it a lucrative tool for maximising economic return. This post looks to demonstrate the capability machine learning methods to predicting solar, wind, demand and wholesale power prices for the day-ahead (DA) stage.</p>
+
+            <p class="main_text">
+            The performance of supervised deep neural networks, applied to timeseries forecasting, are explored as part of this post. Investigating the performance of more traditional recurrent neural networks to novel encoder-decoder based architectures. The methods explored here are not seen as direct alternatives that could supersede existing techniques but rather act as an introduction to machine learning based methods and highlight their potential when applied to the forecasting problem.                
+            </p>
+
+        <div class="graph_overlay">
+        <div class="card-body" style="margin: -30px auto;">
+        <div class="graphs_">
+            <div class="column">
+                <div id="my_dataviz_solar"></div>
+            </div>
+
+            <div class="column">
+                <div id="my_dataviz_wind"></div>
+            </div>
+
+            <div class="column">
+                <div id="my_dataviz_demand"></div>
+            </div>
+
+            <div class="column" style="margin-bottom: 20px;">
+                <div id="my_dataviz_price"></div>
+            </div>
+            </div>
+
+        </div>
+        </div>
+        <figcaption style="font-size: 0.8rem"><strong>Figure 1: </strong> DA Forecasts for UK; Solar Generation, Wind Generation, Demand and Wholesale Auction Prices</figcaption>
+
+         <p class="main_text" style="margin-top: 30px;">There are many ways to approach the forecasting problem, varying between end-user requirements. In order to effectively portray the inherent uncertainty of the forecasts, probabilistic representations over the forecast horizon have become the expected standard throughout the industry, allowing traders and system operators alike to identify the potential variability of a value over time and although deterministic values may be relied upon to fill positions, the narrative of these values can be better understood. This post demonstrates the use of deep learning techniques in combination with quantile regression to produce probabilistic forecasts. Figure 1 depicting the consecutive DA quantile forecasts for each of the investigated variables over one week, with further quantification and discussion given on the forecast performance given in the results section in this post. </p>
+
+        <h3 class="subheadings">Data Selection & Processing</h3>
+            <p class="main_text">The approach to formulating the model was predominately centred around the desire to investigate the use of spatial and temporal attention mechanisms in relation sequence-2-sequence recurrent neural networks. In order to incorporate such mechanisms to the model, 2D variable data was used as the main source for the model, with various Numerical Weather Prediction (NWP) model providers investigated as part of the initial appraisal. Ideally, high resolution data with practical application was sought, such as from the <a href="https://registry.opendata.aws/uk-met-office/" target="_blank">UK Met Office Atmospheric 2km Deterministic model</a>, however it became quickly apparent that although the dataset would enable the practical collection of forecasted NWP parameters on a daily basis, the historic data, necessary for supervised learning, requires payment. The computational and fiscal expense associated with dataset was determined unnecessary for the novel exploratory objectives for this blog post. With further investigation it was apparent that the desire to attain a practical application of model was only possible through expenditure, as such the desire to attain this objective was abandoned for aforementioned reasons.</p>
+
+            <p class="main_text">Although an impractical application, the ECMWF (European Centre for Medium-Range Weather Forecasts) ERA5 reanalysis dataset was adopted for this work. The ERA5 data is available at a 5-day latency, at an hourly 3km resolution and covers a range of variables that showed reasonable corelations to the labelled parameters being investigated. Figure 3 illustrates an example of a raw ERA5 variable over one day (low cloud cover), interpolated to 48 half hour periods (HH) figures helps to illustrate the catchment area adopted for this investigation. Furthermore, ERA5 data is often a precursor to many forecasted NWP models and as other practical 2D datasets will be similar in structure, the methods adopted as part of the post, could in theory, be applied to a more practical inference scenario where forecasted NWP parameters are available. In combination with variable ERA5 features, data engineering was utilised to better infer temporal dependencies in the model.</p>
+
+            <p class="main_text">To maximise design iterability, the windowing of NWP and temporal features was handled by a customised Keras data generator (shown in the code snippet below) capable of varying the 2D features and labels into user specified input and output horizons. From high level appraisals, it was found that the previous 336 HH periods as the input horizon showed reasonable performance in the trade-off between model accurate and training time when forecasting the proceeding 48 HH periods. Unfortunately, due to this data generation configuration, it does make it difficult to effectively shuffle the data during training. However, the benefit retained by the variability of forecasting horizon was seen to outweigh such concerns for a novel and exploratory study such as this one.</p>
+
+
+            <div class="tab">
+                <button class="tablinks" onclick="openCode(event, 'data.py')" id="defaultOpen">Keras Data Generator:</button>
+                <a href=https://github.com/RichardFindlay/DayAhead-Probablistic-Forecasting-Using-Quantile-Regression class="fa fa-github" target="_blank" style="color: #263238; position: relative; transform: translate(-5%,40%); z-index: 10; float: right; "></a>
+            </div>
+
+            
+
+ 
+<div id="data.py" class="tabcontent" >
+<pre><code class="language-python" style="margin-top:-10px">  
+# as adapted from: https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly
+class DataGenerator(tensorflow.keras.utils.Sequence):
+
+    def __init__(self, dataset_name, x_length, y_length, hidden_states, batch_size, shuffle):
+        self.dataset_name = dataset_name
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.n_s = hidden_states
+        self.xlen = x_length
+        self.ylen = y_length 
+        self.index_ref = 0         
+        self.on_epoch_end()
+
+    def __len__(self):
+        # 'number of batches per Epoch'      
+        return int(np.floor((self.ylen - input_seq_size - (output_seq_size-1)) / self.batch_size))
+
+    def __getitem__(self, index):
+
+        # input and output indexes relative current batch size and data generator index reference
+        input_indexes = self.input_indexes[(index*self.batch_size) : (index*self.batch_size) + (self.batch_size + (input_seq_size-1))]
+        output_indexes = self.output_indexes[(index*self.batch_size) + input_seq_size : (index*self.batch_size) + input_seq_size + (self.batch_size + (output_seq_size-1))]
+
+        # Generate data
+        (X_train1, X_train2, X_train3, X_train4, s0, c0), y_train = self.__data_generation(input_indexes, output_indexes)  
+
+        # replicate labels for each quantile
+        y_trues = [y_train for i in quantiles]    
+
+        # extend true values for spatial and temporal attention (only relavant if compiled model used for inference)  
+        # y_trues.extend([[], []]) 
+     
+        return (X_train1, X_train2, X_train3, X_train4, s0, c0), (y_trues) # pass empty training outputs to extract extract attentions
+
+    def on_epoch_end(self):
+        # set length of indexes for each epoch
+        self.input_indexes = np.arange(self.xlen)
+        self.output_indexes = np.arange(self.ylen)
+ 
+        if self.shuffle == True:
+            np.random.shuffle(self.input_indexes)
+
+    def to_sequence(self, x1, x2, x3, x4, y):
+        # convert timeseries batch in sequences
+        input_start, output_start = 0, 0
+
+        seqX1, seqX2, seqX3, seqX4, seqY = [], [], [], [], []
+
+        while (input_start + input_seq_size) <= len(x1):
+            # offset handled during pre-processing
+            input_end = input_start + input_seq_size
+            output_end = output_start + output_seq_size
+
+            # inputs
+            seqX1.append(x1[input_start:input_end])
+            seqX2.append(x2[input_start:input_end])
+
+            # outputs
+            seqX3.append(x3[output_start:output_end])
+            seqX4.append(x4[output_start:output_end])
+            seqY.append(y[output_start:output_end])
+
+            input_start += 1  
+            output_start += 1
+        
+        # convert to numpy arrays
+        seqX1, seqX2, seqX3, seqX4, seqY = np.array(seqX1), np.array(seqX2), np.array(seqX3), np.array(seqX4), np.array(seqY)
+        
+        return seqX1, seqX2, seqX3, seqX4, seqY
+
+    def __data_generation(self, input_indexes, output_indexes):
+
+        # load data for current batch
+        f = h5py.File(f"../../data/processed/{model_type}/{self.dataset_name}", "r")      
+        X_train1 = f['train_set']['X1_train'][input_indexes] # main feature array
+        X_train2 = f['train_set']['X2_train'][input_indexes] # input time features from feature engineering
+        X_train3 = f['train_set']['X3_train'][output_indexes] # output time features from feature engineering
+
+        # no spatial data if model is training for price forecasting
+        if model_type != 'price':        
+            X_train4 = f['train_set']['X1_train'][output_indexes][:,:,:,1:] # all nwp features apart from the generation itself
+            X_train4 = np.average(X_train4, axis=(1,2))
+        else: 
+            X_train4 = f['train_set']['X1_train'][output_indexes][:,1:]
+
+        y_train = f['train_set']['y_train'][output_indexes]
+
+        f.close()  
+
+        # convert to sequence data
+        X_train1, X_train2, X_train3, X_train4, y_train = self.to_sequence(X_train1, X_train2, X_train3, X_train4, y_train)
+
+        s0 = np.zeros((self.batch_size, self.n_s))
+        c0 = np.zeros((self.batch_size, self.n_s))
+
+        return (X_train1, X_train2, X_train3, X_train4, s0, c0), y_train               
+
+</code></pre>
+</div>
+
+            <p class="main_text">Minimal cleaning was conducted against the data, mainly a rudimental elimination was preformed to remove periods of curtailment from the wind labels. Entire days were removed from the data set when a “nan” values were present. To negate anomalies on the datasets (mainly price and demand) imposed by the coronavirus pandemic, the span of the collected data runs from 2017-2019 inclusively. In an attempt to include seasonal variability in the test set, the last ~20% of the data is retained for testing.</p>
+
+        <h3 class="subheadings">Model Architectures</h3>
+            <p class="main_text">Figure 2 illustrates the high-level schematic of the novel encoder-decoder architecture explored as part of this study. Developed in Keras, the modelling strategy endeavoured to increase exploration and iterability, maximising the potential learnings from the project. To better appreciate the performance of the resulting model, which contains both spatial and temporal attention mechanisms, additional model architectures were investigated helping to establish further baselines to the comparison and more readily commentate on the inclusion of particular aspects of the model. These architectures start from the most basic in the line of comparisons, where a single Bidirectional layer is used to predict the output forecast window, this built upon to create a vanilla encoder-decoder model (seq2seq) in which the temporal and spatial attention mechanisms are added cumulatively to create a further basis of comparison, as well as the objective model for this study. A Bidirectional LSTM was adopted for all encoder architectures, due to the work carried out by <a href=" https://ieeexplore.ieee.org/document/8464297" target="_blank">Toubeau et al. (2018)</a> highlighting the increased accuracy from the availability of the forward and backward hidden weights of the LSTM layer. A detailed introduction to Recurrent Neural Networks (RNNs) and the architectures utilised here are deemed outside the scope of this post but notable sources are given in resources section.</p>  
+
+            <img loading="lazy" src="{% static 'js/Post_2/model_schematic.svg'%}" style="width: 100% ;margin-bottom: 20px">
+            <figcaption style="font-size: 0.8rem; margin-bottom: 50px"><strong>Figure 2: </strong>High-Level Schematic of Novel Temporal & Spatial Attention Model</figcaption>
+
+            <p class="main_text">In order to achieve the effective derivation of all preferred quantiles in the model, a separate decoder is produced over each quantile the user specifies, which enables the association of a different loss functions for each of the quantile outputs. In this case, the replicated loss function is the quantile (or pinball) loss, which lends itself well to supervised deep learning problems as the minimisation of such a function yields the resulting quantile for the problem. The below code snippet gives the pratical application of the pinball loss for Keras, where the "y" is the true value, "f" is the prediction and "q" is the quantile of concern (i.e. the probability for an observation to a distribution to be below this value, expressed as a value between 0-1, notably when q=0.5, the loss function equates to Mean Absolute Error (MAE)):</p>  
+
+            <div class="tab">
+                <button class="tablinks" onclick="openCode(event, 'loss_func')" id="defaultOpen">Quantile Loss:</button>
+                <a href=https://github.com/RichardFindlay/DayAhead-Probablistic-Forecasting-Using-Quantile-Regression class="fa fa-github" target="_blank" style="color: #263238; position: relative; transform: translate(-5%,40%); z-index: 10; float: right; "></a>
+            </div>
+
+            <div id="loss_func" class="tabcontent_2" style="height:70px; margin-bottom:10px">
+                <pre><code class="language-python" style="margin-top:-10px; height:70px"> 
+# define loss for each quantile
+q_losses = [lambda y,f: K.mean(K.maximum(q*(y - f), (q-1) * (y - f)), axis = -1) for q in quantiles]
+                </code></pre>
+            </div>
+
+            <p class="main_text">Training for all models was carried out in a Google Collaboratory notebook, predominately running on a 54.8GB RAM with a 16GB Tesla V100 GPU instance, in which the most complex model containing the spatial attention mechanism, simultaneously providing outputs over all quantiles and trained over 20 epochs, resulted in a ~18hr train time.</p>  
+
+
+        <h3 class="subheadings">Results</h3>
+
+            <p class="main_text">In order to provide a comparative breakdown both probabilistic and deterministic metrics have been provided against the performance of each model. As latterly mentioned, as central quantile is equivalent to the MAE, hence further comparison is possible to the deterministic values of a simple daily persistence forecast, as well as the Transmission System Operator (TSO) day-ahead forecast for each variable. Both MAE and root-mean-square error (RMSE) are presented on this basis. Although this does deviate from the objective of producing and benchmarking probabilistic forecasts, the RMSE and MAE does provide further interest to the comparison. To better compare the Prediction Intervals (PI) produced by the quantile regression of each deep learning model, the Prediction Interval Coverage Probability (PICP) metric was used to evaluate the reliability of the produced intervals, specifically for a PI of 90% in the case of table 1. The formula for PICP is as:</p> 
+
+            $${ PICP = \frac{1}{N} \sum_{i=1}^N c_{i}} $$
+
+            Where \({N}\) is the number of test samples and \({c_i}\) is an indicator defined as:
+
+            <div style="overflow-x:auto"><a>\begin{equation}
+              c_{i} =
+                \begin{cases}
+                  1, & y_{i} \in [L_{q}, U_{q}]\\
+                  0, & y_{i} \notin [L_{q}, U_{q}]\\
+                \end{cases}   
+            \end{equation}</a></div>
+
+            <p class="main_text">Where \({y_{i}}\) is the true value of a prediction and \({L_{q}}\) and \({U_{q}}\) are the lower and upper boundary limits of the PI of interest respectively. Further metrics eliminated in this post but incorporated in the code are given by <a href="https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&ved=2ahUKEwiUprb39qbyAhXNgVwKHWVsA50QFnoECAMQAQ&url=https%3A%2F%2Fwww.mdpi.com%2F2673-4826%2F2%2F1%2F2%2Fpdf&usg=AOvVaw1AWP-zHuNGrw8pgDfUS09e" target="_blank"> Bazionis & Georgilakis (2021).</a></p>
+
+
+
+
+        <div style="overflow-x:auto">
+         <div class="model_test_results" style="margin-top: 30px">
+            <table style="width:100%; font-size: 12px; text-align: right; align-items:center;">
+                
+              <col>
+              <colgroup span="3"></colgroup>
+              <colgroup span="3"></colgroup>
+              <tr >
+                <td rowspan="2" style="border-left: none;"></td>
+                <th colspan="3" scope="colgroup" style="font-weight:bold">Solar</th>
+                <th colspan="3" scope="colgroup" style="font-weight:bold">Wind</th>
+                <th colspan="3" scope="colgroup" style="font-weight:bold">Demand</th>
+                <th colspan="3" scope="colgroup" style="font-weight:bold">Price</th>
+              </tr>
+              <tr>
+                <th scope="col" style="width: 5em">PICP</th>
+                <th scope="col" style="width: 5em">MAE</th>
+                <th scope="col" style="width: 5em">RMSE</th>
+                <th scope="col" style="width: 5em">PICP</th>                
+                <th scope="col" style="width: 5em">MAE</th>
+                <th scope="col" style="width: 5em">RMSE</th>
+                <th scope="col" style="width: 5em">PICP</th>
+                <th scope="col" style="width: 5em">MAE</th>
+                <th scope="col" style="width: 5em">RMSE</th>
+                <th scope="col" style="width: 5em">PICP</th>
+                <th scope="col" style="width: 5em">MAE</th>
+                <th scope="col" style="width: 5em">RMSE</th>
+
+              </tr>
+              <tr style= "border-top:1px solid black;">
+                <td style= "text-align: left; font-size:12px">Persistence</td>
+                <td>-</td>
+                <td>375.8</td>
+                <td>834.8</td>
+                <td>-</td>
+                <td>2255.0</td>
+                <td>2924.3</td>
+                <td>-</td>
+                <td>2044.2</td>
+                <td>2776.3</td>
+                <td>-</td>
+                <td>5.12</td>
+                <td>7.03</td>
+              </tr>
+              <tr>
+                <td style= "text-align: left">Bi-directional LSTM</td>
+                <td>92.11</td>
+                <td>327.4</td>
+                <td>689.2</td>
+                <td>87.84</td>
+                <td>1318.7</td>
+                <td>1760.6</td>
+                <td>91.44</td>
+                <td>1459.8</td>
+                <td>1903.2</td>
+                <td>72.45</td>
+                <td>6.39</td>
+                <td>8.05</td>
+              </tr>
+              <tr>
+                <td style= "text-align: left">Seq2Seq</td>
+                <td>96.09</td>
+                <td>300.5</td>
+                <td>655.2</td>
+                <td>94.80</td>
+                <td>937.0</td>
+                <td>1251.3</td>
+                <td>90.84</td>
+                <td>1315.0</td>
+                <td>1715.2</td>
+                <td>46.47</td>
+                <td>5.75</td>
+                <td>7.19</td>
+              </tr>
+              <tr>
+                <td style= "text-align: left">Seq2Seq with Temporal Attention</td>
+                <td>98.10</td>
+                <td>291.1</td>
+                <td>613.9</td>
+                <td>90.10</td>
+                <td>998.1</td>
+                <td>1320.7</td>
+                <td>86.71</td>
+                <td>1457.6</td>
+                <td>1890.3</td>
+                <td>80.18</td>
+                <td>6.53</td>
+                <td>8.48</td>
+              </tr>
+                <td style= "text-align: left;">Seq2Seq with Temporal & Spatial Attention</td>
+                <td>95.27</td>
+                <td>271.0</td>
+                <td>585.2</td>
+                <td>85.48</td>
+                <td>1062.1</td>
+                <td>1383.1</td>
+                <td>70.21</td>
+                <td>1519.5</td>
+                <td>1903.4</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+              </tr>
+              <tr style= "border-bottom:1px solid black;">
+                <td style= "text-align: left;">TSO DA Forecast</td>
+                <td>-</td>
+                <td>141.0</td>
+                <td>289.2</td>
+                <td>-</td>
+                <td>1141.0</td>
+                <td>1440.4</td>
+                <td>-</td>
+                <td>2397.3</td>
+                <td>3560.8</td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+              </tr>
+            </table> 
+        </div>
+    </div>
+    <figcaption  style="font-size: 0.8rem; text-align: center; margin-top: 15px"><strong>Table 1:</strong> Model Performance Comparison </figcaption>
+
+            <p class="main_text">The intricacies involved in investigating the performance of a probabilistic forecast are apparent from table 1, with variability observed between probabilistic and deterministic benchmarks for a number of variables over intended model performance increases. DA solar generation forecasting does however show the incremental performance increases over each model iteration, when considering the daily persistence forecast as a baseline, as would be hypothesised, especially when considering MAE and RMSE. However, even with the introduction of both temporal and spatial mechanisms performance is still out-with that of what is capable by the TSO. Contrary to what is observed for the wind and demand forecasting models, where even the more basic iterations of the model show increased performance against the TSO forecasts for the test samples. Furthermore, the introduction of the temporal and spatial attention mechanism shows to lessen performance for these variables, perhaps less of a surprising revelation in the case of wind forecasting where temporal weighting may be less of a prevalent feature but especially surprising in the case for demand forecasting possibly highlighting issues in the fundamental architecture of the model. The irrelevance of the spatial correlations of the selected input features to the wind and demand labels are more expected principally from the coarseness and correlations of the 2D data to the wind and demand labels when compared to that of the performance of the solar model.</p>
+
+            <div class="graph_overlay2" style="margin-top: -30px">
+                <div class="card-body">
+                    <div class="graphs_2">
+                        <div class="column2">
+                            <p style="text-align: center; font-size: 14px; margin-bottom:0px">Cloud Cover</p>
+                            <img loading="lazy" src="{% static 'image/Post_2/spatial_graphs/Cloud_Cover_(input)_animation.gif'%}" style="height:60%; width: 60%; margin-left:auto; margin-right:auto; display:block">
+                            <figcaption style="font-size: 0.8rem;"><strong>Figure 3: </strong>Animation of ERA5 cloud cover over 4-day period</figcaption>
+                        </div>
+                        <div class="column2">
+                            <p style="text-align: center; font-size: 14px; margin-bottom:0px">Solar Attention Weights</p>
+                            <img loading="lazy" src="{% static 'image/Post_2/spatial_graphs/Spatial_Context_animation.gif'%}" style="height:60%; width: 60%; margin-left:auto; margin-right:auto; display:block">
+                        </div>
+                            <figcaption style="font-size: 0.8rem;"><strong>Figure 4: </strong>Animation of derived solar spatial attention weights</figcaption>
+                    </div>
+                </div>
+            </div>
+
+            <p class="main_text">Although the sequence-to-sequence models show better performance when compared to the attention model counterparts in the cases of wind, demand and price DA forecasting, abnormalities in resultant PIs are apparent, including volatile and overlapping quantile predictions, an issue that could be resolved with further hyperparameter tuning. Hence, all weekly consecutive forecast examples, portrayed in figure 1 therefore show case the performance of the relevant attention-based sequence-to-sequence model for each model. The PICP helps to quantify the reliability of PI, in this the case the 90% PI, however sharpness of PIs is also an important metric that helps to build confidence in predictions. Although not quantified in this post, from observing the results in figure 1 there appears to be large differences in lower and upper PI intervals, particularly in the case of the solar generation forecasts, which could again be due to poor correlation and sparsity in feature variables to labelled data.</p>
+
+            <p class="main_text">Due to the exploratory nature of the work carried out here, a couple of attention mechanisms were examined to investigate their influence on model accuracy. An example of the spatial attention weights derived in the prediction of a DA solar forecast is illustrated in the figure 4, where it can be observed that greater model attention is given to south-eastern section of the UK. Although this contradicts the higher density of solar PV installations (mainly south-west), the model does show promise in identifying potential areas of interest, especially considering the attention fades and becomes homogeneous during non-daylight hours. </p>
+
+           <div class="slideshow-container"; id="test"; style="transform: translate(0,0);">
+             
+            <div class="mySlides">
+                <div class="overflow_mobile">
+                <div id="legendsolar" style=" width: fit-content; transform: translate(-75%,47.5%); float:left; position:absolute;"></div>
+                <div class="card-body" style="margin: 0 0; " id="content_graphs_solar">
+                    <p style="transform: translate(39.5%,100%); font-family: 'Quicksand'; font-weight: 300; font-size: 0.9em;text-decoration: underline;">Temporal Attention (Solar)</p>
+                    <div class="content_graphs_solar"; style="margin: 0 0;">
+                        <div id="my_datavizsolar3" style="position:relative; z-index: 1; transform: translate(0%,20%)"></div>
+                        <div id="my_datavizsolar2"  style=" position:relative; z-index: 5">
+                            <div id="my_datavizsolar4" style="width: 100%; position:absolute; z-index: -1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+            <div class="mySlides">
+                <div class="overflow_mobile">
+                <div id="legenddemand" style=" width: fit-content; transform: translate(-75%,47.5%); float:left; position:absolute;"></div>
+                <div class="card-body" style="margin: 0 0; " id="content_graphs_demand">
+                    <p style="transform: translate(39.5%,100%); font-family: 'Quicksand'; font-weight: 300; font-size: 0.9em;text-decoration: underline;">Temporal Attention (Demand)</p>
+                    <div class="content_graphs_demand"; style="margin: 0 0;">
+                        <div id="my_datavizdemand3" style="position:relative; z-index: 1; transform: translate(0%,20%)"></div>
+                        <div id="my_datavizdemand2"  style=" position:relative; z-index: 5">
+                            <div id="my_datavizdemand4" style="width: 100%; position:absolute; z-index: -1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+            <div class="mySlides">
+                <div class="overflow_mobile">
+                <div id="legendprice" style=" width: fit-content; transform: translate(-75%,47.5%); float:left; position:absolute;"></div>
+                <div class="card-body" style="margin: 0 0; " id="content_graphs_price">
+                    <p style="transform: translate(39.5%,100%); font-family: 'Quicksand'; font-weight: 300; font-size: 0.9em;text-decoration: underline;">Temporal Attention (Day-Ahead Price)</p>
+                    <div class="content_graphs_price"; style="margin: 0 0;">
+                        <div id="my_datavizprice3" style="position:relative; z-index: 1; transform: translate(0%,20%)"></div>
+                        <div id="my_datavizprice2"  style=" position:relative; z-index: 5">
+                            <div id="my_datavizprice4" style="width: 100%; position:absolute; z-index: -1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div> 
+        </div>
+
+            <div class="mySlides">   
+            <div class="overflow_mobile">
+            <div id="legendwind" style=" width: fit-content; transform: translate(-75%,47.5%); float:left; position:absolute;"></div>             
+                <div class="card-body" id="content_graphs_wind">
+                    <p style="transform: translate(39.5%,100%); font-family: 'Quicksand'; font-weight: 300; font-size: 0.9em;text-decoration: underline;">Temporal Attention (Wind) </p>
+                    <div class="content_graphs_wind"; style="margin: 0 0;">
+                        <div id="my_datavizwind3" style="position:relative; z-index: 1; transform: translate(0%,20%)"></div>
+                        <div id="my_datavizwind2"  style=" position:relative; z-index: 5">
+                            <div id="my_datavizwind4" style="width: 100%; position:absolute; z-index: -1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+              <!-- Next and previous buttons -->
+<!--               <a class="prev" onclick="plusSlides(-1)">&#10094;</a>
+              <a class="next" onclick="plusSlides(1)">&#10095;</a> -->
+
+            </div>
+
+            <!-- The dots/circles -->
+            <div style="text-align:center; margin-top:-10px; z-index:3">
+              <a class="prev" style="transform: translate(-40px,0); z-index:5" onclick="plusSlides(-1)">&#10094;</a>
+              <span class="dot" style="transform: z-index:5" onclick="load_attn_graph(1)"></span>
+              <span class="dot" style="transform: z-index:5" onclick="load_attn_graph(2);"></span>
+              <span class="dot" style="transform: z-index:5" onclick="load_attn_graph(3)"></span>
+              <span class="dot" style="transform: z-index:5" onclick="load_attn_graph(4)"></span>
+              <a class="next" style="transform: translate(30px,0); z-index:5" onclick="plusSlides(1)">&#10095;</a>
+            </div>
+            <figcaption style="font-size: 0.8rem; margin-top:15px"><strong>Figure 5: </strong>Temporal Attention Plots (use arrows to cycle through variables)</figcaption>
+
+            <script>
+
+                const ref_array = [ref_solar, ref_demand, ref_price, ref_wind]
+                const heatmap_data = [heatmap_data_solar, heatmap_data_demand, heatmap_data_price, heatmap_data_wind]
+                var ref_load_bool = [true, false, false, false]
+                var slideIndex = 1;
+                showSlides(slideIndex);
+
+                // create function that load attention graph as selected
+                function load_attn_graph(n) {
+                  if (ref_load_bool[n-1] == false) {
+                    context_graph(heatmap_data[n-1], ref_array[n-1])
+                    ref_load_bool[n-1] = true
+                  }
+                  showSlides(slideIndex = n)
+                }
+
+                // Next/previous controls
+                function plusSlides(n) {
+                  showSlides(slideIndex += n);
+                  load_attn_graph(slideIndex)
+                }
+
+                // Thumbnail image controls
+                // function currentSlide(n) {
+                //   showSlides(slideIndex = n);
+                //   // context_graph(heatmap_data, output_data, ref1)
+                // }
+
+                function showSlides(n) {
+                  var i;
+                  var slides = document.getElementsByClassName("mySlides");
+                  var dots = document.getElementsByClassName("dot");
+                  if (n > slides.length) {slideIndex = 1}
+                  if (n < 1) {slideIndex = slides.length}
+                  for (i = 0; i < slides.length; i++) {
+                    slides[i].style.display = "none";
+                  }
+                  for (i = 0; i < dots.length; i++) {
+                    dots[i].className = dots[i].className.replace(" active", "");
+                  }
+
+                  slides[slideIndex-1].style.display = "block";
+                  dots[slideIndex-1].className += " active";
+
+                  // update booleans to ensure no double loading
+
+
+                }        
+
+            </script>
+
+            <p class="main_text" style="margin-top:40px">Examples of temporal attentions, for each variable, are illustrated in figure 5. Generally, among all variables, the temporal attention mechanism assigns a higher degree of focus to the previous daily values. Ideally, it was hypothesised that the model would recognise the most pertinent NWP features from the input sequence, rather as demonstrated for the solar attentions, the mechanism is continuously drawn to the previous day irrelevant to the current NWP provided for the forecasted day, highlighting the model’s propensity to solely focus on the temporal features of the input sequence. Temporal weights for demand and price do show inclinations of further variation but as quantified in table 1, fails to provide a consistent mechanism capable of reflecting a notable uplift in model accuracy. As for the attention generation, the example illustrated in figure 5 is consistent among most predictions, in that the model attentions vary little and focus is given to the last few hours of the input sequence.</p>
+
+
+        <h3 class="subheadings">Conclusion</h3>
+
+        <p class="main_text">Although the novel attention-based sequence-to-sequence model failed to prevail consistent increases in test set accuracy across all variables, the potential of these concepts, in particular RNNs, is still highlighted through promising performance gains when compared to those provided by the TSO. The models and concepts investigated in this post can not only be considered novel in their practical application of the forecasting problem but are becoming dated concepts, especially with the advent of alternative model architectures such as transformers, help to address some of the key fallacies of RNNs and particularly LSTMs. Gradient Boosted Trees (XGBoost) have demonstrated their competence in the forecasting problem, these alongside other advancements will be investigated in future blog posts.</p>
+
+        <p class="main_text">The post helps to highlight the intricacies in model performance when benchmarking probabilistic forecasts and ultimately due to the decision to pursue lesser quality data and divert time away from appropriate pre-processing and cleaning, the quality of results and forecasted quantiles were inherently inhibited from the outset of the study. Nonetheless, promising results were observed among all investigated variables, apart from those of the DA wholesale price forecasting model. The work demonstrates the practical capability of attention mechanisms and the opportunities for encoder-decoder architectures in the probabilistic forecasting problem, the work here will be built upon in further blog posts to build further narrative on the problem and hopefully provide practical results. For further insight into the application of ML to the forecasting problem, it's recommended that the reader checks out the work being done by Open Climate Fix into Solar Nowcasting - <a href="https://www.openclimatefix.org/projects/forecasting/" target="_blank">here</a></p>
+
+        <h3 class="subheadings">Lessons Learned</h3>
+
+        <p class="main_text">As reiterated throughout the post, the premise of the work carried out here is novel and exploratory, deterred from the aim of practical application and rather focused on providing a framework that highlights the potential and approach that the application of sequence-to-sequence models has to probabilistic forecasting. Some of the key learnings and identified shortcomings from study include:</p> 
+        
+        <ul class="main_text" style ="margin-left: 2rem;">
+          <li>Disproportionate amount of attention paid to creation of deep learning architecture, rather than pre-processing of data including cleaning, largest increases in model accuracy could have been captured from well correlation, clean data. </li>
+          <li>Instability between the two attention mechanisms observed during training, in particular spatial attention weights often showed to struggle to convey any variation when combined with the temporal attention mechanism.   </li>
+          <li>Demonstrated use of Keras API with “in-built” many-to-one architecture and associated inference strategy, perhaps an unnecessary use case of the high-level API and rather project may have benefited from the application of more fundamental use cases such as Tensorflow or Pytorch. </li>
+          <li>Ability of Data Generator to shuffle dataset during training could be seen as an additional benefit to increase model accuracy. </li>
+          <li>Constraints added by the handling of 2D spatial data make it difficult to preform effective hyperparameter tuning.</li>
+          <li>Insightfulness of study could be broadened by analysing additional ML architectures alongside the variations of RNNs examined here.</li>
+        </ul>       
+                   
+
+        <h3 class="subheadings"> Resources</h3>
+        <ol class="main_text" style ="margin-left: 1rem;">
+          <li><a href="https://www.elexon.co.uk/documents/training-guidance/bsc-guidance-notes/bmrs-api-and-data-push-user-guide-2/" target="_blank">https://www.elexon.co.uk/documents/training-guidance/bsc-guidance-notes/bmrs-api-and-data-push-user-guide-2/</a></li>
+          <li><a href="https://open-power-system-data.org" target="_blank">https://open-power-system-data.org</a></li>
+          <li><a href="https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly" target="_blank">https://stanford.edu/~shervine/blog/keras-how-to-generate-data-on-the-fly</a></li>
+          <li><a href="https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-pressure-levels?tab=overview" target="_blank">https://cds.climate.copernicus.eu/cdsapp#!/dataset/reanalysis-era5-pressure-levels?tab=overview</a></li>
+          <li><a href="https://colah.github.io/posts/2015-08-Understanding-LSTMs" target="_blank">https://colah.github.io/posts/2015-08-Understanding-LSTMs</a></li>
+          <li><a href="https://blog.keras.io/a-ten-minute-introduction-to-sequence-to-sequence-learning-in-keras.html" target="_blank">https://blog.keras.io/a-ten-minute-introduction-to-sequence-to-sequence-learning-in-keras.html</a></li>
+          <li><a href="https://colab.research.google.com/github/kmkarakaya/ML_tutorials/blob/master/seq2seq_Part_D_Encoder_Decoder_with_Teacher_Forcing.ipynb" target="_blank">https://colab.research.google.com/github/kmkarakaya/ML_tutorials/blob/master/seq2seq_Part_D_Encoder_Decoder_with_Teacher_Forcing.ipynb</a></li>
+        </ol>
+
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+{%endblock%}
