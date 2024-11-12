@@ -1,0 +1,228 @@
+{% extends "base.html" %} 
+{% block title %}About Me{% endblock %}
+{% block metatag %} 
+<meta name="description" content="This section gives a professional overview of a Data Scientist's experience within the Energy Industry, covering problems related to energy markets, technology and policy.">
+{% endblock metatag %}
+{% load static  %}
+{% block content %}
+
+<style>
+
+    body {
+        font-family: "Quicksand";
+        font-size: 18px;
+        background-color: #ffffff !important;
+        line-height: 30px;
+    }
+
+    .d-flex {
+        display: -ms-flexbox !important;
+        display: flex !important;
+        
+    }
+
+    .profile-img {
+        border-radius: 1em !important;
+        margin-right: 15%;
+
+    }
+
+    .card {
+        border-radius: 1em;
+        /*align-items: center;*/
+
+    }
+
+    .profile-text {
+        display: block;
+        /*float: right;*/
+        /*vertical-align: middle;*/
+        /*align-self: center;*/
+        margin-right: 125px;
+        position: relative;
+        align-items: center;
+
+    }
+
+    .list {
+        list-style: none;
+        margin: 0px;
+        padding: 0px;
+        
+    }
+
+    .column-img {
+      /*float: left;*/
+      /*width: 100%;*/
+      padding: none;
+      /*display: flex !important;*/
+/*      margin-right: auto;
+      margin-left: auto;*/
+      /*align-items: center;*/
+    }
+
+    .collapsible {
+      background-color: #D3D3D3;
+      color: white;
+      cursor: pointer;
+      padding: 18px;
+      width: 100%;
+      border: none;
+      text-align: left;
+      outline: none;
+      font-size: 20px;
+    }
+
+    .active, .collapsible:hover {
+      background-color: #555;
+    }
+
+    .collapsible:after {
+      content: '\002B';
+      color: white;
+      font-weight: bold;
+      float: right;
+      margin-left: 5px;
+    }
+
+    .active:after {
+      content: "\2212";
+    }
+
+    .content {
+      padding: 0 18px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease-out;
+      background-color: #f1f1f1;
+    }
+
+
+    .lnr {
+        font-family: 'Linearicons-Free';
+        speak: none;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+        text-transform: none;
+        line-height: 1;
+        -webkit-font-smoothing: antialiased;
+    }
+
+
+    @media screen and (max-width: 767px) {
+        .img-fluid {
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+
+    }
+
+
+
+
+
+
+
+</style>
+
+<div class="card mb-3" style="max-width: 1200px; width: 100%;margin:auto auto; margin-top: 50px; padding:10px">
+  <div class="row g-0">
+    <div class="col-md-4">
+      <img
+        src="{% static 'image/Profile_Image.jpeg'%}"
+        alt="..."
+        class="img-fluid"
+        style="border-radius: 0.5em;"
+      />
+    </div>
+    <div class="col-md-8">
+      <div class="card-body" style="align-items: center">
+        <!-- <img src="{% static '/image/WindTurbine.gif' %}"> -->
+        <!-- <h6 class="card-title" style="margin-bottom: 0px; margin-top: 30px">HI, I'M</h6> -->
+        <h2 class="card-title">RICHARD FINDLAY</h2>
+        <p class="card-text" style="font-size: 16px; text-align:justify; margin-right: 30px; margin-left: 0px; margin-top:20px; margin-bottom:auto">
+          Data scientist with experience in energy trading, energy storage, wind farm development as well as energy usage in our built environment, I've had the opportunity to develop a holistic understanding of energy systems. From upstream development to the downstream optimisation, I've witnessed the rapid transition of the UK energy system since I started my career in 2017. Throughout this time, I gained a particular interest into the application of data-driven techniques within the energy industry, recognising it's potential to not only further innovate and disrupt traditional practices but it's importance to progressively upholding each aspect of the energy trilemma whilst the governing centralised architecture of world’s grids move to become more distributed, decentralised networks. As the advent of Artificial Intelligence / Machine Learning algorithms begin to become more common place within the industry, it’s hoped that this blog will help to provide commentary and practical narration of their influence on markets, technology and policy of energy and climate change.  
+        </p>
+        <ul class="list basic_info" style="font-size: 16px; text-align:center; margin-top:60px">
+            <li></i> <a style="font-size: 20px">📧 </a><a style="font-size: 15px"> rfindlay1992@gmail.com</a></li>
+            <li></i> <a style="font-size: 20px">🏠 </a><a style="font-size: 15px"> Perth, Scotland</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- <div class="card mb-3" style="max-width: 1200px; width: 100%;margin:auto auto; margin-top: 25px; padding:10px; border:none;  margin-bottom: 0px">
+    <svg width="100%" height="10" >
+      <line x1="10%" y1="0" x2="90%" y2="0" style="stroke:rgb(0,0,0);stroke-width:1.0" />
+      <h2 class="card-title" style="text-align: center; transform: translate(0%, -75%); background-color: #ffffff; padding-left:20px; padding-right:20px; margin-bottom: 0px ">EDUCATION</h2>
+    </svg>
+</div>
+ -->
+
+<!-- <div class="card mb-3" style="max-width: 1200px; width: 100%;margin:auto auto; padding:0px; transform: translate(0%, -12.5%)">
+      <div class="card-body">
+            <p class="card-text"><strong>2015-2016</strong> - MPhil Energy Technologies, University of Cambridge</p>
+            <p class="card-text"><strong>2010-2015</strong> - MEng Architectural Engineering, Heriot-Watt University</p>
+    </div> 
+</div> -->
+
+<!-- <div class="card mb-3" style="max-width: 1200px; width: 100%;margin:auto auto; margin-top: 25px; padding:10px; border:none;  margin-bottom: 0px">
+  <button class="collapsible">Online Courses</button>
+  <div class="content">
+  <ul class="list basic_info">
+      <li><strong>2020</strong> - Machine Learning Coursea (Stanford University) - <a href="https://coursera.org/share/e6044f4aa5c1cfdf0561cec932e5430c" target="_blank">certificate</a></li>
+      <li><strong>2020</strong> - Deep Learning Specialisation Coursea (DeepLearning.AI) - <a href="https://coursera.org/share/69b4a99a90e5037d325f6968b15e0c61" target="_blank">certificate</a></li>
+      <li><strong>2020</strong> - Reinforcement Learning Specialisation Coursea (University of Alberta, Alberta Machine Intelligence Institute) - <a href="https://coursera.org/share/d5103d0cecd79ffd154083bfac342599" target="_blank">certificate</a></li>
+      <li><strong>2021</strong> - Generative Adversial Networks (GANs) Specialisation Coursea (DeepLearning.AI) -<a href="https://coursera.org/share/3f12345c2d4cedfb6c254964d8bad99a" target="_blank">certificate</a></li>
+  </ul>
+  </div>
+</div> -->
+
+
+<script>
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.maxHeight){
+      content.style.maxHeight = null;
+    } else {
+      content.style.maxHeight = content.scrollHeight + "px";
+    } 
+  });
+}
+</script>
+
+
+<!-- 
+<div class="card mb-3" style="max-width: 1200px; width: 100%;margin:auto auto; margin-top: 25px; padding:10px; border:none;  margin-bottom: 0px">
+    <svg width="100%" height="10" >
+      <line x1="10%" y1="0" x2="90%" y2="0" style="stroke:rgb(0,0,0);stroke-width:1.0" />
+      <h2 class="card-title" style="text-align: center; transform: translate(0%, -75%); background-color: #ffffff; padding-left:20px; padding-right:20px; margin-bottom: 0px ">AWARDS & ACCOLADES</h2>
+    </svg>
+</div>
+ -->
+
+<!-- 
+<div class="progress_br">
+<div class="progress">
+<div class="progress-bar" role="progressbar" aria-valuenow="85" aria-valuemin="0" aria-valuemax="100" style="width: 85%;"></div>
+</div>
+</div>
+
+
+
+
+
+
+
+
+{%endblock%}
+
+
+
