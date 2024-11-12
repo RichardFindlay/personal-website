@@ -1,4 +1,8 @@
 venv/
+bin/
+include/
+lib/
+share/
 media/
 static/
 node/
