@@ -39,7 +39,7 @@ def get_blog_posts():
 # get list of thumbnail pictures
 def get_thumbnails():
 	thumbnails = []
-	for (dirpath,dirnames, filenames) in walk('./blog/static/image/thumbnails'):	
+	for (dirpath,dirnames, filenames) in walk('./thumbnails'):	
 		thumbnails.extend(filenames)	
 		break
 
