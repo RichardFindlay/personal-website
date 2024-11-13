@@ -12,8 +12,6 @@ for (dirpath,dirnames, filenames) in walk('./templates/posts'):
 	break
 
 
-
-
 # create list of blog posts 
 def get_blog_posts():
 	posts_ = []
@@ -57,15 +55,15 @@ def get_thumbnails():
 
 # Create your views here.
 class PostList(generic.ListView):
-    queryset = Post.objects.filter(status=1).order_by('-created_on')
-    template_name = 'index.html'
+	queryset = Post.objects.filter(status=1).order_by('-created_on')
+	template_name = 'index.html'
 
-    def get_context_data(self, **kwargs):
-	    data = super().get_context_data(**kwargs)
-	    data['blog_post_names'] = get_blog_posts()
-	    data['thumbnails'] = get_thumbnails()
+	def get_context_data(self, **kwargs):
+		data = super().get_context_data(**kwargs)
+		data['blog_post_names'] = get_blog_posts()
+		data['thumbnails'] = get_thumbnails()
 
-	    return data
+		return data
 
 
 
