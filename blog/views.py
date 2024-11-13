@@ -17,7 +17,6 @@ def get_blog_posts():
 	posts_ = []
 	for (dirpath,dirnames, filenames) in walk('./templates/posts'):	
 		posts_.extend(filenames)
-		print(posts_)
 		break
 
 	post_names = [files[:-5] for files in filenames]
@@ -28,6 +27,8 @@ def get_blog_posts():
 
 	# sort list in descending order - to parallel created sort
 	post_names.sort(key=lambda x: int(x[-1]), reverse=True)
+
+	print(post_names)
 
 	return post_names
 
