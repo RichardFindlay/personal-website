@@ -49,8 +49,6 @@ def get_thumbnails():
 
 	thumbnails.sort(key=lambda x: int(x[-5]), reverse=True)
 
-	print(thumbnails)
-
 	return thumbnails
 
 
@@ -84,8 +82,6 @@ def get_post_views():
 			def post(request, i = i):
 				return render(request, './posts/%s' %posts[i])
 			post_views.append(post)
-
-	print(post_views)
 
 	return post_views
 
