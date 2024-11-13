@@ -85,6 +85,8 @@ def get_post_views():
 				return render(request, './posts/%s' %posts[i])
 			post_views.append(post)
 
+	print(post_views)
+
 	return post_views
 
 
