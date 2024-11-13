@@ -39,12 +39,13 @@ if ENVIRONMENT == 'development':
 else:
     DEBUG = False
 
-ALLOWED_HOSTS = ['0.0.0.0', '127.0.0.1', '192.168.1.72']
-# ALLOWED_HOSTS = ['www.richardfindlay.co.uk', 'richardfindlay.co.uk']
+# ALLOWED_HOSTS = ['0.0.0.0', '127.0.0.1', '192.168.1.72']
+ALLOWED_HOSTS = ['0.0.0.0', '127.0.0.1', '192.168.1.72', 'www.richardfindlay.co.uk', 'richardfindlay.co.uk', 'personal-website-production-31ce.up.railway.app']
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = False 
 CSRF_COOKIE_SECURE = False
+CSRF_TRUSTED_ORIGINS = ['https://personal-website-production-31ce.up.railway.app']
 
 
 # Application definition
@@ -96,16 +97,36 @@ WSGI_APPLICATION = 'mysite.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/3.0/ref/settings/#databases
 
-DATABASES = {
+
+
+POSTGRES_LOCALLY = False
+if ENVIRONMENT == 'production' or POSTGRES_LOCALLY == True:
+    # DATABASES['default'] = dj_database_url.parse(env('DATABASE_URL'))
+
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=env('DATABASE_URL'),
+        )
+    }
+
+    # DATABASES = {
+    #     'default': {
+    #         'ENGINE': 'django.db.backends.postgresql',
+    #         'NAME': env('DB_NAME'),
+    #         'USER': env('DB_USER_NAME'),
+    #         'PASSWORD': env('DB_PASS'),
+    #         'HOST': 'postgres-h0zg.railway.internal',  # The database hostname
+    #         'PORT': '5432',  # Default PostgreSQL port; change if necessary
+    #     }
+    # }
+
+else:
+    DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
     }
 }
-
-POSTGRES_LOCALLY = True
-if ENVIRONMENT == 'production' or POSTGRES_LOCALLY == True:
-    DATABASES['default'] = dj_database_url.parse(env('DATABASE_URL'))
 
 
 # Password validation
