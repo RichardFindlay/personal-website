@@ -28,8 +28,6 @@ def get_blog_posts():
 	# sort list in descending order - to parallel created sort
 	post_names.sort(key=lambda x: int(x[-1]), reverse=True)
 
-	print(post_names)
-
 	return post_names
 
 
@@ -50,6 +48,8 @@ def get_thumbnails():
 			del thumbnails[idx]
 
 	thumbnails.sort(key=lambda x: int(x[-5]), reverse=True)
+
+	print(thumbnails)
 
 	return thumbnails
 
