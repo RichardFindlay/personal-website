@@ -17,6 +17,7 @@ def get_blog_posts():
 	posts_ = []
 	for (dirpath,dirnames, filenames) in walk('./templates/posts'):	
 		posts_.extend(filenames)
+		print(posts_)
 		break
 
 	post_names = [files[:-5] for files in filenames]
