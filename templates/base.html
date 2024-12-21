@@ -172,9 +172,15 @@
                 </button>
                 <div class="collapse navbar-collapse" id="navbarResponsive">
                     <ul class="navbar-nav ms-auto w-100 justify-content-end">
-                        <li class="nav-item text-black">
-                            <!-- <a class="navbar-brand" style="padding-left: 10px; font-size: 0.9em;" href="{% url 'about' %}">Resources</a> -->
-                            <!-- <span class="about-circle"></span> -->
+                        <li class="nav-item dropdown text-black">
+                            <a class="navbar-brand dropdown-toggle" style="padding-left: 10px; font-size: 0.9em;" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                Resources
+                            </a>
+                            <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <a class="dropdown-item" href="{% url 'resource1' %}">Resource 1</a>
+                                <a class="dropdown-item" href="{% url 'resource2' %}">Resource 2</a>
+                                <a class="dropdown-item" href="{% url 'resource3' %}">Resource 3</a>
+                            </div>
                         </li>
                         <li class="nav-item text-black">
                              <a class="navbar-brand" style="padding-left: 10px; font-size: 0.9em;" href="{% url 'about' %}">About Me</a>
