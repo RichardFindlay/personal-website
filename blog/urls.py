@@ -39,6 +39,7 @@ urlpatterns = [
     path('', views.PostList.as_view(), name='home'),
     # path('<slug:slug>/', views.PostDetail.as_view(), name='post_detail'),
     path('about', views.AboutMe, name='about'),
+    path('reading', views.ReadingList, name='reading'),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}),
     path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain'))
 ] + posts #+ staticfiles_urlpatterns()

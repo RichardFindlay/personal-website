@@ -70,6 +70,9 @@ class PostList(generic.ListView):
 def AboutMe(request):
     return render(request, 'about.html')
 
+def ReadingList(request):
+    return render(request, 'reading_list.html')
+
 
 # function to retrieve 
 def get_post_views():
