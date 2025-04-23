@@ -1,0 +1,343 @@
+{% extends "base.html" %} 
+{% block title %}Reading List{% endblock %}
+{% block metatag %} 
+<meta name="description" content="This section gives a professional overview of a Data Scientist's experience within the Energy Industry, covering problems related to energy markets, technology and policy.">
+{% endblock metatag %}
+{% load static  %}
+{% block content %}
+
+<style>
+
+    body {
+        font-family: "Quicksand";
+        font-size: 18px;
+        background-color: #ffffff !important;
+        line-height: 30px;
+    }
+
+    .d-flex {
+        display: -ms-flexbox !important;
+        display: flex !important;
+        
+    }
+
+    .profile-img {
+        border-radius: 1em !important;
+        margin-right: 15%;
+
+    }
+
+    .card {
+        border-radius: 1em;
+        /*align-items: center;*/
+
+    }
+
+    .profile-text {
+        display: block;
+        /*float: right;*/
+        /*vertical-align: middle;*/
+        /*align-self: center;*/
+        margin-right: 125px;
+        position: relative;
+        align-items: center;
+
+    }
+
+    .list {
+        list-style: none;
+        margin: 0px;
+        padding: 0px;
+        
+    }
+
+    .column-img {
+      /*float: left;*/
+      /*width: 100%;*/
+      padding: none;
+      /*display: flex !important;*/
+/*      margin-right: auto;
+      margin-left: auto;*/
+      /*align-items: center;*/
+    }
+
+    .collapsible {
+      background-color: #D3D3D3;
+      color: white;
+      cursor: pointer;
+      padding: 18px;
+      width: 100%;
+      border: none;
+      text-align: left;
+      outline: none;
+      font-size: 20px;
+    }
+
+    .active, .collapsible:hover {
+      background-color: #555;
+    }
+
+    .collapsible:after {
+      content: '\002B';
+      color: white;
+      font-weight: bold;
+      float: right;
+      margin-left: 5px;
+    }
+
+    .active:after {
+      content: "\2212";
+    }
+
+    .content {
+      padding: 0 18px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease-out;
+      background-color: #f1f1f1;
+    }
+
+
+    .lnr {
+        font-family: 'Linearicons-Free';
+        speak: none;
+        font-style: normal;
+        font-weight: normal;
+        font-variant: normal;
+        text-transform: none;
+        line-height: 1;
+        -webkit-font-smoothing: antialiased;
+    }
+
+
+    @media screen and (max-width: 767px) {
+        .img-fluid {
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+
+    }
+
+</style>
+
+<div class="card mb-3" style="max-width: 1200px; width: 100%;margin: auto; margin-top: 50px; padding: 15px;">
+  <div class="row g-0">
+    <div class="col-md-12">
+      <div class="card-body" style="align-items: center;">
+        <h2 class="card-title">Reading List</h2>
+        <div class="row">
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Inside-Black-Box-Third-High-Frequency/dp/1119931894/ref=pd_vtp_d_sccl_1_1/259-2610979-9144850?pd_rd_w=382bq&content-id=amzn1.sym.e1b012f9-a2d8-4786-8113-bd0f31ac121d&pf_rd_p=e1b012f9-a2d8-4786-8113-bd0f31ac121d&pf_rd_r=WRSF0F96R8FSPWNREVJN&pd_rd_wg=Xl6xS&pd_rd_r=300c25a5-9442-487f-b2f9-fb4c172a571a&pd_rd_i=1119931894&psc=1" target="_blank">
+              <img
+                src="{% static 'image/books/book_0.jpg'%}"
+                alt="Book 1"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Quantitative-Energy-Finance-Modeling-Commodity/dp/1461472474" target="_blank">
+              <img
+                src="{% static 'image/books/book_1.jpg'%}"
+                alt="Book 1"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Python-Algorithmic-Trading-Cookbook-algorithmic/dp/1835084702" target="_blank">
+              <img
+                src="{% static 'image/books/book_00.jpg'%}"
+                alt="Book 1"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Energy-Trading-Risk-Management-Diversification/dp/1118339339/ref=asc_df_1118339339?mcid=65cb77cd9c793603bfbc340eba827437&th=1&psc=1&tag=googshopuk-21&linkCode=df0&hvadid=696883244320&hvpos=&hvnetw=g&hvrand=11329329241047673576&hvpone=&hvptwo=&hvqmt=&hvdev=c&hvdvcmdl=&hvlocint=&hvlocphy=1007383&hvtargid=pla-435427684235&psc=1&gad_source=1" target="_blank">
+              <img
+                src="{% static 'image/books/book_2.jpg'%}"
+                alt="Book 2"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Quantitative-Trading-Build-Algorithmic-Business/dp/0470284889/ref=asc_df_0470284889?mcid=d677d11f4e83309183bfc6f7bc024540&th=1&psc=1&tag=googshopuk-21&linkCode=df0&hvadid=697211257126&hvpos=&hvnetw=g&hvrand=752877527586848249&hvpone=&hvptwo=&hvqmt=&hvdev=c&hvdvcmdl=&hvlocint=&hvlocphy=1007383&hvtargid=pla-332660848533&psc=1&gad_source=1" target="_blank">
+              <img
+                src="{% static 'image/books/book_3.jpg'%}"
+                alt="Book 3"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Energy-Trading-Investing-2E-PB/dp/1265915873/ref=asc_df_1265915873?mcid=54be593f2d6c39939128305a943078ec&th=1&psc=1&tag=googshopuk-21&linkCode=df0&hvadid=697279941814&hvpos=&hvnetw=g&hvrand=12330258388922776397&hvpone=&hvptwo=&hvqmt=&hvdev=c&hvdvcmdl=&hvlocint=&hvlocphy=1007383&hvtargid=pla-2185872659020&psc=1&gad_source=1" target="_blank">
+              <img
+                src="{% static 'image/books/book_4.jpg'%}"
+                alt="Book 4"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Data-Science-Wind-Energy-Ding/dp/1138590525" target="_blank">
+              <img
+                src="{% static 'image/books/book_5.jpg'%}"
+                alt="Book 5"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Advances-Financial-Machine-Learning-Marcos/dp/1119482089" target="_blank">
+              <img
+                src="{% static 'image/books/book_6.jpeg'%}"
+                alt="Book 6"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Machine-Learning-Design-Patterns-Preparation/dp/1098115783" target="_blank">
+              <img
+                src="{% static 'image/books/book_7.jpg'%}"
+                alt="Book 6"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Hands-Machine-Learning-Scikit-Learn-TensorFlow/dp/1492032646" target="_blank">
+              <img
+                src="{% static 'image/books/book_8.jpg'%}"
+                alt="Book 6"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Practical-MLOps-Operationalizing-Machine-Learning/dp/1098103017" target="_blank">
+              <img
+                src="{% static 'image/books/book_9.jpg'%}"
+                alt="Book 6"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/PyTorch-Pocket-Reference-Building-Deploying/dp/149209000X" target="_blank">
+              <img
+                src="{% static 'image/books/book_10.jpg'%}"
+                alt="Book 6"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 80%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Effective-Python-Specific-Software-Development/dp/0134853989/ref=asc_df_0134853989?mcid=18abea283ce7300b9e727839193f6034&th=1&psc=1&tag=googshopuk-21&linkCode=df0&hvadid=697250157568&hvpos=&hvnetw=g&hvrand=5788750124423337469&hvpone=&hvptwo=&hvqmt=&hvdev=c&hvdvcmdl=&hvlocint=&hvlocphy=1007383&hvtargid=pla-900154504927&psc=1&gad_source=1" target="_blank">
+              <img
+                src="{% static 'image/books/book_11.jpg'%}"
+                alt="Book 6"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Mastering-PyTorch-powerful-architectures-advanced/dp/1789614384" target="_blank">
+              <img
+                src="{% static 'image/books/book_12.jpg'%}"
+                alt="Book 6"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Hundred-Page-Machine-Learning-Book/dp/1777005477/ref=asc_df_1777005477?mcid=b0a23315f47838f884e1a49d769bbdbb&th=1&psc=1&tag=googshopuk-21&linkCode=df0&hvadid=696450770360&hvpos=&hvnetw=g&hvrand=12092606724701641483&hvpone=&hvptwo=&hvqmt=&hvdev=c&hvdvcmdl=&hvlocint=&hvlocphy=1007383&hvtargid=pla-1600676298195&psc=1&gad_source=1" target="_blank">
+              <img
+                src="{% static 'image/books/book_13.jpg'%}"
+                alt="Book 6"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Deep-Reinforcement-Learning-Hands-optimization/dp/1838826998" target="_blank">
+              <img
+                src="{% static 'image/books/book_14.jpg'%}"
+                alt="Book 6"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+          <div class="col-md-3" style="padding: 0 0.5em;">
+            <a href="https://www.amazon.co.uk/Machine-Learning-PyTorch-Scikit-Learn-learning-ebook/dp/B09NW48MR1" target="_blank">
+              <img
+                src="{% static 'image/books/book_15.jpg'%}"
+                alt="Book 6"
+                class="img-fluid"
+                style="border-radius: 0.5em; width: 100%; height: auto; object-fit: contain; margin-bottom: 20px;" 
+              />
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+<script>
+var coll = document.getElementsByClassName("collapsible");
+var i;
+
+for (i = 0; i < coll.length; i++) {
+  coll[i].addEventListener("click", function() {
+    this.classList.toggle("active");
+    var content = this.nextElementSibling;
+    if (content.style.maxHeight){
+      content.style.maxHeight = null;
+    } else {
+      content.style.maxHeight = content.scrollHeight + "px";
+    } 
+  });
+}
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+{%endblock%}
+
+
+
