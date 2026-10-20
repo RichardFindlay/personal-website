@@ -1,6 +1,5 @@
-User-Agent: Googlebot
-User-Agent: Bingbot
-
-Allow: *
+User-agent: *
+Allow: /
+Disallow: /admin/
 
 Sitemap: https://richardfindlay.co.uk/sitemap.xml

@@ -4,7 +4,7 @@ from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from os import walk
 from django.conf import settings
 from django.contrib.sitemaps.views import sitemap
-from .sitemaps import StaticSitemap, BlogPosts #import StaticSitemap
+from .sitemaps import PageSitemap
 from django.views.generic.base import TemplateView
 
 template_dir = settings.TEMPLATE_DIR
@@ -30,8 +30,7 @@ posts = [path('%s' %post_name, post_views[idx], name='%s' %post_name) for idx, p
 
 # config sitemaps
 sitemaps = {
-    'static': StaticSitemap,
-    'blogposts': BlogPosts, 
+    'pages': PageSitemap,
 }
 
 
