@@ -37,7 +37,7 @@ PAGES = {page.path: page for page in [
 	),
 	Page(
 		path="/reading",
-		title="Reading List: Energy, Climate & AI | Richard Findlay",
+		title="Reading List: Energy Trading, Finance & AI | Richard Findlay",
 		description="Books on energy trading and risk management, quantitative energy finance, algorithmic trading, machine learning, deep reinforcement learning and MLOps.",
 		kind="website",
 		image=DEFAULT_IMAGE,
