@@ -1,10 +1,12 @@
 {% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en-GB">
 
     <head>
-        <title>{% block title %}Richard Findlay - Personal Website Dedicated to the Appliction of Data Science in Energy{% endblock %}</title>
-        {% block metatag %} {% endblock metatag %}
+        <meta charset="UTF-8">
+        <title>{{ seo_page.title }}</title>
+        <meta name="description" content="{{ seo_page.description }}">
+        <link rel="canonical" href="{{ canonical_url }}">
         <!-- Global site tag (gtag.js) - Google Analytics -->
         <script async src="https://www.googletagmanager.com/gtag/js?id=G-XC3XLQBL96"></script>
         <script>
@@ -25,26 +27,27 @@
         <script src="https://d3js.org/d3.v4.js"></script>
         <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
         <script src="https://d3js.org/d3-selection-multi.v0.4.min.js"></script>
-        <meta charset="UTF-8">
         <link rel="stylesheet" href="https://cdn.linearicons.com/free/1.0.0/icon-font.min.css">
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 
-        <!-- Primary Meta Tags -->
-        <meta name="title" content="Richard Findlay - Personal Website Dedicated to the Appliction of Data Science in Energy">
-
         <!-- Open Graph / Facebook -->
-        <meta property="og:type" content="website">
-        <meta property="og:url" content="https://richardfindlay.co.uk/">
-        <meta property="og:title" content="Richard Findlay - Personal Website Dedicated to the Appliction of Data Science in Energy">
-        <meta property="og:description" content="Energy | Climate Change | Artificial Intelligence">
-        <meta property="og:image" content="https://raw.githubusercontent.com/RichardFindlay/personal-website/main/social_4.png">
+        <meta property="og:type" content="{{ seo_page.kind }}">
+        <meta property="og:url" content="{{ canonical_url }}">
+        <meta property="og:title" content="{{ seo_page.title }}">
+        <meta property="og:description" content="{{ seo_page.description }}">
+        <meta property="og:image" content="{{ seo_page.image }}">
+        <meta property="og:site_name" content="Richard Findlay">
+        <meta property="og:locale" content="en_GB">
+        {% if seo_page.published %}<meta property="article:published_time" content="{{ seo_page.published|date:'Y-m-d' }}">{% endif %}
 
         <!-- Twitter -->
         <meta name="twitter:card" content="summary_large_image">
-        <meta name="twitter:url" content="https://richardfindlay.co.uk/">
-        <meta name="twitter:title" content="Richard Findlay - Personal Website Dedicated to the Appliction of Data Science in Energy">
-        <meta name="twitter:description" content="Energy | Climate Change | Artificial Intelligence">
-        <meta name="twitter:image" content="https://raw.githubusercontent.com/RichardFindlay/personal-website/main/social_4.png">
+        <meta name="twitter:site" content="@__RichFind__">
+        <meta name="twitter:title" content="{{ seo_page.title }}">
+        <meta name="twitter:description" content="{{ seo_page.description }}">
+        <meta name="twitter:image" content="{{ seo_page.image }}">
+
+        {% if json_ld %}<script type="application/ld+json">{{ json_ld }}</script>{% endif %}
 
         <!-- icons for tab and other stuff -->
         <link rel="apple-touch-icon" sizes="60x60" href="https://raw.githubusercontent.com/RichardFindlay/personal-website/main/favicon_package_v2/apple-touch-icon-60x60.png">
