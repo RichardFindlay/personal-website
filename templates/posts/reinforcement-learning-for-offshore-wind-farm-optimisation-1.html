@@ -224,7 +224,7 @@ window.MathJax = {
             <script type="IN/Share" data-url={{ request.get_full_path }}></script></a>
         </div>
             <div>
-                <img src="{% static 'image/Post_1/full_wake_steering_animation_screenshot.png'%}" style="" class="title-img">
+                <img src="{% static 'image/Post_1/full_wake_steering_animation_screenshot.png'%}" alt="FLORIS wake plots for three offshore wind turbines with yaw offsets of 25, 20 and 0 degrees, above charts of wind farm power, turbine yaw angles, reward and individual turbine power over time" style="" class="title-img">
                 <figcaption style="font-size: 0.8rem;"><strong>Figure 1:</strong> Animation freeze frame, illustrating the yaw mis-alignment relative to changing wind-speeds</figcaption>
             </div>
             
@@ -273,7 +273,7 @@ window.MathJax = {
 
             <p class="main_text">In order to optimise the turbines with a conventional Q-learning algorithm, the state space was discretised, allowing for state-values to be predicted from pre-determined yaw-angle increments, referred to as \({\Delta}{\gamma}\) through this post. As seen in figure 1 the simulated environment consists of three turbines, although a simplified layout the approach detailed can be scaled to larger layouts. In practice turbines could be clustered relative to the prevailing wind direction and wake steering optimised independently within grouped turbines.</p>
 
-            <img src="{% static 'image/Post_1/q_learning_training.png'%}" class="title-img">
+            <img src="{% static 'image/Post_1/q_learning_training.png'%}" alt="Line chart of wind farm power during Q-learning training, comparing a static environment with a yaw step of 0.5 against a quasi-dynamic environment with a yaw step of 5.0" class="title-img">
             <figcaption style="font-size: 0.8rem;"><strong>Figure 2: </strong>Optimised Q-Learning Algorithms: static and quasi-dynamic environments with different \({\Delta}g\) values)</figcaption>
 
             <p class="main_text">Figure 2 illustrates wind farm power output during the optimisation of the Q-Learning algorithm for both the static and quasi-dynamic environments. To illustrate the stepped progression of the dynamic environment a higher yaw rate (\({\Delta}{\gamma}\)) of 5.0 was applied during training, this helped to find an optimised solution faster, comprising on the additional runtimes observed from the wake propagation strategy. This is opposed to the static environment in which a \({\Delta}{\gamma} = 0.5\) was adopted and as can be observed results in ~3.1% uplift when compared to the quasi-dynamic environment.</p>

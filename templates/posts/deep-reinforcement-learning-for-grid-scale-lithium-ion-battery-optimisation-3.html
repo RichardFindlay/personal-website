@@ -389,7 +389,7 @@ window.MathJax = {
             <p style="text-align:justify; line-height: 1.6;">The battery model helps to add further degrees of practicality to the problem by invoking a steady state circuit model representation for calculating lithium-ion battery efficiency, creating a non-linear approximation of efficiency for each timestep relative to the current action and SoC (state-of-charge), a variable that is often assumed to be steady-state in most other models. The charging and discharging efficiencies relative to respective power and SoC are visualised in figure 2, for further details on calculation refer to either <a href=" https://eprints.keele.ac.uk/8408/1/final_submitted_energy_storage_arbitrage_using_DRL%20(7).pdf " target="_blank"> Cao et al. (2019)</a> or the coded implementation on <a href=" https://github.com/RichardFindlay/battery-optimisation-with-rl " target="_blank"> github</a>.</p>
 
             <div>
-                <img src="{% static 'image/Post_3/efficiency_plots.png'%}" style="width: 90%;" class="center_img">
+                <img src="{% static 'image/Post_3/efficiency_plots.png'%}" alt="3D surface plots of lithium-ion battery discharge and charge efficiency against state of charge and power" style="width: 90%;" class="center_img">
                 <figcaption style="font-size: 0.8rem;"><strong>Figure 2: </strong>Charge and Discharge Efficiency of Li-ion Battery with Respect to SoC and Power</figcaption> 
             </div>
 
@@ -452,21 +452,21 @@ window.MathJax = {
             <p style="text-align:justify; line-height: 1.6;">The training reward profiles for the DQN algorithms are illustrated in figure 3. A marginal improvement in reward out-turn and rate of convergence can be observed between the vanilla and double dueling implementations. This may reflect the standard vanilla DQN's capability to optimise the scenario, as it would be expected that such updates would result in a more accentuated uplift. Advances in learning stability may also be obscured by the soft-update methodology inherent in the baseline scenario. The noisy networks architecture prevails as the most efficient, in terms of training, reaching convergence almost 4000 episodes before the other DQN frameworks, the noisy exploration strategy also shows a reward attainment similar to that of the double dueling DQN algorithm. The cyclic training around the 1-year of training data can also be observed from the uniform volatility evident, for all approaches, after convergence.</p>
 
             <div>
-                <img src="{% static 'image/Post_3/rewards_comparison_plot.png'%}" style="width: 100%;" class="center_img">
+                <img src="{% static 'image/Post_3/rewards_comparison_plot.png'%}" alt="Line chart of training reward per episode for vanilla, double dueling and noisy network DQN agents" style="width: 100%;" class="center_img">
                 <figcaption style="font-size: 0.8rem;"><strong>Figure 3: </strong>Training Reward Performance for DQN Agents (50 episode rolling average)</figcaption> 
             </div>
 
             <p style="text-align:justify; line-height: 1.6; margin-top: 1.5rem;">Figure 4 depicts the cumulative profit for each of DQN iterations over the 2019 inference period along with the performance of the MILP model for the same period. With a ~95% uplift in cumulative profit observed between the baseline MILP and vanilla DQN performance, the opportunity of DRL is made evident. The divergence in which the extensions to the DQN baseline become more evident in terms of their uplift in cumulative profit is in the latter section of the year which could be an indication of the algorithm's ability to better recognise the variation in degradation costs over time, with double dueling prevailing as the most lucrative performer in terms of cumulative returns. The timeseries performance of the double dueling algorithm over the inference period are given in figure 1, it can be observed that the optimisation can fail to capture the definitive peaks and troughs for a given period, reflecting the opportunity for further refinement and possibility of other DQN extensions and DRL techniques. It was found that during training, the outturn of the best update was susceptible to the utilised training year, in that following the same strategy and training data outlined by <a href=" https://eprints.keele.ac.uk/8408/1/final_submitted_energy_storage_arbitrage_using_DRL%20(7).pdf " target="_blank"> Cao et al. (2019)</a> the noisy network extension outturns more profitable than the other extensions.</p>
 
             <div>
-                <img src="{% static 'image/Post_3/cumlative_profit_comparison.png'%}" style="width: 100%;" class="center_img">
+                <img src="{% static 'image/Post_3/cumlative_profit_comparison.png'%}" alt="Line chart of cumulative battery profit over the inference year for vanilla, double dueling and noisy network DQN agents against the MILP benchmark" style="width: 100%;" class="center_img">
                 <figcaption style="font-size: 0.8rem;"><strong>Figure 4: </strong>Cumulative Profit Comparison Inference Year (2018)</figcaption> 
             </div>
 
             <p style="text-align:justify; line-height: 1.6; margin-top: 1.5rem;">The discussion to now has been centred on the operation of the environment under a perfect price scenario. To try infer further degrees of realism to the study, the DQN inference was also carried out relative to a forecasted price track. Figure 5 illustrates the performance of each of DQN algorithms for forecasted prices giving the actualised cumulative profit relative to both the underlying true out-turned prices as well as the forecasted prices themselves. In all scenarios it shows a significant downturn in profits. Ideally, the DQN would be trained in conjunction with the forecasting model to better maximise performance, a possible note for further work.</p>
 
             <div>
-                <img src="{% static 'image/Post_3/cumlative_profit_comparison_forecasted.png'%}" style="width: 100%;" class="center_img">
+                <img src="{% static 'image/Post_3/cumlative_profit_comparison_forecasted.png'%}" alt="Line chart of cumulative battery profit for each DQN agent trading on forecasted prices, compared with the same agents on true prices" style="width: 100%;" class="center_img">
                 <figcaption style="font-size: 0.8rem;"><strong>Figure 5: </strong>Cumulative Profit Comparisons for Forecasting Environment over Inference Year (2018)</figcaption> 
             </div>
 
