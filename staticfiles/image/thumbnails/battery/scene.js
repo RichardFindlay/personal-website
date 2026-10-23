@@ -29,19 +29,21 @@ function stateAt(day, t) {
 }
 
 const DAY = [{"price":34.74,"mw":0,"soc":0.2},{"price":39.93,"mw":0,"soc":0.2},{"price":33.78,"mw":0,"soc":0.2},{"price":31.29,"mw":0,"soc":0.2},{"price":17.4,"mw":0,"soc":0.2},{"price":12.18,"mw":-10,"soc":0.2},{"price":16.9,"mw":-6.000122,"soc":0.7},{"price":23.4,"mw":0,"soc":1},{"price":38.02,"mw":0,"soc":1},{"price":37.84,"mw":0,"soc":1},{"price":49.34,"mw":10,"soc":1},{"price":49.42,"mw":5.9998702999999995,"soc":0.5},{"price":37.79,"mw":0,"soc":0.2},{"price":32.04,"mw":0,"soc":0.2},{"price":31.97,"mw":0,"soc":0.2},{"price":30.93,"mw":0,"soc":0.2},{"price":30.9,"mw":-5,"soc":0.2},{"price":30.98,"mw":-10,"soc":0.45},{"price":44.35,"mw":-1.0000194,"soc":0.95},{"price":79,"mw":10,"soc":1},{"price":43.95,"mw":5.9998702999999995,"soc":0.5},{"price":40.74,"mw":0,"soc":0.2},{"price":37.91,"mw":0,"soc":0.2},{"price":37.92,"mw":0,"soc":0.2}];
-const TRACE = {"x0":-138,"w":12,"z0":11.2,"h":5.6};
+const TRACE = {"x0":294.4,"w":12,"z0":11.2,"h":5.6};
 const PRICES = DAY.map((d) => d.price), LO = Math.min(...PRICES), HI = Math.max(...PRICES);
 const SPH = 1.25, STILL_HOUR = 19.5;
 const stage = document.querySelector(".scene-battery");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
-const lamps = [...svg.querySelectorAll("[data-lamp]")].map((g) => [...g.querySelectorAll(".bt-seg")]);
-const fans = [...svg.querySelectorAll("[data-fan]")].map((el) => ({ el, kind: el.dataset.fan, c: el.dataset.c, angle: Math.random() * 360 }));
-const needle = svg.querySelector(".bt-needle"), cursor = svg.querySelector(".bt-cursor");
+// each lamp is restyled only when its own size can show the change: 50 steps of
+// charge up close, 10 far off, so the far rows cost little while the plant moves
+const lamps = [...svg.querySelectorAll(".bt-lamp")].map((el) => ({ el, steps: +el.dataset.steps, shown: -1 }));
+const fans = [...svg.querySelectorAll("[data-fan]")].map((el) => ({ el, kind: el.dataset.fan, ph: +el.dataset.ph }));
+const needle = svg.querySelector(".bt-needle"), cursorLine = svg.querySelector(".bt-cursor-line"), cursorDot = svg.querySelector(".bt-cursor-dot");
 // fans: the containers' air conditioners tick over and work harder with the
 // current; the inverters' fans run with the power they convert and coast to rest
 const REV = { hvac: [0.25, 1.1], pcs: [0, 1.4] };
-let power = 0, spin = { hvac: REV.hvac[0], pcs: 0 };
+let power = 0, spin = { hvac: REV.hvac[0], pcs: 0 }, angle = { hvac: 0, pcs: 0 };
 function draw(hours, dt) {
   const s = stateAt(DAY, hours);
   const ease = dt === null ? 1 : 1 - Math.exp(-dt / 0.45);
@@ -50,17 +52,19 @@ function draw(hours, dt) {
   for (const kind of ["hvac", "pcs"]) {
     const target = REV[kind][0] + REV[kind][1] * load;
     spin[kind] += (target - spin[kind]) * (dt === null ? 1 : 1 - Math.exp(-dt / (kind === "pcs" ? 0.9 : 1.6)));
+    angle[kind] = (angle[kind] + spin[kind] * 360 * (dt || 0)) % 360;
   }
-  for (const f of fans) {
-    f.angle = (f.angle + spin[f.kind] * 360 * (dt || 0)) % 360;
-    f.el.setAttribute("transform", "rotate(" + f.angle.toFixed(1) + " " + f.c + ")");
+  for (const lamp of lamps) {
+    const q = Math.round(s.soc * lamp.steps);
+    if (q !== lamp.shown) { lamp.el.style.setProperty("--bt-soc", (q / lamp.steps).toFixed(3)); lamp.shown = q; }
   }
-  const lit = s.soc * 10;
-  for (const segs of lamps) segs.forEach((el, i) => { const v = Math.max(0, Math.min(1, lit - i)).toFixed(2); if (el.style.opacity !== v) el.style.opacity = v; });
+  for (const f of fans) f.el.setAttribute("transform", "rotate(" + ((angle[f.kind] + f.ph) % 360).toFixed(1) + ")");
   needle.setAttribute("transform", "rotate(" + ((power / 10) * 50).toFixed(1) + " " + needle.dataset.c + ")");
   const h = s.t, i = Math.min(23, Math.floor(h)), j = Math.min(23, i + 1), f = h - Math.floor(h);
   const p = PRICES[i] + (PRICES[j] - PRICES[i]) * f;
-  cursor.setAttribute("transform", "translate(" + (TRACE.x0 + TRACE.w * h / 24).toFixed(2) + " " + (-(TRACE.z0 + TRACE.h * (p - LO) / (HI - LO))).toFixed(2) + ")");
+  const cx = (TRACE.x0 + TRACE.w * h / 24).toFixed(2);
+  cursorLine.setAttribute("transform", "translate(" + cx + " 0)");
+  cursorDot.setAttribute("transform", "translate(" + cx + " " + (-(TRACE.z0 + TRACE.h * (p - LO) / (HI - LO))).toFixed(2) + ")");
 }
 const fixed = stage.dataset.hour;
 const GAP = 31;
