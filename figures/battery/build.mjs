@@ -134,7 +134,7 @@ function container({ i, x }) {
   for (const sx of [x + 3, x + C.w / 2 - 3.5, x + C.w - 10]) out.push(S(slab({ x: sx, y: -C.d / 2 - 1, w: 7, d: C.d + 2 }, 0, z0), { tone: "lo" }));
   // the box: rails, corner posts and corrugation are under its outline
   const door = { x0: x + 8.5, x1: x + 25.5, z0: z0 + 1.4, z1: z0 + 22.6 };
-  const lamp = { x0: x + 29, x1: x + 33.2, z0: z0 + 4, z1: z0 + 21 };
+  const lamp = { x0: x + 28.4, x1: x + 34, z0: z0 + 3, z1: z0 + 22 };
   const hvac = { x0: x + 43, x1: x + 56, z0: z0 + 3, z1: z0 + 21 };
   const rail = [z0 + 1.4, z1 - 1.4];
   const lines = [k.sideSeam(plan, rail[0], P, 2), k.sideSeam(plan, rail[1], P, 2)];
@@ -191,7 +191,7 @@ function container({ i, x }) {
   }
   out.push(`<g data-lamp="${i}">${segs.join("")}</g>`);
   // a rating plate
-  const plate = { x0: x + 35.5, x1: x + 41, z0: z0 + 15, z1: z0 + 19 };
+  const plate = { x0: x + 36, x1: x + 41.2, z0: z0 + 15, z1: z0 + 19 };
   out.push(L(frontRect(y, plate.x0, plate.x1, plate.z0, plate.z1), { tone: "lo" }));
   out.push(L([plate.z1 - 1, plate.z1 - 2, plate.z1 - 3].map((rz, j) => frontLine(y, plate.x0 + 0.8, rz, plate.x1 - 0.8 - j * 1.1, rz)).join(""), { tone: "faint", free: true }));
   // the wall-hung air conditioner: louvres below, a condenser fan behind a guard
