@@ -2,11 +2,13 @@
 // Everything about a storm lives in its own frame, turned by its spin, so the
 // spiral is drawn in world space and rides the track the model gives. Every term
 // falls to zero by RO, before the early return that skips empty pixels.
-export const FRAGMENT = `precision highp float;
+export const FRAGMENT = `#extension GL_OES_standard_derivatives : enable
+precision highp float;
 uniform vec4 uMap;   // viewBox x = fragX*uMap.x+uMap.y, y = fragY*uMap.z+uMap.w
 uniform vec4 uA;     // storm A: eye x, eye y, spin, strength
 uniform vec4 uB;
 uniform vec4 uL;     // age and visibility of A, then of B
+uniform vec2 uK;     // the size of A and of B, 1 when grown
 uniform float uShadow;
 const float RC=50.,RB=175.,RO=240.,K=3.2,KF=1.25,KO=1.4;
 const vec2 SUN=vec2(-.78,-.62);
@@ -25,15 +27,15 @@ float streak(float ang,float lr,float f,float g,float drift){
   return n3(vec3(cos(ang)*f,sin(ang)*f,lr*g-drift))*.65+n3(vec3(cos(ang)*f*2.3,sin(ang)*f*2.3,lr*g*2.1-drift*1.7))*.35;
 }
 // x: cloud density, y: cloud-top height for the light, z: the eyewall
-vec3 storm(vec2 p,vec4 S,float age,float fine){
-  vec2 m=vec2(p.x-S.x,S.y-p.y);
+vec3 storm(vec2 p,vec4 S,float k,float age,float fine){
+  vec2 m=vec2(p.x-S.x,S.y-p.y)/k;
   float r=length(m);
   if(r>RO)return vec3(0.);
   float far=1.-smoothstep(RO*.45,RO,r);
   float st=S.w;
   float c=cos(S.z),s=sin(S.z);
   vec2 q=vec2(c*m.x+s*m.y,-s*m.x+c*m.y);
-  vec2 w=vec2(fbm(q*.016+3.1),fbm(q*.016+8.7))-.5;
+  vec2 w=fine<0.?vec2(0.):vec2(fbm2(q*.016+3.1),fbm2(q*.016+8.7))-.5;
   vec2 qw=q+w*34.*smoothstep(14.,80.,r);
   float rw=length(qw);
   float a=atan(qw.y,qw.x);
@@ -42,7 +44,7 @@ vec3 storm(vec2 p,vec4 S,float age,float fine){
   float vary=n2(qw*.012+5.);
   float blob=fbm(q*.05+1.7);
   // fine streaks along the inflow, the grain every satellite loop shows
-  float flow=fine>0.?streak(a+KF*lr,lr,7.,11.,age*.006):.5;
+  float flow=fine>0.?mix(.5,streak(a+KF*lr,lr,7.,11.,age*.006),smoothstep(5.,16.,r)):.5;
   // convective towers: small round cells, sharper in the outer bands
   float cells=fine>0.?fbm(q*.24+vec2(0.,age*.008)):.5;
   float outer=smoothstep(RC*1.1,RB*.7,rw);
@@ -75,7 +77,7 @@ vec3 storm(vec2 p,vec4 S,float age,float fine){
     float po=a-KO*lr;
     float cs=streak(po,lr,15.,2.2,age*.012);
     float tuft=smoothstep(.3,.75,n3(vec3(cos(po)*3.,sin(po)*3.,lr*2.5)));
-    cir=smoothstep(.3,.95,cs)*tuft*smoothstep(RC*1.2,RC*2.2,rw)*(1.-smoothstep(RO*.5,RO*.97,rw))*(.3+.9*vary);
+    cir=smoothstep(.3,.95,cs)*tuft*smoothstep(RC*1.2,RC*2.2,rw)*(1.-smoothstep(RO*.5,RO*.97,rw))*(.3+.9*vary)*smoothstep(.45,.9,st);
   }
   float D=1.-(1.-clamp(core,0.,1.))*(1.-dBand)*(1.-.32*cir);
   D*=far*(.6+.4*st);
@@ -84,23 +86,28 @@ vec3 storm(vec2 p,vec4 S,float age,float fine){
   float Hc=.55*dome+.25*wall*core*st+(.34*(cells-.5)*(.5+outer)+.2*(flow-.5))*D+.25*D;
   return vec3(D,Hc,wall*core);
 }
-vec4 shade(vec2 p,vec4 S,float age,float vis){
+vec4 shade(vec2 p,vec4 S,float k,float age,float vis){
   if(vis<.002)return vec4(0.);
-  vec3 c0=storm(p,S,age,1.);
-  if(c0.x<.001)return vec4(0.,0.,0.,uShadow*(1.-exp(-2.4*storm(p+SUN*7.,S,age,0.).x))*vis);
-  vec3 c1=storm(p+SUN*1.6,S,age,1.);
-  float Ds=storm(p+SUN*7.,S,age,0.).x;
-  float lit=clamp(.66+(c0.y-c1.y)*2.4,0.,1.2);
+  vec3 c0=storm(p,S,k,age,1.);
+  // the slope of the cloud tops toward the sun, from the neighbouring pixels
+#ifdef GL_OES_standard_derivatives
+  vec2 g=vec2(dFdx(c0.y)/uMap.x,dFdy(c0.y)/uMap.z);
+  float lit=clamp(.66-3.8*dot(g,SUN),0.,1.2);
+#else
+  float lit=.8;
+#endif
+  // a storm comes and goes by its density, so its thin edges go first
+  float sa=uShadow*(1.-exp(-2.4*vis*storm(p+SUN*7.,S,k,age,0.).x));
+  if(c0.x<.001)return vec4(0.,0.,0.,sa);
   vec3 col=mix(vec3(.36,.45,.55),vec3(.93,.955,.975),lit);
   col=mix(col,vec3(.98,.985,.99),.3*c0.z);
-  float a=min(1.,1.06*(1.-exp(-5.5*c0.x)));
-  float sa=uShadow*(1.-exp(-2.4*Ds));
-  return vec4(col*a,a+sa*(1.-a))*vis;
+  float a=min(1.,1.06*(1.-exp(-5.5*vis*c0.x)));
+  return vec4(col*a,a+sa*(1.-a));
 }
 void main(){
   vec2 p=vec2(gl_FragCoord.x*uMap.x+uMap.y,gl_FragCoord.y*uMap.z+uMap.w);
-  vec4 A=shade(p,uA,uL.x,uL.y);
-  vec4 B=shade(p,uB,uL.z,uL.w);
+  vec4 A=shade(p,uA,uK.x,uL.x,uL.y);
+  vec4 B=shade(p,uB,uK.y,uL.z,uL.w);
   vec4 o=A+B*(1.-A.a);
   float n=(h12(gl_FragCoord.xy)+h12(gl_FragCoord.yx*1.37+3.1)-1.)/255.;
   o=max(o+n*smoothstep(0.,1.5/255.,o.a),0.);

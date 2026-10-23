@@ -4,16 +4,15 @@
 // reads it to place the still frame and the page inlines it (exports stripped)
 // to move the storm, so both agree.
 //
-// Each storm lives LIFE seconds: it forms over the sea, deepens on its way in,
-// makes landfall about halfway and fills over the land. A new storm forms every
-// PERIOD seconds, so the last OVERLAP seconds of one, already dissolving inland,
-// overlap the first seconds of the next. Every quantity is a smooth function of
-// the storm's own age, which is what makes the loop seamless.
+// Each storm lives LIFE seconds: it gathers over the sea, deepens on its way in,
+// makes landfall about halfway and fills over the land until it is gone. The
+// next one gathers as the last few wisps of the old one clear, so there is one
+// storm on screen at a time. Every quantity is a smooth function of the storm's
+// own age, which is what makes the loop seamless.
 const PERIOD = 90;
-const OVERLAP = 18;
-const LIFE = PERIOD + OVERLAP;
-// the moment shown under reduced motion and before the script runs: the eye on the coast
-const STILL = 50;
+const LIFE = PERIOD + 6;
+// the moment shown under reduced motion and before the script runs: just ashore
+const STILL = 60;
 // the eye's track in viewBox units (x right, y down): a quadratic from the open
 // sea at the left to the plateau at the right
 const TRACK = [[1105, 154], [1222, 138], [1390, 62]];
@@ -31,19 +30,21 @@ function stormAt(age) {
     y: v * v * a[1] + 2 * u * v * b[1] + u * u * c[1],
     spin: SPIN * age,
     // organisation: it deepens over warm water, then fills once it is ashore
-    strength: (0.5 + 0.5 * smooth(0, 38, age)) * (1 - 0.62 * smooth(56, 100, age)),
-    // how much of it there is to see
-    visible: smooth(0, 16, age) * (1 - smooth(PERIOD - 2, LIFE, age)),
+    strength: (0.5 + 0.5 * smooth(0, 36, age)) * (1 - 0.62 * smooth(50, 88, age)),
+    // a young storm is compact; a dying one spreads as it fills
+    size: (0.62 + 0.38 * smooth(0, 34, age)) * (1 + 0.14 * smooth(56, LIFE, age)),
+    // how much cloud there is: it gathers, and over the land it rains itself out
+    visible: smooth(1, 19, age) * (1 - smooth(PERIOD - 16, LIFE, age)),
   };
 }
 
-// the storms on screen at loop time t: this period's and the last one's tail
+// the storms at loop time t: this period's, and the last one's final seconds
 function stormsAt(t) {
   const age = ((t % PERIOD) + PERIOD) % PERIOD;
   return [stormAt(age), stormAt(Math.min(LIFE, age + PERIOD))];
 }
 
-const FRAGMENT = "precision highp float;\nuniform vec4 uMap;   // viewBox x = fragX*uMap.x+uMap.y, y = fragY*uMap.z+uMap.w\nuniform vec4 uA;     // storm A: eye x, eye y, spin, strength\nuniform vec4 uB;\nuniform vec4 uL;     // age and visibility of A, then of B\nuniform float uShadow;\nconst float RC=50.,RB=175.,RO=240.,K=3.2,KF=1.25,KO=1.4;\nconst vec2 SUN=vec2(-.78,-.62);\nfloat h13(vec3 p){p=fract(p*.1031);p+=dot(p,p.zyx+31.32);return fract((p.x+p.y)*p.z);}\nfloat n3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\n  return mix(mix(mix(h13(i),h13(i+vec3(1,0,0)),f.x),mix(h13(i+vec3(0,1,0)),h13(i+vec3(1,1,0)),f.x),f.y),\n             mix(mix(h13(i+vec3(0,0,1)),h13(i+vec3(1,0,1)),f.x),mix(h13(i+vec3(0,1,1)),h13(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat h12(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}\nfloat n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\n  return mix(mix(h12(i),h12(i+vec2(1,0)),f.x),mix(h12(i+vec2(0,1)),h12(i+vec2(1,1)),f.x),f.y);}\nconst mat2 RM=mat2(.8,.6,-.6,.8);\nfloat fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*n2(p);p=RM*p*2.03+17.1;a*=.5;}return s/.9375;}\nfloat fbm2(vec2 p){return n2(p)*.667+n2(RM*p*2.03+5.3)*.333;}\n// streaks along a spiral: noise round a circle in angle, fast across in log r\nfloat streak(float ang,float lr,float f,float g,float drift){\n  return n3(vec3(cos(ang)*f,sin(ang)*f,lr*g-drift))*.65+n3(vec3(cos(ang)*f*2.3,sin(ang)*f*2.3,lr*g*2.1-drift*1.7))*.35;\n}\n// x: cloud density, y: cloud-top height for the light, z: the eyewall\nvec3 storm(vec2 p,vec4 S,float age,float fine){\n  vec2 m=vec2(p.x-S.x,S.y-p.y);\n  float r=length(m);\n  if(r>RO)return vec3(0.);\n  float far=1.-smoothstep(RO*.45,RO,r);\n  float st=S.w;\n  float c=cos(S.z),s=sin(S.z);\n  vec2 q=vec2(c*m.x+s*m.y,-s*m.x+c*m.y);\n  vec2 w=vec2(fbm(q*.016+3.1),fbm(q*.016+8.7))-.5;\n  vec2 qw=q+w*34.*smoothstep(14.,80.,r);\n  float rw=length(qw);\n  float a=atan(qw.y,qw.x);\n  float lr=log(max(rw,2.)/RC);\n  float psi=a+K*lr;\n  float vary=n2(qw*.012+5.);\n  float blob=fbm(q*.05+1.7);\n  // fine streaks along the inflow, the grain every satellite loop shows\n  float flow=fine>0.?streak(a+KF*lr,lr,7.,11.,age*.006):.5;\n  // convective towers: small round cells, sharper in the outer bands\n  float cells=fine>0.?fbm(q*.24+vec2(0.,age*.008)):.5;\n  float outer=smoothstep(RC*1.1,RB*.7,rw);\n  // the rainbands: two broad arms, fainter ones between, thin lines along them\n  float b1=.5+.5*cos(2.*psi+1.3*(vary-.5)+1.2*(blob-.5));\n  float b2=.5+.5*cos(4.*psi+2.1+1.5*(blob-.5));\n  float b3=.5+.5*cos(9.*psi+4.*(flow-.5));\n  float band=smoothstep(.42,.95,b1)*(.55+.6*vary)+.45*smoothstep(.55,1.,b2)*(.4+.8*vary)+.22*smoothstep(.7,1.,b3)*outer;\n  // the outer bands break into lines of towers\n  band*=mix(1.,smoothstep(.32,.62,cells+.15*(flow-.5)),.75*outer);\n  float env=smoothstep(RC*.55,RC*1.05,rw)*(1.-smoothstep(RB*.3,RB,rw*(1.+.4*(vary-.5))));\n  // one arm trails far out as a feeder band of streaks\n  float feeder=smoothstep(.6,.97,b1)*smoothstep(RB*.5,RB*.8,rw)*(1.-smoothstep(RB*.85,RO*.98,rw))*smoothstep(.35,.8,flow)*(.4+.6*vary);\n  // a weak storm is a ragged mass, not yet a spiral\n  float messy=smoothstep(.35,.75,blob+.25*(cells-.5))*smoothstep(RC*.4,RC*1.1,rw)*(1.-smoothstep(RB*.35,RB*.9,rw));\n  float tex=.5+.6*flow+.3*(cells-.5)*outer;\n  // low cloud in the moats: a thin haze with small cumulus in it\n  float haze=env*(.04+.1*blob)+.16*env*smoothstep(.64,.8,cells)*outer;\n  float dBand=clamp(mix(messy,band,.3+.7*st)*env*tex+haze+.55*feeder,0.,1.);\n  // the eye, its wall, and the dense overcast round it\n  float RE=mix(16.,9.,st);\n  float er=r+2.4*(n2(q*.2+3.)-.5)+1.3*(n2(q*.5)-.5);\n  float eye=smoothstep(RE*.62,RE*1.3,er);\n  float wall=exp(-pow((er-RE*1.5)/(RE*.55),2.));\n  float cdo=1.-smoothstep(RC*.5,RC*(1.08+.14*st),rw+20.*(blob-.5)+7.*(flow-.5));\n  float core=cdo*mix(1.,eye,.96*smoothstep(.35,.8,st))*(.88+.2*(flow-.5))+(1.-eye)*.08*cells;\n  // cirrus outflow: feathered streaks fanning out the other way at the rim\n  float cir=0.;\n  if(fine>0.){\n    float po=a-KO*lr;\n    float cs=streak(po,lr,15.,2.2,age*.012);\n    float tuft=smoothstep(.3,.75,n3(vec3(cos(po)*3.,sin(po)*3.,lr*2.5)));\n    cir=smoothstep(.3,.95,cs)*tuft*smoothstep(RC*1.2,RC*2.2,rw)*(1.-smoothstep(RO*.5,RO*.97,rw))*(.3+.9*vary);\n  }\n  float D=1.-(1.-clamp(core,0.,1.))*(1.-dBand)*(1.-.32*cir);\n  D*=far*(.6+.4*st);\n  // cloud tops: a dome over the core, towers in the bands, grain from the flow\n  float dome=core*(1.-smoothstep(0.,RC*1.2,r));\n  float Hc=.55*dome+.25*wall*core*st+(.34*(cells-.5)*(.5+outer)+.2*(flow-.5))*D+.25*D;\n  return vec3(D,Hc,wall*core);\n}\nvec4 shade(vec2 p,vec4 S,float age,float vis){\n  if(vis<.002)return vec4(0.);\n  vec3 c0=storm(p,S,age,1.);\n  if(c0.x<.001)return vec4(0.,0.,0.,uShadow*(1.-exp(-2.4*storm(p+SUN*7.,S,age,0.).x))*vis);\n  vec3 c1=storm(p+SUN*1.6,S,age,1.);\n  float Ds=storm(p+SUN*7.,S,age,0.).x;\n  float lit=clamp(.66+(c0.y-c1.y)*2.4,0.,1.2);\n  vec3 col=mix(vec3(.36,.45,.55),vec3(.93,.955,.975),lit);\n  col=mix(col,vec3(.98,.985,.99),.3*c0.z);\n  float a=min(1.,1.06*(1.-exp(-5.5*c0.x)));\n  float sa=uShadow*(1.-exp(-2.4*Ds));\n  return vec4(col*a,a+sa*(1.-a))*vis;\n}\nvoid main(){\n  vec2 p=vec2(gl_FragCoord.x*uMap.x+uMap.y,gl_FragCoord.y*uMap.z+uMap.w);\n  vec4 A=shade(p,uA,uL.x,uL.y);\n  vec4 B=shade(p,uB,uL.z,uL.w);\n  vec4 o=A+B*(1.-A.a);\n  float n=(h12(gl_FragCoord.xy)+h12(gl_FragCoord.yx*1.37+3.1)-1.)/255.;\n  o=max(o+n*smoothstep(0.,1.5/255.,o.a),0.);\n  o.rgb=min(o.rgb,o.a);\n  gl_FragColor=o;\n}";
+const FRAGMENT = "#extension GL_OES_standard_derivatives : enable\nprecision highp float;\nuniform vec4 uMap;   // viewBox x = fragX*uMap.x+uMap.y, y = fragY*uMap.z+uMap.w\nuniform vec4 uA;     // storm A: eye x, eye y, spin, strength\nuniform vec4 uB;\nuniform vec4 uL;     // age and visibility of A, then of B\nuniform vec2 uK;     // the size of A and of B, 1 when grown\nuniform float uShadow;\nconst float RC=50.,RB=175.,RO=240.,K=3.2,KF=1.25,KO=1.4;\nconst vec2 SUN=vec2(-.78,-.62);\nfloat h13(vec3 p){p=fract(p*.1031);p+=dot(p,p.zyx+31.32);return fract((p.x+p.y)*p.z);}\nfloat n3(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\n  return mix(mix(mix(h13(i),h13(i+vec3(1,0,0)),f.x),mix(h13(i+vec3(0,1,0)),h13(i+vec3(1,1,0)),f.x),f.y),\n             mix(mix(h13(i+vec3(0,0,1)),h13(i+vec3(1,0,1)),f.x),mix(h13(i+vec3(0,1,1)),h13(i+vec3(1,1,1)),f.x),f.y),f.z);}\nfloat h12(vec2 p){vec3 q=fract(vec3(p.xyx)*.1031);q+=dot(q,q.yzx+33.33);return fract((q.x+q.y)*q.z);}\nfloat n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\n  return mix(mix(h12(i),h12(i+vec2(1,0)),f.x),mix(h12(i+vec2(0,1)),h12(i+vec2(1,1)),f.x),f.y);}\nconst mat2 RM=mat2(.8,.6,-.6,.8);\nfloat fbm(vec2 p){float s=0.,a=.5;for(int i=0;i<4;i++){s+=a*n2(p);p=RM*p*2.03+17.1;a*=.5;}return s/.9375;}\nfloat fbm2(vec2 p){return n2(p)*.667+n2(RM*p*2.03+5.3)*.333;}\n// streaks along a spiral: noise round a circle in angle, fast across in log r\nfloat streak(float ang,float lr,float f,float g,float drift){\n  return n3(vec3(cos(ang)*f,sin(ang)*f,lr*g-drift))*.65+n3(vec3(cos(ang)*f*2.3,sin(ang)*f*2.3,lr*g*2.1-drift*1.7))*.35;\n}\n// x: cloud density, y: cloud-top height for the light, z: the eyewall\nvec3 storm(vec2 p,vec4 S,float k,float age,float fine){\n  vec2 m=vec2(p.x-S.x,S.y-p.y)/k;\n  float r=length(m);\n  if(r>RO)return vec3(0.);\n  float far=1.-smoothstep(RO*.45,RO,r);\n  float st=S.w;\n  float c=cos(S.z),s=sin(S.z);\n  vec2 q=vec2(c*m.x+s*m.y,-s*m.x+c*m.y);\n  vec2 w=fine<0.?vec2(0.):vec2(fbm2(q*.016+3.1),fbm2(q*.016+8.7))-.5;\n  vec2 qw=q+w*34.*smoothstep(14.,80.,r);\n  float rw=length(qw);\n  float a=atan(qw.y,qw.x);\n  float lr=log(max(rw,2.)/RC);\n  float psi=a+K*lr;\n  float vary=n2(qw*.012+5.);\n  float blob=fbm(q*.05+1.7);\n  // fine streaks along the inflow, the grain every satellite loop shows\n  float flow=fine>0.?mix(.5,streak(a+KF*lr,lr,7.,11.,age*.006),smoothstep(5.,16.,r)):.5;\n  // convective towers: small round cells, sharper in the outer bands\n  float cells=fine>0.?fbm(q*.24+vec2(0.,age*.008)):.5;\n  float outer=smoothstep(RC*1.1,RB*.7,rw);\n  // the rainbands: two broad arms, fainter ones between, thin lines along them\n  float b1=.5+.5*cos(2.*psi+1.3*(vary-.5)+1.2*(blob-.5));\n  float b2=.5+.5*cos(4.*psi+2.1+1.5*(blob-.5));\n  float b3=.5+.5*cos(9.*psi+4.*(flow-.5));\n  float band=smoothstep(.42,.95,b1)*(.55+.6*vary)+.45*smoothstep(.55,1.,b2)*(.4+.8*vary)+.22*smoothstep(.7,1.,b3)*outer;\n  // the outer bands break into lines of towers\n  band*=mix(1.,smoothstep(.32,.62,cells+.15*(flow-.5)),.75*outer);\n  float env=smoothstep(RC*.55,RC*1.05,rw)*(1.-smoothstep(RB*.3,RB,rw*(1.+.4*(vary-.5))));\n  // one arm trails far out as a feeder band of streaks\n  float feeder=smoothstep(.6,.97,b1)*smoothstep(RB*.5,RB*.8,rw)*(1.-smoothstep(RB*.85,RO*.98,rw))*smoothstep(.35,.8,flow)*(.4+.6*vary);\n  // a weak storm is a ragged mass, not yet a spiral\n  float messy=smoothstep(.35,.75,blob+.25*(cells-.5))*smoothstep(RC*.4,RC*1.1,rw)*(1.-smoothstep(RB*.35,RB*.9,rw));\n  float tex=.5+.6*flow+.3*(cells-.5)*outer;\n  // low cloud in the moats: a thin haze with small cumulus in it\n  float haze=env*(.04+.1*blob)+.16*env*smoothstep(.64,.8,cells)*outer;\n  float dBand=clamp(mix(messy,band,.3+.7*st)*env*tex+haze+.55*feeder,0.,1.);\n  // the eye, its wall, and the dense overcast round it\n  float RE=mix(16.,9.,st);\n  float er=r+2.4*(n2(q*.2+3.)-.5)+1.3*(n2(q*.5)-.5);\n  float eye=smoothstep(RE*.62,RE*1.3,er);\n  float wall=exp(-pow((er-RE*1.5)/(RE*.55),2.));\n  float cdo=1.-smoothstep(RC*.5,RC*(1.08+.14*st),rw+20.*(blob-.5)+7.*(flow-.5));\n  float core=cdo*mix(1.,eye,.96*smoothstep(.35,.8,st))*(.88+.2*(flow-.5))+(1.-eye)*.08*cells;\n  // cirrus outflow: feathered streaks fanning out the other way at the rim\n  float cir=0.;\n  if(fine>0.){\n    float po=a-KO*lr;\n    float cs=streak(po,lr,15.,2.2,age*.012);\n    float tuft=smoothstep(.3,.75,n3(vec3(cos(po)*3.,sin(po)*3.,lr*2.5)));\n    cir=smoothstep(.3,.95,cs)*tuft*smoothstep(RC*1.2,RC*2.2,rw)*(1.-smoothstep(RO*.5,RO*.97,rw))*(.3+.9*vary)*smoothstep(.45,.9,st);\n  }\n  float D=1.-(1.-clamp(core,0.,1.))*(1.-dBand)*(1.-.32*cir);\n  D*=far*(.6+.4*st);\n  // cloud tops: a dome over the core, towers in the bands, grain from the flow\n  float dome=core*(1.-smoothstep(0.,RC*1.2,r));\n  float Hc=.55*dome+.25*wall*core*st+(.34*(cells-.5)*(.5+outer)+.2*(flow-.5))*D+.25*D;\n  return vec3(D,Hc,wall*core);\n}\nvec4 shade(vec2 p,vec4 S,float k,float age,float vis){\n  if(vis<.002)return vec4(0.);\n  vec3 c0=storm(p,S,k,age,1.);\n  // the slope of the cloud tops toward the sun, from the neighbouring pixels\n#ifdef GL_OES_standard_derivatives\n  vec2 g=vec2(dFdx(c0.y)/uMap.x,dFdy(c0.y)/uMap.z);\n  float lit=clamp(.66-3.8*dot(g,SUN),0.,1.2);\n#else\n  float lit=.8;\n#endif\n  // a storm comes and goes by its density, so its thin edges go first\n  float sa=uShadow*(1.-exp(-2.4*vis*storm(p+SUN*7.,S,k,age,0.).x));\n  if(c0.x<.001)return vec4(0.,0.,0.,sa);\n  vec3 col=mix(vec3(.36,.45,.55),vec3(.93,.955,.975),lit);\n  col=mix(col,vec3(.98,.985,.99),.3*c0.z);\n  float a=min(1.,1.06*(1.-exp(-5.5*vis*c0.x)));\n  return vec4(col*a,a+sa*(1.-a));\n}\nvoid main(){\n  vec2 p=vec2(gl_FragCoord.x*uMap.x+uMap.y,gl_FragCoord.y*uMap.z+uMap.w);\n  vec4 A=shade(p,uA,uK.x,uL.x,uL.y);\n  vec4 B=shade(p,uB,uK.y,uL.z,uL.w);\n  vec4 o=A+B*(1.-A.a);\n  float n=(h12(gl_FragCoord.xy)+h12(gl_FragCoord.yx*1.37+3.1)-1.)/255.;\n  o=max(o+n*smoothstep(0.,1.5/255.,o.a),0.);\n  o.rgb=min(o.rgb,o.a);\n  gl_FragColor=o;\n}";
 
 function webgl(stage) {
   const canvas = document.createElement("canvas");
@@ -51,6 +52,7 @@ function webgl(stage) {
   canvas.setAttribute("aria-hidden", "true");
   const gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: true, antialias: false, depth: false, stencil: false });
   if (!gl) return null;
+  gl.getExtension("OES_standard_derivatives");
   const shader = (type, source) => {
     const s = gl.createShader(type);
     gl.shaderSource(s, source);
@@ -70,7 +72,7 @@ function webgl(stage) {
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
   gl.enableVertexAttribArray(0);
   gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-  const at = Object.fromEntries(["uMap", "uA", "uB", "uL", "uShadow"].map((n) => [n, gl.getUniformLocation(program, n)]));
+  const at = Object.fromEntries(["uMap", "uA", "uB", "uL", "uK", "uShadow"].map((n) => [n, gl.getUniformLocation(program, n)]));
   return { canvas, gl, at };
 }
 const HALF = 240;
@@ -103,16 +105,17 @@ function draw(t) {
     gl.uniform4f(at.uA, a.x, a.y, a.spin, a.strength);
     gl.uniform4f(at.uB, b.x, b.y, b.spin, b.strength);
     gl.uniform4f(at.uL, a.age, a.visible, b.age, b.visible);
+    gl.uniform2f(at.uK, a.size, b.size);
     gl.uniform1f(at.uShadow, .42);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     return;
   }
   [a, b].forEach((s, n) => {
-    uses[n].setAttribute("transform", "translate(" + r3(s.x - HALF) + " " + r3(s.y - HALF) + ") rotate(" + r3(-s.spin * 180 / Math.PI) + " " + HALF + " " + HALF + ")");
+    uses[n].setAttribute("transform", "translate(" + r3(s.x) + " " + r3(s.y) + ") rotate(" + r3(-s.spin * 180 / Math.PI) + ") scale(" + r3(s.size) + ") translate(" + -HALF + " " + -HALF + ")");
     uses[n].style.opacity = r3(s.visible);
   });
 }
-const START = Number(stage.dataset.at ?? 34);
+const START = Number(stage.dataset.at ?? 50);
 const frozen = still.matches || "frozen" in stage.dataset;
 const GAP = 1000 / 30 - 2;
 let frame = 0, visible = false, t0 = 0, last = -Infinity, clock = frozen && !("at" in stage.dataset) ? STILL : START;
