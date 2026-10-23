@@ -237,7 +237,6 @@
                         <!-- <p class="card-text-date text-muted h6"> {{ post.created_on|date:"M d, Y" }} </p> -->
                         <p class="card-text-date text-muted h6"> {{ post.date_manual }} </p>
                         <p class="card-text" style="color:#000000;">{{post.content|slice:":200" }} </p>
-                        <a href= {{ blog_post_names|return_item:forloop.counter0 }} class="card-block stretched-link"> </a>
                 </div> </a>
             </div> 
             {% endfor %}
