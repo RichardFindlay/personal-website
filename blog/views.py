@@ -53,6 +53,11 @@ def get_thumbnails():
 
 
 
+# animated card drawings in staticfiles/image/thumbnails/<scene>/, by post number;
+# a post without one keeps its photo thumbnail
+CARD_SCENES = {1: 'wake', 2: 'cyclone', 3: 'battery'}
+
+
 # Create your views here.
 class PostList(generic.ListView):
 	queryset = Post.objects.filter(status=1).order_by('-created_on')
@@ -62,6 +67,7 @@ class PostList(generic.ListView):
 		data = super().get_context_data(**kwargs)
 		data['blog_post_names'] = get_blog_posts()
 		data['thumbnails'] = get_thumbnails()
+		data['scenes'] = [CARD_SCENES.get(int(name[-1])) for name in data['blog_post_names']]
 
 		return data
 
