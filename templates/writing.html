@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<section class="page-head">
+    <div class="wrap">
+        <p class="eyebrow">Writing</p>
+        <h1>Markets, models, and what actually works.</h1>
+        <p class="lede">Short market notes on the day-ahead and intraday markets, worked notebooks on forecasting and trading models, and longer research pieces. Filter by topic.</p>
+    </div>
+</section>
+
+<section class="section-tight">
+    <div class="wrap">
+        <div class="feed-filters" role="group" aria-label="Filter by topic">
+            <button type="button" data-tag="all" aria-pressed="true">All</button>
+            {% for key, name in tags %}<button type="button" data-tag="{{ key }}" aria-pressed="false">{{ name }}</button>{% endfor %}
+        </div>
+        <div class="feed" id="feed">
+            {% for p in pieces %}
+            <a class="entry" href="{{ p.path }}" data-tags="{{ p.tags|join:' ' }}">
+                <div class="entry-when mono"><b>{{ p.published|date:"j M Y" }}</b>{{ p.kind|capfirst }}</div>
+                <div>
+                    <h3>{{ p.title }}</h3>
+                    <p>{{ p.subtitle }}</p>
+                    <div class="entry-tags">{% for t in p.tag_names %}<span class="tag">{{ t }}</span>{% endfor %}{% if p.sample %}<span class="tag sample">Sample</span>{% endif %}</div>
+                </div>
+                <span class="entry-read mono">{{ p.minutes }} min</span>
+            </a>
+            {% endfor %}
+        </div>
+        <p class="feed-empty" id="feed-empty">Nothing under that topic yet.</p>
+    </div>
+</section>
+
+{% endblock %}
+{% block scripts %}
+<script>
+    (function () {
+        var buttons = document.querySelectorAll('.feed-filters button');
+        var entries = document.querySelectorAll('#feed .entry');
+        var empty = document.getElementById('feed-empty');
+        function apply(tag) {
+            var shown = 0;
+            entries.forEach(function (e) {
+                var on = tag === 'all' || e.dataset.tags.split(' ').indexOf(tag) >= 0;
+                e.hidden = !on; if (on) shown++;
+            });
+            empty.style.display = shown ? 'none' : 'block';
+            buttons.forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.tag === tag)); });
+            if (history.replaceState) history.replaceState(null, '', tag === 'all' ? location.pathname : '#' + tag);
+        }
+        buttons.forEach(function (b) { b.addEventListener('click', function () { apply(b.dataset.tag); }); });
+        var initial = location.hash.slice(1);
+        if (initial && document.querySelector('.feed-filters button[data-tag="' + initial + '"]')) apply(initial);
+    })();
+</script>
+{% endblock %}

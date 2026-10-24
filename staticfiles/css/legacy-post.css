@@ -1,0 +1,15 @@
+/* The research posts under templates/posts/ were written against the old
+   Bootstrap 4 layout with Quicksand. These few rules keep them reading as they
+   did, inside the new header and footer. */
+body.legacy-post { font-family: "Quicksand", sans-serif; font-size: 17px; background: #fff; }
+body.legacy-post main { background: #fff; }
+body.legacy-post .site-header a, body.legacy-post .site-footer a { text-decoration: none; }
+body.legacy-post .site-header .brand { font-family: "Inter", system-ui, sans-serif; }
+body.legacy-post .site-nav a { font-family: "Inter", system-ui, sans-serif; }
+body.legacy-post .site-footer { font-family: "Inter", system-ui, sans-serif; }
+body.legacy-post .site-footer p { margin: 0 0 4px; }
+body.legacy-post .site-footer .footer-links { display: grid; }
+body.legacy-post .site-footer .footer-social a { display: grid; }
+body.legacy-post h1, body.legacy-post h2, body.legacy-post h3 { font-family: "Quicksand", sans-serif; letter-spacing: 0; }
+body.legacy-post .site-header .brand-name { font-family: "Inter", system-ui, sans-serif; }
+body.legacy-post .card { border: 0; }

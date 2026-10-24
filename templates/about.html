@@ -1,223 +1,53 @@
-{% extends "base.html" %} 
-{% load static  %}
+{% extends "base.html" %}
+{% load static %}
 {% block content %}
 
-<style>
+<section class="section">
+    <div class="wrap about-grid">
+        <aside class="about-photo">
+            <img src="{% static 'image/Profile_Image.jpeg' %}" alt="Richard Findlay" width="665" height="1182">
+            <div class="contact">
+                <a href="mailto:rfindlay1992@gmail.com"><i class="fa-regular fa-envelope"></i> rfindlay1992@gmail.com</a>
+                <a href="https://www.linkedin.com/in/richard-findlay-a4a8365a/" target="_blank" rel="noopener"><i class="fa-brands fa-linkedin-in"></i> LinkedIn</a>
+                <a href="https://github.com/RichardFindlay" target="_blank" rel="noopener"><i class="fa-brands fa-github"></i> GitHub</a>
+                <a href="https://x.com/__RichFind__" target="_blank" rel="noopener"><i class="fa-brands fa-x-twitter"></i> @__RichFind__</a>
+                <a><i class="fa-solid fa-location-dot"></i> Perth, Scotland</a>
+            </div>
+        </aside>
+        <div class="about-copy">
+            <p class="eyebrow">About</p>
+            <h1>Richard Findlay</h1>
+            <p class="lede">Principal data scientist building algorithmic trading strategies for day-ahead and intraday power markets, with a decade spent on the asset side of the energy industry first.</p>
 
-    body {
-        font-family: "Quicksand";
-        font-size: 18px;
-        background-color: #ffffff !important;
-        line-height: 30px;
-    }
+            <div class="now-box">
+                <span class="mono">Now</span>
+                <p>Leading the research and build of trading algorithms for short-term power markets: signal research, probabilistic forecasting, backtesting, execution logic and the monitoring that keeps strategies honest once they are live.</p>
+            </div>
 
-    .d-flex {
-        display: -ms-flexbox !important;
-        display: flex !important;
-        
-    }
+            <p>I came into energy in 2017 through renewables development: early-stage wind farm and co-located storage projects, where the questions were about yield, siting, storage sizing and whether a site was worth the next stage of spend. That is where I learned that most of the value in energy data work is in getting the physics and the market mechanics right before reaching for a model.</p>
+            <p>From there I moved into applied machine learning, taking computer vision systems from prototype into production for the sector, and then into the markets, where the forecasting and optimisation work I had been doing on batteries and wind became the raw material for trading strategies.</p>
+            <p>Alongside the day job I build things: <a href="https://ohmera.ai" target="_blank" rel="noopener">ohmera.ai</a>, a GB power-market intelligence product, and a couple of products that have nothing to do with energy at all. This site is where I write about AI in energy, what the market is doing, and what has actually worked.</p>
 
-    .profile-img {
-        border-radius: 1em !important;
-        margin-right: 15%;
+            <h2 style="margin-top: 40px;">Career</h2>
+            <ol class="timeline">
+                {% for t in timeline %}
+                <li class="{% if forloop.first %}now{% endif %}{% if not t.text %} edu{% endif %}">
+                    <div class="when">{{ t.when }}</div>
+                    <h3>{{ t.title }}</h3>
+                    {% if t.text %}<p>{{ t.text }}</p>{% endif %}
+                    {% if t.tags %}<div class="tags">{% for tag in t.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</div>{% endif %}
+                </li>
+                {% endfor %}
+            </ol>
 
-    }
-
-    .card {
-        border-radius: 1em;
-        /*align-items: center;*/
-
-    }
-
-    .profile-text {
-        display: block;
-        /*float: right;*/
-        /*vertical-align: middle;*/
-        /*align-self: center;*/
-        margin-right: 125px;
-        position: relative;
-        align-items: center;
-
-    }
-
-    .list {
-        list-style: none;
-        margin: 0px;
-        padding: 0px;
-        
-    }
-
-    .column-img {
-      /*float: left;*/
-      /*width: 100%;*/
-      padding: none;
-      /*display: flex !important;*/
-/*      margin-right: auto;
-      margin-left: auto;*/
-      /*align-items: center;*/
-    }
-
-    .collapsible {
-      background-color: #D3D3D3;
-      color: white;
-      cursor: pointer;
-      padding: 18px;
-      width: 100%;
-      border: none;
-      text-align: left;
-      outline: none;
-      font-size: 20px;
-    }
-
-    .active, .collapsible:hover {
-      background-color: #555;
-    }
-
-    .collapsible:after {
-      content: '\002B';
-      color: white;
-      font-weight: bold;
-      float: right;
-      margin-left: 5px;
-    }
-
-    .active:after {
-      content: "\2212";
-    }
-
-    .content {
-      padding: 0 18px;
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.2s ease-out;
-      background-color: #f1f1f1;
-    }
-
-
-    .lnr {
-        font-family: 'Linearicons-Free';
-        speak: none;
-        font-style: normal;
-        font-weight: normal;
-        font-variant: normal;
-        text-transform: none;
-        line-height: 1;
-        -webkit-font-smoothing: antialiased;
-    }
-
-
-    @media screen and (max-width: 767px) {
-        .img-fluid {
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
-
-    }
-
-
-
-
-
-
-
-</style>
-
-<div class="card mb-3" style="max-width: 1200px; width: 100%;margin:auto auto; margin-top: 50px; padding:10px">
-  <div class="row g-0">
-    <div class="col-md-4">
-      <img
-        src="{% static 'image/Profile_Image.jpeg'%}"
-        alt="..."
-        class="img-fluid"
-        style="border-radius: 0.5em;"
-      />
+            <h2 style="margin-top: 24px;">Courses</h2>
+            <ul class="courses">
+                {% for year, name, by, url in courses %}
+                <li><span class="mono">{{ year }}</span><span>{{ name }} <span class="by">· {{ by }}</span></span><a href="{{ url }}" target="_blank" rel="noopener">certificate ↗</a></li>
+                {% endfor %}
+            </ul>
+        </div>
     </div>
-    <div class="col-md-8">
-      <div class="card-body" style="align-items: center">
-        <!-- <img src="{% static '/image/WindTurbine.gif' %}"> -->
-        <!-- <h6 class="card-title" style="margin-bottom: 0px; margin-top: 30px">HI, I'M</h6> -->
-        <h2 class="card-title">RICHARD FINDLAY</h2>
-        <p class="card-text" style="font-size: 16px; text-align:justify; margin-right: 30px; margin-left: 0px; margin-top:20px; margin-bottom:auto">
-          I'm a data scientist with a strong foundation in renewable energy development, energy storage modelling, and data-driven innovation across the energy sector. Since 2017, I've worked on projects spanning wind farm development, hydro optimisation, and the application of AI and machine learning to accelerate decision-making in clean energy infrastructure.
+</section>
 
-          My current focus lies in the convergence of advanced analytics and energy markets—particularly the optimisation of battery energy storage systems (BESS) and the role of data science in enhancing short-term trading strategies. With the growing complexity and decentralisation of the grid, I’m passionate about how AI and real-time data can drive smarter, more flexible market participation.
-
-          This site aims to share practical insights into how data, technology, and policy are reshaping the future of energy and enabling a more resilient, efficient, and low-carbon system.
-        </p>
-        <ul class="list basic_info" style="font-size: 16px; text-align:center; margin-top:60px">
-            <li></i> <a style="font-size: 20px">📧 </a><a style="font-size: 15px"> rfindlay1992@gmail.com</a></li>
-            <li></i> <a style="font-size: 20px">🏠 </a><a style="font-size: 15px"> Perth, Scotland</a></li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- <div class="card mb-3" style="max-width: 1200px; width: 100%;margin:auto auto; margin-top: 25px; padding:10px; border:none;  margin-bottom: 0px">
-    <svg width="100%" height="10" >
-      <line x1="10%" y1="0" x2="90%" y2="0" style="stroke:rgb(0,0,0);stroke-width:1.0" />
-      <h2 class="card-title" style="text-align: center; transform: translate(0%, -75%); background-color: #ffffff; padding-left:20px; padding-right:20px; margin-bottom: 0px ">EDUCATION</h2>
-    </svg>
-</div>
- -->
-
-<!-- <div class="card mb-3" style="max-width: 1200px; width: 100%;margin:auto auto; padding:0px; transform: translate(0%, -12.5%)">
-      <div class="card-body">
-            <p class="card-text"><strong>2015-2016</strong> - MPhil Energy Technologies, University of Cambridge</p>
-            <p class="card-text"><strong>2010-2015</strong> - MEng Architectural Engineering, Heriot-Watt University</p>
-    </div> 
-</div> -->
-
-<div class="card mb-3" style="max-width: 1200px; width: 100%; margin: auto; margin-top: 25px; padding: 20px; border-radius: 1em; border: 1px solid #e0e0e0; box-shadow: 0 2px 8px rgba(0,0,0,0.04); background-color: #fff;">
-  <h3 class="card-title" style="font-weight: 500; margin-bottom: 20px; color: #303030;">Online Courses</h3>
-  <ul class="list basic_info" style="font-size: 16px; margin-left: 0; padding-left: 0;">
-    <li style="margin-bottom: 10px;"><strong>2020</strong> – Machine Learning (Stanford University, Coursera) — <a href="https://coursera.org/share/e6044f4aa5c1cfdf0561cec932e5430c" target="_blank" style="color: #007bff;">certificate</a></li>
-    <li style="margin-bottom: 10px;"><strong>2020</strong> – Deep Learning Specialisation (DeepLearning.AI, Coursera) — <a href="https://coursera.org/share/69b4a99a90e5037d325f6968b15e0c61" target="_blank" style="color: #007bff;">certificate</a></li>
-    <li style="margin-bottom: 10px;"><strong>2020</strong> – Reinforcement Learning Specialisation (University of Alberta, Coursera) — <a href="https://coursera.org/share/d5103d0cecd79ffd154083bfac342599" target="_blank" style="color: #007bff;">certificate</a></li>
-    <li style="margin-bottom: 0;"><strong>2021</strong> – Generative Adversarial Networks Specialisation (DeepLearning.AI, Coursera) — <a href="https://coursera.org/share/3f12345c2d4cedfb6c254964d8bad99a" target="_blank" style="color: #007bff;">certificate</a></li>
-  </ul>
-</div>
-
-
-<script>
-var coll = document.getElementsByClassName("collapsible");
-var i;
-
-for (i = 0; i < coll.length; i++) {
-  coll[i].addEventListener("click", function() {
-    this.classList.toggle("active");
-    var content = this.nextElementSibling;
-    if (content.style.maxHeight){
-      content.style.maxHeight = null;
-    } else {
-      content.style.maxHeight = content.scrollHeight + "px";
-    } 
-  });
-}
-</script>
-
-
-<!-- 
-<div class="card mb-3" style="max-width: 1200px; width: 100%;margin:auto auto; margin-top: 25px; padding:10px; border:none;  margin-bottom: 0px">
-    <svg width="100%" height="10" >
-      <line x1="10%" y1="0" x2="90%" y2="0" style="stroke:rgb(0,0,0);stroke-width:1.0" />
-      <h2 class="card-title" style="text-align: center; transform: translate(0%, -75%); background-color: #ffffff; padding-left:20px; padding-right:20px; margin-bottom: 0px ">AWARDS & ACCOLADES</h2>
-    </svg>
-</div>
- -->
-
-<!-- 
-<div class="progress_br">
-<div class="progress">
-<div class="progress-bar" role="progressbar" aria-valuenow="85" aria-valuemin="0" aria-valuemax="100" style="width: 85%;"></div>
-</div>
-</div>
-
-
-
-
-
-
-
-
-{%endblock%}
+{% endblock %}

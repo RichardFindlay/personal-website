@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<article>
+    <header class="note-head">
+        <div class="wrap">
+            <div class="kicker">
+                <span class="tag accent">{{ note.kind|capfirst }}</span>
+                {% for t in note.tag_names %}<span class="tag">{{ t }}</span>{% endfor %}
+                <span class="mono">{{ note.published|date:"j F Y" }} · {{ note.minutes }} min read</span>
+            </div>
+            <h1>{{ note.title }}</h1>
+            {% if note.subtitle %}<p class="summary">{{ note.subtitle }}</p>{% endif %}
+            {% if note.sample %}<p class="note-sample"><strong>Sample post.</strong> Placeholder copy to show the layout of the writing section; replace it with your own piece.</p>{% endif %}
+        </div>
+    </header>
+    <div class="wrap">
+        <div class="prose">
+            {{ note.body }}
+        </div>
+    </div>
+    <footer class="note-foot">
+        <div class="wrap">
+            <div class="share">
+                <a href="https://x.com/intent/post?text={{ note.title|urlencode }}&url={{ canonical_url|urlencode }}" target="_blank" rel="noopener"><i class="fa-brands fa-x-twitter"></i> Share</a>
+                <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ canonical_url|urlencode }}" target="_blank" rel="noopener"><i class="fa-brands fa-linkedin-in"></i> Share</a>
+                <a href="{% url 'writing' %}">← All writing</a>
+            </div>
+            <p class="eyebrow">More</p>
+            <div class="feed">
+                {% for p in others %}
+                <a class="entry" href="{{ p.path }}">
+                    <div class="entry-when mono"><b>{{ p.published|date:"j M Y" }}</b>{{ p.kind|capfirst }}</div>
+                    <div><h3>{{ p.title }}</h3><p>{{ p.subtitle }}</p></div>
+                    <span class="entry-read mono">{{ p.minutes }} min</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </footer>
+</article>
+
+{% endblock %}

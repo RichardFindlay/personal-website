@@ -5,6 +5,8 @@ from typing import Literal
 
 from django.utils.safestring import mark_safe
 
+from . import content
+
 
 SITE_URL = "https://richardfindlay.co.uk"
 DEFAULT_IMAGE = "https://raw.githubusercontent.com/RichardFindlay/personal-website/main/social_4.png"
@@ -23,16 +25,30 @@ class Page:
 PAGES = {page.path: page for page in [
 	Page(
 		path="/",
-		title="Richard Findlay | AI & Machine Learning for Energy Markets and Renewables",
-		description="Richard Findlay on applying AI and machine learning to energy markets and renewables: offshore wind, renewable and power price forecasting, and battery storage.",
+		title="Richard Findlay | AI for Energy Markets: Algorithmic Trading, Forecasting & Renewables",
+		description="Richard Findlay, principal data scientist building algorithmic trading strategies for day-ahead and intraday power markets. Writing and research on AI, forecasting, renewables and battery storage.",
 		kind="website",
 		image=DEFAULT_IMAGE,
 	),
 	Page(
 		path="/about",
-		title="About Richard Findlay | Data Scientist in Energy & AI",
-		description="Richard Findlay is a data scientist in Perth, Scotland, applying AI and machine learning to renewable energy, battery storage and short-term energy trading.",
+		title="About Richard Findlay | Principal Data Scientist, AI for Energy Markets",
+		description="Richard Findlay is a principal data scientist in Perth, Scotland, building algorithmic trading strategies for day-ahead and intraday power markets, with a background in renewables development, battery optimisation and computer vision.",
 		kind="profile",
+		image=DEFAULT_IMAGE,
+	),
+	Page(
+		path="/work",
+		title="Work: Trading Algorithms, Forecasting, Renewables & Products | Richard Findlay",
+		description="Selected work by Richard Findlay: research on reinforcement learning for wind farms and batteries, probabilistic price forecasting, and products including ohmera.ai, donder and officetea.",
+		kind="website",
+		image=DEFAULT_IMAGE,
+	),
+	Page(
+		path="/writing",
+		title="Writing on AI, Energy Markets and Trading | Richard Findlay",
+		description="Market notes, notebooks and essays by Richard Findlay on AI, power markets, algorithmic trading and forecasting.",
+		kind="website",
 		image=DEFAULT_IMAGE,
 	),
 	Page(
@@ -66,6 +82,16 @@ PAGES = {page.path: page for page in [
 		image=f"{SITE_URL}/static/Thumbnail_3.jpg",
 		published=date(2022, 10, 10),
 	),
+] + [
+	Page(
+		path=note.path,
+		title=f"{note.title} | Richard Findlay",
+		description=note.subtitle,
+		kind="article",
+		image=DEFAULT_IMAGE,
+		published=note.published,
+	)
+	for note in content.notes()
 ]}
 
 PERSON = {
@@ -79,9 +105,12 @@ PERSON = {
 	],
 	"knowsAbout": [
 		"Energy markets",
+		"Algorithmic trading",
+		"Day-ahead and intraday power markets",
 		"Renewable energy forecasting",
 		"Battery optimisation",
 		"Reinforcement learning",
+		"Computer vision",
 		"Machine learning",
 	],
 }

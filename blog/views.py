@@ -1,97 +1,77 @@
-from django.shortcuts import render
-from django.views import generic
-from .models import Post
-
-import os
 from os import walk
+
+from django.http import Http404
+from django.shortcuts import render
+
+from . import content
+
 
 # Get posts names
 posts = []
-for (dirpath,dirnames, filenames) in walk('./templates/posts'):	
+for (dirpath, dirnames, filenames) in walk('./templates/posts'):
 	posts.extend(filenames)
 	break
 
 
-# create list of blog posts 
-def get_blog_posts():
-	posts_ = []
-	for (dirpath,dirnames, filenames) in walk('./templates/posts'):	
-		posts_.extend(filenames)
-		break
-
-	post_names = [files[:-5] for files in filenames]
-
-	for idx, post in enumerate(post_names):
-		if post == '.DS_':
-			del post_names[idx]
-
-	# sort list in descending order - to parallel created sort
-	post_names.sort(key=lambda x: int(x[-1]), reverse=True)
-
-	return post_names
+def Home(request):
+	return render(request, 'index.html', {
+		'posts': content.POSTS,
+		'writing': content.writing()[:4],
+		'projects': content.PROJECTS,
+		'energy_projects': [p for p in content.PROJECTS if p.kind == 'energy'],
+		'beyond_projects': [p for p in content.PROJECTS if p.kind == 'beyond'],
+		'expertise': content.EXPERTISE,
+	})
 
 
-# class PostDetail(generic.DetailView):
-#     model = Post
-#     template_name = 'post_detail.html'
+def Work(request):
+	return render(request, 'work.html', {
+		'posts': content.POSTS,
+		'energy_projects': [p for p in content.PROJECTS if p.kind == 'energy'],
+		'beyond_projects': [p for p in content.PROJECTS if p.kind == 'beyond'],
+		'timeline': content.TIMELINE,
+	})
 
 
-# get list of thumbnail pictures
-def get_thumbnails():
-	thumbnails = []
-	for (dirpath,dirnames, filenames) in walk('./thumbnails'):	
-		thumbnails.extend(filenames)	
-		break
-
-	for idx, post in enumerate(thumbnails):
-		if post == '.DS_Store':
-			del thumbnails[idx]
-
-	thumbnails.sort(key=lambda x: int(x[-5]), reverse=True)
-
-	return thumbnails
+def Writing(request):
+	pieces = content.writing()
+	used = [t for t in content.TAGS if any(t in p.tags for p in pieces)]
+	return render(request, 'writing.html', {
+		'pieces': pieces,
+		'tags': [(t, content.TAGS[t]) for t in used],
+	})
 
 
-
-# animated card drawings in staticfiles/image/thumbnails/<scene>/, by post number;
-# a post without one keeps its photo thumbnail
-CARD_SCENES = {1: 'wake', 2: 'cyclone', 3: 'battery'}
-
-
-# Create your views here.
-class PostList(generic.ListView):
-	queryset = Post.objects.filter(status=1).order_by('-created_on')
-	template_name = 'index.html'
-
-	def get_context_data(self, **kwargs):
-		data = super().get_context_data(**kwargs)
-		data['blog_post_names'] = get_blog_posts()
-		data['thumbnails'] = get_thumbnails()
-		data['scenes'] = [CARD_SCENES.get(int(name[-1])) for name in data['blog_post_names']]
-
-		return data
-
+def Note(request, slug):
+	note = content.by_slug(slug)
+	if note is None:
+		raise Http404(slug)
+	others = [p for p in content.writing() if p.slug != slug][:3]
+	return render(request, 'note.html', {'note': note, 'others': others})
 
 
 def AboutMe(request):
-    return render(request, 'about.html')
+	return render(request, 'about.html', {
+		'timeline': content.TIMELINE,
+		'courses': content.COURSES,
+		'expertise': content.EXPERTISE,
+	})
+
 
 def ReadingList(request):
-    return render(request, 'reading_list.html')
+	return render(request, 'reading_list.html')
 
 
-# function to retrieve 
+# function to retrieve
 def get_post_views():
 	post_views = []
 	# remove ds.store file if present
 	for i in range(len(posts)):
 		if posts[i] == '.DS_Store':
 			continue
-		else: 
-			def post(request, i = i):
-				return render(request, './posts/%s' %posts[i])
+		else:
+			def post(request, i=i):
+				return render(request, './posts/%s' % posts[i], {'legacy_post': True})
 			post_views.append(post)
 
 	return post_views
-
-

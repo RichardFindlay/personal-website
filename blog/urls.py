@@ -35,8 +35,10 @@ sitemaps = {
 
 
 urlpatterns = [
-    path('', views.PostList.as_view(), name='home'),
-    # path('<slug:slug>/', views.PostDetail.as_view(), name='post_detail'),
+    path('', views.Home, name='home'),
+    path('work', views.Work, name='work'),
+    path('writing', views.Writing, name='writing'),
+    path('writing/<slug:slug>', views.Note, name='note'),
     path('about', views.AboutMe, name='about'),
     path('reading', views.ReadingList, name='reading'),
     path('sitemap.xml', sitemap, {'sitemaps': sitemaps}),

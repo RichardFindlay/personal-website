@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+
+<section class="page-head">
+    <div class="wrap">
+        <p class="eyebrow">Work</p>
+        <h1>From the wind farm to the order book.</h1>
+        <p class="lede">A decade in energy, moving steadily from the physical asset to the market it sells into. Below: the research I have published, the products I have built, and the shape of the roles in between.</p>
+        <div class="stats">
+            <div class="stat"><b>DA + ID</b><span>Markets I build trading strategies for</span></div>
+            <div class="stat"><b>2017</b><span>First year working in energy</span></div>
+            <div class="stat"><b>3</b><span>Published research posts, all with code</span></div>
+            <div class="stat"><b>3</b><span>Live products, one of them an energy one</span></div>
+        </div>
+    </div>
+</section>
+
+<section class="section band">
+    <div class="wrap">
+        <div class="section-head">
+            <div>
+                <p class="eyebrow">Research</p>
+                <h2>Three problems, worked end to end.</h2>
+                <p>Each post reproduces a paper or builds a model from scratch, with the code, the data and the parts that did not work.</p>
+            </div>
+        </div>
+        <div class="scene-list">
+            {% for post in posts %}
+            {% include "partials/scene_card.html" with scene=post.scene href=post.path title=post.title sub=post.subtitle label="Research" label_class="accent" meta=post.published|date:"M Y" read=post.minutes|stringformat:"s min read" %}
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="wrap">
+        <div class="section-head">
+            <div>
+                <p class="eyebrow">Products</p>
+                <h2>Built and shipped.</h2>
+                <p>One in energy, two outside it. All live, all built end to end: data, models, product and the boring parts that keep them up.</p>
+            </div>
+        </div>
+        <div class="scene-list" style="margin-bottom: 18px;">
+            {% for pr in energy_projects %}
+            {% include "partials/scene_card.html" with scene=pr.scene href=pr.url title=pr.name sub=pr.blurb external=True label="Product" label_class="ink" meta=pr.tagline %}
+            {% endfor %}
+        </div>
+        <div class="projects">
+            {% for pr in beyond_projects %}
+            <a class="project" href="{{ pr.url }}" target="_blank" rel="noopener">
+                <div class="glyph">{{ pr.glyph }}</div>
+                <h3>{{ pr.name }} <span class="ext">{{ pr.url|cut:"https://"|cut:"www."|cut:"/" }} ↗</span></h3>
+                <p class="tagline">{{ pr.tagline }}</p>
+                <p>{{ pr.blurb }}</p>
+                <div class="meta"><span class="role mono">{{ pr.role }}</span>{% for s in pr.stack %}<span class="tag">{{ s }}</span>{% endfor %}</div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="section band">
+    <div class="wrap">
+        <div class="section-head">
+            <div>
+                <p class="eyebrow">Experience</p>
+                <h2>The roles behind it.</h2>
+                <p>Employers are deliberately left off this page; the full history is on LinkedIn.</p>
+            </div>
+            <a class="more" href="https://www.linkedin.com/in/richard-findlay-a4a8365a/" target="_blank" rel="noopener">LinkedIn ↗</a>
+        </div>
+        <ol class="timeline">
+            {% for t in timeline %}
+            {% if t.text %}
+            <li class="{% if forloop.first %}now{% endif %}">
+                <div class="when">{{ t.when }}</div>
+                <h3>{{ t.title }}</h3>
+                <p>{{ t.text }}</p>
+                <div class="tags">{% for tag in t.tags %}<span class="tag">{{ tag }}</span>{% endfor %}</div>
+            </li>
+            {% endif %}
+            {% endfor %}
+        </ol>
+    </div>
+</section>
+
+{% endblock %}

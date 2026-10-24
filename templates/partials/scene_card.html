@@ -1,0 +1,15 @@
+{% load static %}
+{# An animated card. Pass: scene, href, title, sub, label, label_class, meta, (optional) external, read #}
+<a class="scene-card bg-{{ scene }}" href="{{ href }}" {% if external %}target="_blank" rel="noopener"{% endif %}>
+    {% if scene == 'ohmera' %}
+    <div class="card-scene ohmera-scene" aria-hidden="true" data-svg="{% static 'image/thumbnails/ohmera/offshore-colour.svg' %}" data-js="{% static 'image/thumbnails/ohmera/offshore-colour.js' %}"></div>
+    {% else %}
+    <div class="card-scene scene-{{ scene }}" aria-hidden="true" data-svg="{% static 'image/thumbnails/' %}{{ scene }}/scene-colour.svg" data-js="{% static 'image/thumbnails/' %}{{ scene }}/scene-colour.js"></div>
+    {% endif %}
+    <div class="card-copy">
+        <div class="card-kicker"><span class="tag {{ label_class }}">{{ label }}</span><span class="mono">{{ meta }}</span></div>
+        <h3>{{ title }}</h3>
+        <p class="card-sub">{{ sub }}</p>
+    </div>
+    <span class="card-arrow">{% if external %}{{ read|default:"visit" }} ↗{% else %}{{ read|default:"read" }} →{% endif %}</span>
+</a>

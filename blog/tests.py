@@ -20,7 +20,7 @@ class SeoTests(TestCase):
 
 	def test_every_post_template_has_a_page_entry(self):
 		post_paths = {f'/{f.stem}' for f in (settings.TEMPLATE_DIR / 'posts').glob('*.html')}
-		article_paths = {page.path for page in PAGES.values() if page.kind == 'article'}
+		article_paths = {page.path for page in PAGES.values() if page.kind == 'article' and not page.path.startswith('/writing/')}
 		self.assertEqual(post_paths, article_paths)
 
 	def test_sitemap_lists_exactly_the_pages_and_each_resolves(self):
@@ -35,6 +35,13 @@ class SeoTests(TestCase):
 		for loc in locs:
 			with self.subTest(loc=loc):
 				self.assertEqual(self.client.get(urlparse(loc).path).status_code, 200)
+
+	def test_markdown_note_renders_with_its_maths_intact(self):
+		html = self.client.get('/writing/2026-08-notebook-pinball-loss').content.decode()
+		self.assertIn('$$', html)
+		self.assertIn('\\begin{cases}', html)
+		self.assertIn('<code class="language-python">', html)
+		self.assertEqual(self.client.get('/writing/no-such-note').status_code, 404)
 
 	def test_post_page_renders_its_own_metadata(self):
 		html = self.client.get(BATTERY_POST).content.decode()
