@@ -127,6 +127,14 @@ const stage = document.querySelector("${SCOPE}");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
 const yawing = svg.querySelector("[data-yawing]");
+// The phone shift is an SVG transform attribute, not CSS: Safari drops a CSS
+// transform on a <g> from children inserted after it applies, so the redrawn
+// nacelle came apart from the tower.
+const phone = matchMedia("(max-width: 770px)");
+const frameG = svg.querySelector(".wk-frame");
+const place = () => (phone.matches ? frameG.setAttribute("transform", "translate(${VIEW.phoneSx - VIEW.sx} 0)") : frameG.removeAttribute("transform"));
+place();
+phone.addEventListener("change", place);
 const lights = [...svg.querySelectorAll("[data-light]")];
 const slot = (name) => [...svg.querySelector('[data-slot="' + name + '"]').children];
 const BLADES = [0, 1, 2].map((b) => ({ b: { blade: slot("b" + b + "blade"), collar: slot("b" + b + "collar") }, f: { blade: slot("f" + b + "blade"), collar: slot("f" + b + "collar") } }));
@@ -192,8 +200,7 @@ const SCENE_CSS = `.wk-beacon circle{fill:#e0675e}
 const KIT = k.ISO_CSS.split("\n").filter((line) => /^\.iso-(fill|shade|top|line|solid|dots)/.test(line));
 const scope = (rule) => (rule.startsWith("@") ? rule : rule.replace(/^[^{]+/, (sel) => sel.split(",").map((x) => `${SCOPE} ${x.trim()}`).join(",")));
 const css = `${SCOPE}{${NAVY};--anatomy-lit:#c9d6e0;--anatomy-dot:#9fb2c2;--anatomy-weight:.6px}` + [...KIT, ...SCENE_CSS.split("\n")].map(scope).join("") +
-  `@media (prefers-reduced-motion:reduce){${SCOPE} .wk-beacon{animation:none}}` +
-  `@media (max-width:770px){${SCOPE} .wk-frame{transform:translate(${VIEW.phoneSx - VIEW.sx}px)}}`;
+  `@media (prefers-reduced-motion:reduce){${SCOPE} .wk-beacon{animation:none}}`;
 const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" preserveAspectRatio="xMaxYMax slice" aria-hidden="true" focusable="false"><style>${css}</style>${svgBody}</svg>`;
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, "scene.svg"), markup);

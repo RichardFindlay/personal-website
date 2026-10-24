@@ -320,6 +320,14 @@ const stage = document.querySelector(".scene-wake");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
 const yawing = svg.querySelector("[data-yawing]");
+// The phone shift is an SVG transform attribute, not CSS: Safari drops a CSS
+// transform on a <g> from children inserted after it applies, so the redrawn
+// nacelle came apart from the tower.
+const phone = matchMedia("(max-width: 770px)");
+const frameG = svg.querySelector(".wk-frame");
+const place = () => (phone.matches ? frameG.setAttribute("transform", "translate(70 0)") : frameG.removeAttribute("transform"));
+place();
+phone.addEventListener("change", place);
 const lights = [...svg.querySelectorAll("[data-light]")];
 const slot = (name) => [...svg.querySelector('[data-slot="' + name + '"]').children];
 const BLADES = [0, 1, 2].map((b) => ({ b: { blade: slot("b" + b + "blade"), collar: slot("b" + b + "collar") }, f: { blade: slot("f" + b + "blade"), collar: slot("f" + b + "collar") } }));
