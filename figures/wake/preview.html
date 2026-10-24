@@ -8,9 +8,10 @@
 @media (max-width:770px){h2{font-size:18px}.date{font-size:9px}.blurb{font-size:10px}}</style></head><body>
 <div class="card" id="card"><div class="scene-wake"></div><div class="text"><h2>Reinforcement Learning for Offshore Wind Farm Optimisation</h2><p class="date">Apr 30, 2022</p><p class="blurb">Applying Q-Learning to Static &amp; Quasi-Dynamic Offshore Wind Farm Environments to Optimise Wake Steering Strategies</p></div></div>
 <script type="module">
-const at = new URLSearchParams(location.search).get("at");
+const q = new URLSearchParams(location.search);
 const scene = document.querySelector(".scene-wake");
-if (at !== null) scene.dataset.at = at;
+if (q.get("at") !== null) scene.dataset.at = q.get("at");
+if (q.get("hold") !== null) scene.dataset.hold = "1";
 const svg = await (await fetch("../../staticfiles/image/thumbnails/wake/scene.svg")).text();
 scene.insertAdjacentHTML("beforeend", svg);
 await import("../../staticfiles/image/thumbnails/wake/scene.js");
