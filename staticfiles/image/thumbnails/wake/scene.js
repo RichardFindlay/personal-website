@@ -127,21 +127,21 @@ return [C.cx + (d[0] * C.right[0] + d[1] * C.right[1]) * s, C.cy - (d[0] * C.up[
 const TURBINE = { D: 126, hub: 90, U: 8, tsr: 7.55, rpm: [6.9, 12.1] };
 const STEP_DEG = 5;
 const STEERED = 25;
-const LOOP = { slew: 1.8, hold: 1.4, dwell: 3.6 };
+const LOOP = { lead: 0.3, slew: 1.2, hold: 0.6, dwell: 1.2 };
 const STEPS = STEERED / STEP_DEG;
 const ACTIONS = [...Array(STEPS).fill(1), ...Array(STEPS).fill(-1)];
 const PER_ACTION = LOOP.slew + LOOP.hold;
 const LOOP_SECONDS = 2 * LOOP.dwell + ACTIONS.length * PER_ACTION;
 const smooth = (t) => { const c = Math.min(1, Math.max(0, t)); return c * c * (3 - 2 * c); };
 function yawAt(t) {
-let s = ((t % LOOP_SECONDS) + LOOP_SECONDS) % LOOP_SECONDS - LOOP.dwell, yaw = 0;
+let s = ((t % LOOP_SECONDS) + LOOP_SECONDS) % LOOP_SECONDS - LOOP.lead, yaw = 0;
 ACTIONS.forEach((alpha, n) => {
 if (n === STEPS) s -= LOOP.dwell;
 yaw += alpha * STEP_DEG * smooth((s - n * PER_ACTION) / LOOP.slew);
 });
 return yaw;
 }
-const outboundAt = (yaw) => LOOP.dwell + (yaw / STEP_DEG) * PER_ACTION - LOOP.hold;
+const outboundAt = (yaw) => LOOP.lead + (yaw / STEP_DEG) * PER_ACTION - LOOP.hold;
 function rpmAt(yaw) {
 const U = TURBINE.U * Math.cos((yaw * Math.PI) / 180);
 const [lo, hi] = TURBINE.rpm;
@@ -311,7 +311,7 @@ const rotorSpec = (yaw, detail) => { const F = frame(yaw); return { hub: F.hub, 
 return { yawing, lights, rotorSpec, spinner: (yaw) => spinner(frame(yaw)), frame, N, YAW };
 }
 
-const CAM = {"eye":[28.272401232764757,-53.17265323735092,155.88303429296548],"fwd":[-0.31413779147516396,0.590807258192788,-0.7431448254773942],"right":[0.8829475928589269,0.4694715627858909,0],"up":[-0.3488853625931204,0.6561579348008325,0.6691306063588582],"focal":1100,"cx":1224,"cy":90};
+const CAM = {"eye":[28.272401232764757,-53.17265323735092,155.88303429296548],"fwd":[-0.31413779147516396,0.590807258192788,-0.7431448254773942],"right":[0.8829475928589269,0.4694715627858909,0],"up":[-0.3488853625931204,0.6561579348008325,0.6691306063588582],"focal":1100,"cx":1130,"cy":90};
 const fastPath = (pts, closed = false) => { let d = ""; for (let i = 0; i < pts.length; i++) d += (i ? "L" : "M") + Math.round(pts[i][0] * 10) / 10 + " " + Math.round(pts[i][1] * 10) / 10; return d && closed ? d + "Z" : d; };
 const CTX = { P: CAM, iso: persp, pathOf: fastPath, V: [0, 0, 1], L: [-0.26302693192918225,-0.7226605561838567,0.6392014968818206], BANDS: [0,0.2,0.42,0.62], eye: CAM.eye };
 const TB = makeTurbine({ ...CTX, makeRotor });
@@ -361,12 +361,13 @@ function tick(now) {
   frame = visible && !still.matches ? requestAnimationFrame(tick) : 0;
 }
 // A still frame (reduced motion) holds the steered pose. The preview sets
-// data-at (seconds into the loop) to show any moment.
-if (still.matches) clock = outboundAt(STEERED) + 1;
-if (stage.dataset.at) clock = Number(stage.dataset.at);
+// data-at (seconds into the loop) to show any moment. Each time the card comes
+// back on screen the loop starts over, so the first action follows at once.
+const START = stage.dataset.at ? Number(stage.dataset.at) : still.matches ? outboundAt(STEERED) + 1 : 0;
+clock = START;
 angle = 0.7;
 draw(0);
 new IntersectionObserver((entries) => {
   visible = entries[entries.length - 1].isIntersecting;
-  if (visible && !frame && !still.matches && !stage.dataset.hold) { last = -Infinity; frame = requestAnimationFrame(tick); }
+  if (visible && !frame && !still.matches && !stage.dataset.hold) { last = -Infinity; clock = START; frame = requestAnimationFrame(tick); }
 }, { rootMargin: "120px 0px" }).observe(stage);

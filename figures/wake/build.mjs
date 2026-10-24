@@ -28,14 +28,15 @@ const sub3 = (p, q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]];
 const mul3 = (p, s) => [p[0] * s, p[1] * s, p[2] * s];
 const dot3 = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
 const unit3 = (p) => mul3(p, 1 / (Math.hypot(p[0], p[1], p[2]) || 1));
-const random = ((seed) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; })(11);
 
 // ── The camera: above and downwind of the nacelle, looking down on it ───────
 // From the north-east the rotor sits beyond the nacelle at the strip's right
 // edge and the agent's positive yaw swings the canopy's tail toward the camera
-// while the disc closes toward edge-on. A shifted frame puts the yaw deck where
-// the card's fade is thinnest. WAKE_VIEW='{"bearing":30}' tries another camera.
-const VIEW = { width: 1400, height: 200, bearing: -62, elevation: 48, distance: 90, focal: 1100, target: [0, 0, 89], sx: 1224, sy: 90, fps: 30, ...JSON.parse(process.env.WAKE_VIEW || "{}") };
+// while the disc closes toward edge-on. A shifted frame puts the yaw deck (sx)
+// in the right of the strip with navy clear of the helihoist railings; a phone
+// card shows only the strip's right end, so there the drawing slides right to
+// phoneSx, out of the heaviest fade. WAKE_VIEW='{"bearing":30}' tries another camera.
+const VIEW = { width: 1400, height: 200, bearing: -62, elevation: 48, distance: 90, focal: 1100, target: [0, 0, 89], sx: 1130, phoneSx: 1200, sy: 90, fps: 30, ...JSON.parse(process.env.WAKE_VIEW || "{}") };
 const WIDTH = VIEW.width, HEIGHT = VIEW.height;
 const toEye = [Math.cos(VIEW.elevation * RAD) * Math.cos(VIEW.bearing * RAD), Math.cos(VIEW.elevation * RAD) * Math.sin(VIEW.bearing * RAD), Math.sin(VIEW.elevation * RAD)];
 const EYE = add3(VIEW.target, mul3(toEye, VIEW.distance));
@@ -94,42 +95,6 @@ function tower() {
   return { body: out.join(""), zeroDeg };
 }
 
-// ── The sea, as on the ohmera.ai card, seen from above: glints in bands ──────
-// The card's 69 m swell from the north-east, under a 25 m wind sea running east
-// before the post's westerly.
-const SWELL_DIR = unit3([Math.cos(225 * RAD), Math.sin(225 * RAD), 0]);
-const TRAINS = [
-  { key: "a", dir: SWELL_DIR, length: 69, period: 20 / 3, share: 0.45 },
-  { key: "b", dir: [1, 0, 0], length: 25, period: 4, share: 0.55 },
-];
-const BUCKETS = 12;
-const ray = (sx, sy) => {
-  const dir = add3(CAM.fwd, add3(mul3(CAM.right, (sx - CAM.cx) / CAM.focal), mul3(CAM.up, -(sy - CAM.cy) / CAM.focal)));
-  return dir[2] < -1e-4 ? add3(EYE, mul3(dir, -EYE[2] / dir[2])) : null;
-};
-function sea() {
-  const groups = new Map();
-  for (let y = 2, step = 8.5; y < HEIGHT + 4; y += step) {
-    for (let x = -8 + random() * step * 3; x < WIDTH + 8; x += step * (3.2 + random() * 3.4)) {
-      const p = ray(x, y + (random() - 0.5) * step * 0.6);
-      if (!p) continue;
-      const train = random() < TRAINS[0].share ? TRAINS[0] : TRAINS[1];
-      const crest = [-train.dir[1], train.dir[0], 0], half = ((0.55 * step + 0.6) * depth(p)) / CAM.focal / 2;
-      const seg = k.pathOf([at(add3(p, mul3(crest, -half))), at(add3(p, mul3(crest, half)))]);
-      const phase = ((dot3(p, train.dir) / train.length) % 1 + 1) % 1, b = Math.floor(phase * BUCKETS);
-      const key = `${train.key}${b}`;
-      groups.set(key, (groups.get(key) || "") + seg);
-    }
-  }
-  const glints = [...groups].map(([key, d]) => {
-    const train = TRAINS.find((t) => t.key === key[0]), b = parseInt(key.slice(1), 10);
-    const delay = ((((b + 0.5) / BUCKETS - 0.5) % 1) - 1) * train.period;
-    return `<path class="wk-glint" data-train="${train.key}" style="animation-delay:${delay.toFixed(3)}s" d="${d}"/>`;
-  }).join("");
-  return `<defs><linearGradient id="wk-sea" x1="0" y1="0" x2="0" y2="${HEIGHT}" gradientUnits="userSpaceOnUse"><stop offset="0" style="stop-color:var(--wk-sea-far)"/><stop offset="1" style="stop-color:var(--wk-sea-near)"/></linearGradient></defs>` +
-    `<rect width="${WIDTH}" height="${HEIGHT}" fill="url(#wk-sea)"/><g class="wk-sea">${glints}</g>`;
-}
-
 // ── The rotor's slots: blades pointing away behind the spinner, toward in front ─
 const rotorRest = makeRotor(TB.rotorSpec(0, ROTOR_DETAIL), ctx).pose(0);
 const solidMarkup = (paths, slot) => `<g class="iso-solid" data-seamless="" data-slot="${slot}"><path class="iso-fill"${paths ? ` d="${paths.fill}"` : ""}/>${[0, 1, 2, 3].map((s) => `<path class="iso-shade" data-shade="${s}"${paths?.shades[s] ? ` d="${paths.shades[s]}"` : ""}/>`).join("")}<path class="iso-top"${paths?.top ? ` d="${paths.top}"` : ""}/><path class="iso-line iso-crease" data-tone="lo"/><path class="iso-line iso-edge" data-tone="hi"${paths ? ` d="${paths.outline}"` : ""}/></g>`;
@@ -142,8 +107,8 @@ const rotor = `<g data-rotor="">${rotorLayer(false)}${solidMarkup(TB.spinner(0),
 
 const TW = tower();
 const lights = TB.lights(0);
-const svgBody = [sea(), rotor, TW.body, `<g data-yawing="">${TB.yawing(0)}</g>`,
-  `<g class="wk-beacon">${lights.map(([x, y], n) => `<circle data-light="${n}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.1"/>`).join("")}</g>`].join("");
+const svgBody = [`<g class="wk-frame">`, rotor, TW.body, `<g data-yawing="">${TB.yawing(0)}</g>`,
+  `<g class="wk-beacon">${lights.map(([x, y], n) => `<circle data-light="${n}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.1"/>`).join("")}</g>`, `</g>`].join("");
 
 // ── Live ────────────────────────────────────────────────────────────────────
 // the page inlines the shared modules without their exports, comments or indentation
@@ -203,14 +168,15 @@ function tick(now) {
   frame = visible && !still.matches ? requestAnimationFrame(tick) : 0;
 }
 // A still frame (reduced motion) holds the steered pose. The preview sets
-// data-at (seconds into the loop) to show any moment.
-if (still.matches) clock = outboundAt(STEERED) + 1;
-if (stage.dataset.at) clock = Number(stage.dataset.at);
+// data-at (seconds into the loop) to show any moment. Each time the card comes
+// back on screen the loop starts over, so the first action follows at once.
+const START = stage.dataset.at ? Number(stage.dataset.at) : still.matches ? outboundAt(STEERED) + 1 : 0;
+clock = START;
 angle = 0.7;
 draw(0);
 new IntersectionObserver((entries) => {
   visible = entries[entries.length - 1].isIntersecting;
-  if (visible && !frame && !still.matches && !stage.dataset.hold) { last = -Infinity; frame = requestAnimationFrame(tick); }
+  if (visible && !frame && !still.matches && !stage.dataset.hold) { last = -Infinity; clock = START; frame = requestAnimationFrame(tick); }
 }, { rootMargin: "120px 0px" }).observe(stage);
 `;
 
@@ -220,19 +186,14 @@ const NAVY = `--anatomy-page:#050f17;--anatomy-card:#081722;--anatomy-paper:#081
 --anatomy-lit-top:#163045;--anatomy-lit-shade:#12293b;
 --anatomy-hi:#9fb2c2;--anatomy-mid:#5a7184;--anatomy-lo:#2f475a;--anatomy-faint:#1a3041;--anatomy-halo:#01070c;
 --anatomy-text:#7f95a7;--anatomy-strong:#c9d6e0;--anatomy-muted:#566d80`;
-const SEA = `--wk-sea-far:#0b1d2b;--wk-sea-near:#061420;--wk-glint:#7b93a6;--wk-beacon:#e0675e`;
-const SCENE_CSS = `.wk-glint{fill:none;stroke:var(--wk-glint);stroke-width:.7;stroke-linecap:round;opacity:.14;animation:wk-crest linear infinite}
-.wk-glint[data-train="a"]{animation-duration:${(20 / 3).toFixed(4)}s}
-.wk-glint[data-train="b"]{animation-duration:4s}
-@keyframes wk-crest{0%,36%{opacity:.14}50%{opacity:.9}64%,100%{opacity:.14}}
-.wk-beacon circle{fill:var(--wk-beacon)}
+const SCENE_CSS = `.wk-beacon circle{fill:#e0675e}
 .wk-beacon{animation:wk-blink 2s steps(1) infinite}
 @keyframes wk-blink{0%{opacity:1}30%,100%{opacity:.15}}`;
-const STILL = ".wk-glint,.wk-beacon";
 const KIT = k.ISO_CSS.split("\n").filter((line) => /^\.iso-(fill|shade|top|line|solid|dots)/.test(line));
 const scope = (rule) => (rule.startsWith("@") ? rule : rule.replace(/^[^{]+/, (sel) => sel.split(",").map((x) => `${SCOPE} ${x.trim()}`).join(",")));
-const css = `${SCOPE}{${NAVY};${SEA};--anatomy-lit:#c9d6e0;--anatomy-dot:#9fb2c2;--anatomy-weight:.6px}` + [...KIT, ...SCENE_CSS.split("\n")].map(scope).join("") +
-  `@media (prefers-reduced-motion:reduce){${STILL.split(",").map((x) => `${SCOPE} ${x}`).join(",")}{animation:none}}`;
+const css = `${SCOPE}{${NAVY};--anatomy-lit:#c9d6e0;--anatomy-dot:#9fb2c2;--anatomy-weight:.6px}` + [...KIT, ...SCENE_CSS.split("\n")].map(scope).join("") +
+  `@media (prefers-reduced-motion:reduce){${SCOPE} .wk-beacon{animation:none}}` +
+  `@media (max-width:770px){${SCOPE} .wk-frame{transform:translate(${VIEW.phoneSx - VIEW.sx}px)}}`;
 const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" preserveAspectRatio="xMaxYMax slice" aria-hidden="true" focusable="false"><style>${css}</style>${svgBody}</svg>`;
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, "scene.svg"), markup);
