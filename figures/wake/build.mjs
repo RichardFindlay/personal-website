@@ -80,7 +80,7 @@ function tower() {
   // the tower-top flange: its bolt circle, and the yaw scale on its rim, 5° a tick
   out.push(solid(column(T.flange - 0.12, T.flange, T.r1 + 0.1, T.r1 + 0.1), { tone: "mid" }));
   out.push(solid(column(T.flange, T.top, T.flangeR), { tone: "mid" }));
-  out.push(k.dotsSvg(Array.from({ length: 48 }, (_, n) => at(onRing(n * 7.5 + 3.75, 2.62, T.top))), { r: 0.42, tone: "mid" }));
+  out.push(TB.mat("dark", k.dotsSvg(Array.from({ length: 48 }, (_, n) => at(onRing(n * 7.5 + 3.75, 2.62, T.top))), { r: 0.42, tone: "mid" })));
   const zero = TB.frame(0).polar(TB.YAW.pointer, 1, 0), zeroDeg = Math.atan2(zero[1], zero[0]) / RAD;
   const tick = (deg, r0) => k.pathOf([at(onRing(deg, r0, T.top)), at(onRing(deg, T.flangeR, T.top))]);
   const ticks = { faint: [], lo: [], hi: [] };
@@ -91,10 +91,10 @@ function tower() {
     else if (off % 45 === 0) ticks.lo.push(tick(deg, 2.6));
     else ticks.faint.push(tick(deg, 2.7));
   }
-  out.push(k.lineSvg(ticks.faint.join(""), { tone: "lo" }), k.lineSvg(ticks.lo.join(""), { tone: "mid" }), k.lineSvg(ticks.hi.join(""), { tone: "hi" }));
+  out.push(TB.mat("dark", k.lineSvg(ticks.faint.join(""), { tone: "lo" }), k.lineSvg(ticks.lo.join(""), { tone: "mid" }), k.lineSvg(ticks.hi.join(""), { tone: "hi" })));
   // the yaw bearing's fixed gear ring, its teeth on the outside
   const teeth = Array.from({ length: 120 }, (_, n) => n * 3).filter(seenDeg).map((deg) => k.pathOf([at(onRing(deg, T.gearR + 0.005, T.top)), at(onRing(deg, T.gearR + 0.005, T.gearZ))])).join("");
-  out.push(solid(column(T.top, T.gearZ, T.gearR), { tone: "mid", inner: k.lineSvg(teeth, { tone: "faint" }) }));
+  out.push(TB.mat("steel", solid(column(T.top, T.gearZ, T.gearR), { tone: "mid", inner: k.lineSvg(teeth, { tone: "faint" }) })));
   return { body: out.join(""), zeroDeg };
 }
 

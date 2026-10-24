@@ -175,6 +175,7 @@ return { AX, LAT, on, polar, hub: on(N.overhang, 0, N.hub) };
 const solid = (s, tone = "hi", lit = false) => s ? `<g class="iso-solid" data-seamless=""${lit ? ` data-lit=""` : ""}><path class="iso-fill" d="${s.fill}"/>${s.shades.map((d, n) => (d ? `<path class="iso-shade" data-shade="${n}" d="${d}"/>` : "")).join("")}${s.top ? `<path class="iso-top" d="${s.top}"/>` : ""}${s.crease ? `<path class="iso-line iso-crease" data-tone="${tone === "hi" ? "lo" : "faint"}" d="${s.crease}"/>` : ""}<path class="iso-line iso-edge" data-tone="${tone}" d="${s.outline}"/></g>` : "";
 const line = (d, tone = "lo") => (d ? `<path class="iso-line" data-tone="${tone}" d="${d}"/>` : "");
 const seg = (...pts) => pathOf(pts.map(at));
+const mat = (name, ...markup) => `<g data-mat="${name}">${markup.join("")}</g>`;
 const dots = (pts, r, tone = "mid") => `<g class="iso-dots" data-tone="${tone}">${pts.map((p) => { const [x, y] = at(p); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}"/>`; }).join("")}</g>`;
 function hull(points) {
 const pts = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
@@ -215,46 +216,46 @@ const drive = (deg) => {
 const c = F.polar(deg, YAW.driveR, 0), xy = c.slice(0, 2);
 const arm = [deg - 5, deg + 5].map((d) => F.polar(d, YAW.skirtR - 0.05, 0).slice(0, 2));
 const bracket = prism([...arm, ...[deg + 7, deg - 7].map((d) => F.polar(d, YAW.driveR + 0.05, 0).slice(0, 2))], 88.55, 88.78);
-const body = solid(post(xy, 87.62, 88.3, 0.25), "mid") + solid(post(xy, 88.3, 88.42, 0.27), "mid") +
-solid(post(xy, 88.42, 89.1, 0.19), "hi") + solid(post(xy, 89.1, 89.18, 0.21), "mid");
-return { d: depth([c[0], c[1], 88.4]), near: depth([c[0], c[1], 88.4]) < depth(skirtAt), markup: [solid(bracket, "mid"), body] };
+const body = mat("steel", solid(post(xy, 87.62, 88.3, 0.25), "mid"), solid(post(xy, 88.3, 88.42, 0.27), "mid")) +
+mat("motor", solid(post(xy, 88.42, 89.1, 0.19), "hi"), solid(post(xy, 89.1, 89.18, 0.21), "mid"));
+return { d: depth([c[0], c[1], 88.4]), near: depth([c[0], c[1], 88.4]) < depth(skirtAt), markup: [mat("steel", solid(bracket, "mid")), body] };
 };
 const drives = YAW.drives.map(drive).sort((p, q) => q.d - p.d);
 for (const d of drives) if (!d.near) out.push(d.markup[1], d.markup[0]);
-out.push(solid(post([0, 0], YAW.gearZ, N.floor, YAW.skirtR, YAW.skirtR), "mid"));
+out.push(mat("alu", solid(post([0, 0], YAW.gearZ, N.floor, YAW.skirtR, YAW.skirtR), "mid")));
 const p = YAW.pointer;
-out.push(solid(prism([F.polar(p - 4, YAW.skirtR - 0.05, 0), F.polar(p - 1.4, YAW.pointerR - 0.1, 0), F.polar(p, YAW.pointerR, 0), F.polar(p + 1.4, YAW.pointerR - 0.1, 0), F.polar(p + 4, YAW.skirtR - 0.05, 0)].map((q) => q.slice(0, 2)), 87.97, 88.03), "hi"));
+out.push(mat("steel", solid(prism([F.polar(p - 4, YAW.skirtR - 0.05, 0), F.polar(p - 1.4, YAW.pointerR - 0.1, 0), F.polar(p, YAW.pointerR, 0), F.polar(p + 1.4, YAW.pointerR - 0.1, 0), F.polar(p + 4, YAW.skirtR - 0.05, 0)].map((q) => q.slice(0, 2)), 87.97, 88.03), "hi")));
 out.push(line(seg(F.polar(p, YAW.pointerR - 0.32, 88.03), F.polar(p, YAW.pointerR, 88.03)), "lit"));
 for (const d of drives) if (d.near) out.push(...d.markup);
 return out.join("");
 }
 function canopy(F) {
 const out = [];
-out.push(solid(bar(F.on(N.front - 0.2, 0, N.hub), F.on(N.overhang + SPIN.back + 0.05, 0, N.hub), 1.3), "mid"));
-out.push(solid(bar(F.on(N.front - 0.2, 0, N.hub), F.on(N.front + 0.35, 0, N.hub), 1.55), "mid"));
-for (const l of [-1.5, 1.5]) out.push(line(seg(F.on(N.rear, l, N.floor), F.on(DECK.a0 + 0.6, l, DECK.z - 0.22)), "mid"));
+out.push(mat("steel", solid(bar(F.on(N.front - 0.2, 0, N.hub), F.on(N.overhang + SPIN.back + 0.05, 0, N.hub), 1.3), "mid"),
+solid(bar(F.on(N.front - 0.2, 0, N.hub), F.on(N.front + 0.35, 0, N.hub), 1.55), "mid")));
+for (const l of [-1.5, 1.5]) out.push(mat("galv", line(seg(F.on(N.rear, l, N.floor), F.on(DECK.a0 + 0.6, l, DECK.z - 0.22)), "mid")));
 out.push(solid(prism(plan(F, N.rear, N.front, -N.half, N.half, N.corner), N.floor, N.roof), "hi", true));
 for (const s of [-1, 1]) {
 const l = s * N.half;
 if (!faces(mul(F.LAT, s), F.on(-4, l, 91))) continue;
 out.push(line([-6.8, -3.4, 0.2].map((a) => seg(F.on(a, l, N.floor), F.on(a, l, N.roof))).join(""), "faint"));
 const [a0, a1, z0, z1] = [-9.5, -8.0, 90.1, 92.3];
-out.push(line(seg(F.on(a0, l, z0), F.on(a1, l, z0), F.on(a1, l, z1), F.on(a0, l, z1)) + "Z", "mid"));
-out.push(line(Array.from({ length: 6 }, (_, n) => z0 + ((n + 1) * (z1 - z0)) / 7).map((z) => seg(F.on(a0, l, z), F.on(a1, l, z))).join(""), "lo"));
+out.push(mat("alu", line(seg(F.on(a0, l, z0), F.on(a1, l, z0), F.on(a1, l, z1), F.on(a0, l, z1)) + "Z", "mid"),
+line(Array.from({ length: 6 }, (_, n) => z0 + ((n + 1) * (z1 - z0)) / 7).map((z) => seg(F.on(a0, l, z), F.on(a1, l, z))).join(""), "lo")));
 const [d0, d1, h0, h1] = [-2.6, -1.6, 89.5, 91.9];
-out.push(line(seg(F.on(d0, l, h0), F.on(d1, l, h0), F.on(d1, l, h1), F.on(d0, l, h1)) + "Z", "mid"));
-out.push(dots([F.on(d1 - 0.18, l, 90.7)], 0.45, "hi"));
+out.push(mat("alu", line(seg(F.on(d0, l, h0), F.on(d1, l, h0), F.on(d1, l, h1), F.on(d0, l, h1)) + "Z", "mid")));
+out.push(mat("dark", dots([F.on(d1 - 0.18, l, 90.7)], 0.45, "hi")));
 }
 if (faces(mul(F.AX, -1), F.on(N.rear, 0, 91))) out.push(line([-1.1, 1.1].map((l) => seg(F.on(N.rear, l, N.floor), F.on(N.rear, l, N.roof))).join(""), "faint"));
 const capPlan = plan(F, N.rear + 0.3, N.front - 0.3, -N.half + 0.3, N.half - 0.3, N.corner - 0.25);
 out.push(solid(prism(capPlan, N.roof, N.cap), "hi"));
 const roofL = N.half - 0.3;
 out.push(line([-4.3, -2.2].map((a) => seg(F.on(a, -roofL, N.cap), F.on(a, roofL, N.cap))).join(""), "faint"));
-out.push(solid(box(F, -1.3, 0.8, -0.9, 0.9, N.cap, N.cap + 0.16, 0.1), "hi"));
-out.push(dots([-0.5, 0.5].map((l) => F.on(-1.3, l, N.cap + 0.16)), 0.45, "mid"));
-out.push(solid(box(F, 0.45, 0.55, -0.35, 0.35, N.cap + 0.16, N.cap + 0.24), "mid"));
+out.push(mat("alu", solid(box(F, -1.3, 0.8, -0.9, 0.9, N.cap, N.cap + 0.16, 0.1), "hi")));
+out.push(mat("dark", dots([-0.5, 0.5].map((l) => F.on(-1.3, l, N.cap + 0.16)), 0.45, "mid")));
+out.push(mat("safety", solid(box(F, 0.45, 0.55, -0.35, 0.35, N.cap + 0.16, N.cap + 0.24), "mid")));
 const C = { a0: -8.2, a1: -5.0, half: 1.9, z: N.cap + 1.45 };
-out.push(solid(box(F, C.a0, C.a1, -C.half, C.half, N.cap, C.z, 0.08), "hi"));
+out.push(mat("radiator", solid(box(F, C.a0, C.a1, -C.half, C.half, N.cap, C.z, 0.08), "hi")));
 const fins = [];
 for (const s of [-1, 1]) {
 const l = s * C.half;
@@ -264,31 +265,31 @@ if (faces(mul(F.AX, -1), F.on(C.a0, 0, C.z - 0.6))) for (let l = -C.half + 0.3; 
 const rails = [];
 for (const s of [-1, 1]) if (faces(mul(F.LAT, s), F.on((C.a0 + C.a1) / 2, s * C.half, C.z - 0.6))) for (const z of [N.cap + 0.12, C.z - 0.12]) rails.push(seg(F.on(C.a0 + 0.08, s * C.half, z), F.on(C.a1 - 0.08, s * C.half, z)));
 if (faces(mul(F.AX, -1), F.on(C.a0, 0, C.z - 0.6))) for (const z of [N.cap + 0.12, C.z - 0.12]) rails.push(seg(F.on(C.a0, -C.half + 0.08, z), F.on(C.a0, C.half - 0.08, z)));
-out.push(line(fins.join(""), "lo"), line(rails.join(""), "mid"));
+out.push(mat("radiator", line(fins.join(""), "lo"), line(rails.join(""), "mid")));
 for (const a of [-7.35, -5.85]) {
 const ring = Array.from({ length: 25 }, (_, n) => F.on(a + 0.62 * Math.cos((n / 24) * 2 * Math.PI), 0.62 * Math.sin((n / 24) * 2 * Math.PI), C.z));
-out.push(line(pathOf(ring.map(at), true), "mid"));
-out.push(line([0, 1, 2, 3, 4].map((n) => { const f = (n / 5) * 2 * Math.PI + 0.3; return seg(F.on(a + 0.12 * Math.cos(f), 0.12 * Math.sin(f), C.z), F.on(a + 0.62 * Math.cos(f + 0.5), 0.62 * Math.sin(f + 0.5), C.z)); }).join(""), "lo"));
-out.push(dots([F.on(a, 0, C.z)], 0.6, "hi"));
+out.push(mat("dark", line(pathOf(ring.map(at), true), "mid"),
+line([0, 1, 2, 3, 4].map((n) => { const f = (n / 5) * 2 * Math.PI + 0.3; return seg(F.on(a + 0.12 * Math.cos(f), 0.12 * Math.sin(f), C.z), F.on(a + 0.62 * Math.cos(f + 0.5), 0.62 * Math.sin(f + 0.5), C.z)); }).join(""), "lo"),
+dots([F.on(a, 0, C.z)], 0.6, "hi")));
 }
 const M = { a: -9.4, l: 1.55, z: N.cap + 2.3 };
 const feet = [-M.l, M.l].map((l) => F.on(M.a, l, N.cap));
 feet.sort((p, q) => depth(q) - depth(p));
-for (const f of feet) out.push(solid(post(f, N.cap, M.z + 0.12, 0.08), "hi"));
-out.push(solid(bar(F.on(M.a, -M.l, M.z), F.on(M.a, M.l, M.z), 0.06), "hi"));
+for (const f of feet) out.push(mat("galv", solid(post(f, N.cap, M.z + 0.12, 0.08), "hi")));
+out.push(mat("galv", solid(bar(F.on(M.a, -M.l, M.z), F.on(M.a, M.l, M.z), 0.06), "hi")));
 const cups = F.on(M.a, 0.7, M.z), vane = F.on(M.a, -0.7, M.z);
-out.push(solid(post(cups, M.z, M.z + 0.42, 0.035), "mid"), solid(post(vane, M.z, M.z + 0.42, 0.035), "mid"));
+out.push(mat("dark", solid(post(cups, M.z, M.z + 0.42, 0.035), "mid"), solid(post(vane, M.z, M.z + 0.42, 0.035), "mid")));
 const cupTop = add(cups, [0, 0, 0.42]);
 const arms = [0, 120, 240].map((d) => add(cupTop, [0.45 * Math.cos(d * RAD + 0.4), 0.45 * Math.sin(d * RAD + 0.4), 0]));
-out.push(line(arms.map((q) => seg(cupTop, q)).join(""), "hi"), dots(arms, 0.9, "hi"), dots([cupTop], 0.5, "hi"));
+out.push(mat("dark", line(arms.map((q) => seg(cupTop, q)).join(""), "hi"), dots(arms, 0.9, "hi"), dots([cupTop], 0.5, "hi")));
 const vTop = add(vane, [0, 0, 0.42]);
-out.push(line(seg(add(vTop, [-0.5, 0, 0]), add(vTop, [0.35, 0, 0])), "hi"));
+out.push(mat("dark", line(seg(add(vTop, [-0.5, 0, 0]), add(vTop, [0.35, 0, 0])), "hi")));
 const fin = pathOf([[0.3, 0.02], [0.95, 0.34], [0.95, -0.12], [0.3, -0.02]].map(([x, z]) => at(add(vTop, [x, 0, z]))), true);
-out.push(solid({ fill: fin, outline: fin, shades: ["", "", "", ""] }, "hi"), dots([add(vTop, [-0.5, 0, 0])], 0.9, "hi"));
-out.push(solid(box(F, DECK.a0, DECK.a1, -N.half, N.half, DECK.z - 0.22, DECK.z, 0.01), "hi"));
+out.push(mat("dark", solid({ fill: fin, outline: fin, shades: ["", "", "", ""] }, "hi"), dots([add(vTop, [-0.5, 0, 0])], 0.9, "hi")));
+out.push(mat("deck", solid(box(F, DECK.a0, DECK.a1, -N.half, N.half, DECK.z - 0.22, DECK.z, 0.01), "hi")));
 const hc = (DECK.a0 + DECK.a1) / 2;
-out.push(line(pathOf(Array.from({ length: 33 }, (_, n) => F.on(hc + 1.15 * Math.cos((n / 32) * 2 * Math.PI), 1.15 * Math.sin((n / 32) * 2 * Math.PI), DECK.z)).map(at), true), "lo"));
-out.push(line(seg(F.on(hc - 0.55, -0.55, DECK.z), F.on(hc + 0.55, -0.55, DECK.z), F.on(hc + 0.55, 0.55, DECK.z), F.on(hc - 0.55, 0.55, DECK.z)) + "Z", "mid"));
+out.push(mat("marking", line(pathOf(Array.from({ length: 33 }, (_, n) => F.on(hc + 1.15 * Math.cos((n / 32) * 2 * Math.PI), 1.15 * Math.sin((n / 32) * 2 * Math.PI), DECK.z)).map(at), true), "lo")));
+out.push(mat("alu", line(seg(F.on(hc - 0.55, -0.55, DECK.z), F.on(hc + 0.55, -0.55, DECK.z), F.on(hc + 0.55, 0.55, DECK.z), F.on(hc - 0.55, 0.55, DECK.z)) + "Z", "mid")));
 const edge = [[DECK.a1 - 0.08, N.half], [DECK.a0, N.half], [DECK.a0, -N.half], [DECK.a1 - 0.08, -N.half]];
 const along = [];
 for (let i = 0; i + 1 < edge.length; i++) {
@@ -296,8 +297,8 @@ const [p, q] = [edge[i], edge[i + 1]], n = Math.max(1, Math.round(Math.hypot(q[0
 for (let k = i ? 1 : 0; k <= n; k++) along.push([p[0] + ((q[0] - p[0]) * k) / n, p[1] + ((q[1] - p[1]) * k) / n]);
 }
 const rail = (h) => seg(...along.map(([a, l]) => F.on(a, l, DECK.z + h)));
-out.push(line(along.map(([a, l]) => seg(F.on(a, l, DECK.z), F.on(a, l, DECK.z + DECK.rail))).join(""), "mid"));
-out.push(line(rail(DECK.rail / 2), "lo"), line(rail(DECK.rail), "hi"));
+out.push(mat("safety", line(along.map(([a, l]) => seg(F.on(a, l, DECK.z), F.on(a, l, DECK.z + DECK.rail))).join(""), "mid"),
+line(rail(DECK.rail / 2), "lo"), line(rail(DECK.rail), "hi")));
 return out.join("");
 }
 function spinner(F) {
@@ -308,7 +309,7 @@ return sweep(ss.map((s) => ({ C: add(F.hub, mul(F.AX, s)), u: [0, 0, 1], v: F.LA
 const yawing = (yaw) => { const F = frame(yaw); return yawDeck(F) + canopy(F); };
 const lights = (yaw) => { const F = frame(yaw); return [-1.55, 1.55].map((l) => at(F.on(-9.4, l, N.cap + 2.3 + 0.2))); };
 const rotorSpec = (yaw, detail) => { const F = frame(yaw); return { hub: F.hub, axis: F.AX, ...ROTOR, ...detail }; };
-return { yawing, lights, rotorSpec, spinner: (yaw) => spinner(frame(yaw)), frame, N, YAW };
+return { yawing, lights, rotorSpec, spinner: (yaw) => spinner(frame(yaw)), frame, mat, N, YAW };
 }
 
 const CAM = {"eye":[28.272401232764757,-53.17265323735092,155.88303429296548],"fwd":[-0.31413779147516396,0.590807258192788,-0.7431448254773942],"right":[0.8829475928589269,0.4694715627858909,0],"up":[-0.3488853625931204,0.6561579348008325,0.6691306063588582],"focal":1100,"cx":1130,"cy":90};
