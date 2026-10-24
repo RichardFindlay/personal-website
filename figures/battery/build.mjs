@@ -62,7 +62,7 @@ const FENCE_X = ROW_END + 7;
 // A pinhole camera, level (verticals stay vertical), eye at 1.7 m. Placed so the
 // near container's front top corner at its door end sits at ANCHOR on the card.
 const RAD = Math.PI / 180;
-const EYE = [-6.5, 11.8, 1.7], YAW = -45 * RAD, FOCAL = 660, ANCHOR = { at: [0, C.W / 2, Z1], screen: [1385, 14] };
+const EYE = [-7.56, 10.74, 1.7], YAW = -45 * RAD, FOCAL = 660, ANCHOR = { at: [0, C.W / 2, Z1], screen: [1320, 14] };
 const CAM = (() => {
   const probe = lookFrom(EYE, YAW, 0, FOCAL, 0, 0), [x, y] = persp(ANCHOR.at, probe);
   return lookFrom(EYE, YAW, 0, FOCAL, ANCHOR.screen[0] - x, ANCHOR.screen[1] - y);
@@ -444,6 +444,7 @@ function ground() {
     g.push(groundLine([X0, y + BED[0], 0], [X1, y + BED[0], 0], "lo"), groundLine([X0, y + BED[1], 0], [X1, y + BED[1], 0], "lo"));
     g.push(groundLine([X0, y + BED[0], 0], [X0, y + BED[1], 0], "lo"), groundLine([X1, y + BED[0], 0], [X1, y + BED[1], 0], "lo"));
     g.push(groundLine([X0 + 0.3, t0, 0], [X1 - 0.3, t0, 0], "lo"), groundLine([X0 + 0.3, t1, 0], [X1 - 0.3, t1, 0], "lo"));
+    g.push(groundLine([X0 + 0.3, t0, 0], [X0 + 0.3, t1, 0], "lo"), groundLine([X1 - 0.3, t0, 0], [X1 - 0.3, t1, 0], "lo"));
     // the trench covers' joints, kerb to kerb; the near ones lifted where cables drop in
     const joints = [];
     for (let x = X0 + 0.3 + 0.6; x < X1 - 0.4; x += 0.6) joints.push(groundLine([x, t0, 0], [x, t1, 0], "faint"));
