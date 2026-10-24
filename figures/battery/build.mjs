@@ -1,21 +1,23 @@
-// The battery post's card: a grid battery plant seen from a mast over one of
-// its aisles. Rows of 20 ft battery containers in blocks of four, a power
-// conversion skid (inverter, MV transformer, ring main unit) in each block, all
-// on one grid: a cable trench and an access track down each aisle, access roads
-// between the blocks. The card cuts off the front row and shows three more
-// behind it before the rows run off the top and sides. Every container's charge
-// lamp and the fans run one real day of the post's Double Dueling DQN agent
-// (4 December 2018, from the post's own CSV), one hour every 1.25 s: the plant
-// is one battery, dispatched as one. One unit is 10 cm.
+// The battery post's card: a grid battery plant seen by someone standing on its
+// perimeter track. Eye height 1.7 m, about nine metres off the outermost row,
+// looking along it: the nearest 20 ft battery container fills the right of the
+// card, cut by its bottom edge, its door end turned toward you; the next one,
+// the row's power conversion skid (inverter, MV transformer, ring main unit)
+// and the last two containers recede to the left. Past the near container's
+// door end are the ends of the rows behind. Every container's charge lamp and
+// the fans run one real day of the post's Double Dueling DQN agent (4 December
+// 2018, from the post's own CSV), one hour every 1.25 s: the plant is one
+// battery, dispatched as one. Units are metres.
 // Run: node figures/battery/build.mjs   writes staticfiles/image/thumbnails/battery/
 //      scene.svg and scene.js, and figures/battery/preview.html
-//      --stills <dir>   also the card held at four hours of the day, check.html and parts.html
+//      --stills <dir>   also the card held at four hours of the day
 //      --sizes          the size of each part of the drawing
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { BATTERY, dayOf, stateAt } from "./model.mjs";
+import { lookFrom, persp } from "./camera.mjs";
 
 const SKILL = join(homedir(), ".claude/skills/anatomy");
 const k = await import(join(SKILL, "kit/iso-kit.mjs"));
@@ -42,392 +44,485 @@ if (Math.abs(rows[24].soc - rows[0].soc) > 1e-9) throw new Error("the day does n
 const SECONDS_PER_HOUR = 1.25;
 const STILL_HOUR = 19.5; // reduced motion: the evening peak, discharging at full power
 
-// ── Site plan (x along the rows, y toward the viewer, z up) ──────────────────
-// One grid: every row has the same blocks at the same x, so containers and
-// skids line up in columns from the front row back. A block is two containers,
-// the PCS skid, two containers; an access road runs between blocks. Each row
-// is a container on its gravel bed, its cable trench in front, then an access
-// track across the aisle to the next row.
-const C = { w: 60.6, d: 24.4, h: 25.9, plinth: 3 };                 // 20 ft containers on concrete sleepers
-const PCS = { w: 74, d: 22, skid: 3.2 };
-const GAP = 12, GAP_PCS = 14, ROAD = 72, PITCH = 100, TRENCH_DY = 19;
-const BED = { back: C.d / 2 + 6, front: TRENCH_DY + 9 };              // the gravel bed, from the row's centre line
-const TRACK = { y0: BED.front + 8, y1: PITCH - BED.back - 8 };         // the aisle's track, kerb to kerb
-const SLOTS = [0, C.w + GAP, "pcs", 2 * C.w + GAP + 2 * GAP_PCS + PCS.w, 3 * C.w + 2 * GAP + 2 * GAP_PCS + PCS.w];
-const BLOCK = 4 * C.w + 2 * GAP + 2 * GAP_PCS + PCS.w;
-const PERIOD = BLOCK + ROAD;
-const PCS_X = 2 * C.w + GAP + GAP_PCS;
+// ── Site plan, in metres (x along the rows, y toward the viewer, z up) ───────
+// Each row is one block: two containers, the PCS skid, two containers, all on
+// concrete sleepers on a gravel bed, with a cable trench in front of them and
+// an access track beyond. Rows are 10 m apart; row 0 is the outermost.
+const C = { L: 6.058, W: 2.438, H: 2.591, plinth: 0.3 };          // ISO 20 ft, on sleepers
+const Z0 = C.plinth, Z1 = C.plinth + C.H;
+const PCS = { L: 7.4, W: 2.2, skid: 0.32 };
+const SLOTS = [[0, "c"], [7.26, "c"], [14.72, "pcs"], [23.52, "c"], [30.78, "c"]];
+const ROW_END = 36.84, PITCH = 10, ROWS = [0, 1, 2, 3];
 const rowY = (r) => -r * PITCH;
+const TRENCH = [1.9, 2.5], BED = [-C.W / 2 - 0.6, 2.85], TRACK = [3.5, 7.6]; // from the row's centre line
+const FENCE_X = ROW_END + 7;
 
-// ── Camera: a mast over the front aisle, looking down the rows ──────────────
-// Each part is drawn once in the kit's parallel projection along the camera's
-// own axes, then placed where a pinhole camera puts it and scaled by focal /
-// distance, so rows shrink into the distance like a photograph's while one
-// container drawing serves the whole plant. Ground lines (tracks, trenches,
-// beds) are projected point by point, so they converge truly. The camera looks
-// nearly square on to the rows, so they run almost level across the card and
-// the columns close toward one point just right of the phone card's centre.
-const AZ = 87, EL = 34, RAD = Math.PI / 180;
-const A = AZ * RAD, E = EL * RAD;
-const VIEW = [Math.cos(A) * Math.cos(E), Math.sin(A) * Math.cos(E), Math.sin(E)];
-const RIGHT = [Math.sin(A), -Math.cos(A), 0];
-const DOWN = [Math.cos(A) * Math.sin(E), Math.sin(A) * Math.sin(E), -Math.cos(E)];
+// ── Camera: a person on the perimeter track ─────────────────────────────────
+// A pinhole camera, level (verticals stay vertical), eye at 1.7 m. Placed so the
+// near container's front top corner at its door end sits at ANCHOR on the card.
+const RAD = Math.PI / 180;
+const EYE = [-2, 10.2, 1.7], YAW = -52 * RAD, FOCAL = 660, ANCHOR = { at: [0, C.W / 2, Z1], screen: [1385, 8] };
+const CAM = (() => {
+  const probe = lookFrom(EYE, YAW, 0, FOCAL, 0, 0), [x, y] = persp(ANCHOR.at, probe);
+  return lookFrom(EYE, YAW, 0, FOCAL, ANCHOR.screen[0] - x, ANCHOR.screen[1] - y);
+})();
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-// the front row's foot sits just under the card's bottom edge, so the card
-// cuts off its sleepers and the bottom of its doors
-const FOCAL = 1240, NEAR_SCALE = 1.65;
-const TARGET = [PERIOD + PCS_X + PCS.w / 2, rowY(0) + C.d / 2, 0], ON_SCREEN = [1132, 197];
-const EYE = TARGET.map((v, i) => v + (VIEW[i] * FOCAL) / NEAR_SCALE);
-const distOf = (p) => dot([EYE[0] - p[0], EYE[1] - p[1], EYE[2] - p[2]], VIEW);
-const screen = (p) => {
-  const d = [p[0] - EYE[0], p[1] - EYE[1], p[2] - EYE[2]], D = distOf(p);
-  return [ON_SCREEN[0] + (FOCAL * dot(d, RIGHT)) / D, ON_SCREEN[1] + (FOCAL * dot(d, DOWN)) / D];
-};
-const scaleAt = (p) => FOCAL / distOf(p);
-const NEAR_DIST = distOf(TARGET);
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+const unit = (a) => mul(a, 1 / Math.hypot(...a));
+const depthOf = (p) => dot(sub(p, EYE), CAM.fwd);
+const P = (p) => persp(p, CAM);
+const scaleAt = (p) => FOCAL / depthOf(p);
+const f1 = (v) => (Math.round(v * 10) / 10).toString();
+const f3 = (v) => (Math.round(v * 1000) / 1000).toString();
 
-// Parts are drawn at KS px per unit and placed at scaleAt / KS.
-const KS = 2;
-const P = { origin: [0, 0], scale: KS / Math.sqrt(1.6), azimuth: AZ, elevation: EL };
-const f1 = (v) => (Math.round(v * 100) / 100).toString();
-const f2 = (v) => (Math.round(v * 1000) / 1000).toString();
-const placed = (anchor) => { const [x, y] = screen(anchor); return `translate(${f1(x)} ${f1(y)}) scale(${f2(scaleAt(anchor) / KS)})`; };
+// ── Light and haze ───────────────────────────────────────────────────────────
+// The sun high over the viewer's left shoulder: fronts catch the most, door ends less.
+const LIGHT = unit([-0.35, 0.55, 0.75]);
+const band = (n) => { const d = dot(unit(n), LIGHT); return d > 0.5 ? 3 : d > 0.25 ? 2 : d > 0 ? 1 : 0; };
+// a ladder of tone sets, nearest first, picked per part by its distance
+const hazeOf = (p) => Math.max(0, Math.min(5, Math.floor((depthOf(p) - 9) / 6.5)));
 
-// Distance haze: a ladder of tone sets, nearest first, picked per part by its distance.
-const HAZE_STEP = 0.1;
-const hazeOf = (p) => Math.max(0, Math.min(5, Math.floor((distOf(p) / NEAR_DIST - 1.05) / HAZE_STEP) + 1));
-// detail a part earns at its size on screen
-const tierOf = (p) => { const s = scaleAt(p); return s > 1.4 ? "near" : s > 1 ? "mid" : "far"; };
+// ── Drawing in perspective ───────────────────────────────────────────────────
+const L = (pts, tone = "lo", free) => k.lineSvg(k.pathOf(pts.map(P)), { tone, free });
+const Ls = (list, tone = "lo", free) => k.lineSvg(list.map((pts) => k.pathOf(pts.map(P))).join(""), { tone, free });
+const poly = (pts) => k.pathOf(pts.map(P), true);
+const fill = (cls, list) => `<path class="${cls}" d="${list.map(poly).join("")}"/>`;
+const dots = (pts, size, tone) => k.dotsSvg(pts.map(P), { size, tone });
+function hull(points) {
+  const pts = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower = [], upper = [];
+  for (const p of pts) { while (lower.length > 1 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); }
+  for (const p of pts.reverse()) { while (upper.length > 1 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+}
+// A convex solid from its faces (each an outward-wound polygon with its normal):
+// the faces you can see, each in the tone its facing earns, the hull as outline,
+// and creases where two seen faces meet.
+function solid(faces, style = {}) {
+  const seen = faces.filter((f) => dot(f.n, sub(EYE, f.pts[0])) > 1e-9);
+  const shades = [[], [], [], []], top = [];
+  for (const f of seen) (f.n[2] > 0.9 ? top : shades[band(f.n)]).push(poly(f.pts));
+  const key = (p) => p.map((v) => v.toFixed(4)).join(",");
+  const edges = new Map();
+  for (const f of seen) f.pts.forEach((p, i) => {
+    const q = f.pts[(i + 1) % f.pts.length], id = [key(p), key(q)].sort().join("|");
+    edges.set(id, edges.has(id) ? [p, q, true] : [p, q, false]);
+  });
+  const crease = [...edges.values()].filter(([, , shared]) => shared).map(([p, q]) => k.pathOf([P(p), P(q)])).join("");
+  const outline = k.pathOf(hull(seen.flatMap((f) => f.pts.map(P))), true);
+  return k.solidSvg({ fill: outline, outline, shades: shades.map((s) => s.join("")), top: top.join(""), crease }, { crease: "faint", ...style });
+}
+// an upright box over x0..x1, y0..y1, z0..z1
+function boxFaces([x0, x1], [y0, y1], [z0, z1]) {
+  const c = (x, y, z) => [x, y, z];
+  return [
+    { n: [-1, 0, 0], pts: [c(x0, y1, z0), c(x0, y0, z0), c(x0, y0, z1), c(x0, y1, z1)] },
+    { n: [1, 0, 0], pts: [c(x1, y0, z0), c(x1, y1, z0), c(x1, y1, z1), c(x1, y0, z1)] },
+    { n: [0, -1, 0], pts: [c(x0, y0, z0), c(x1, y0, z0), c(x1, y0, z1), c(x0, y0, z1)] },
+    { n: [0, 1, 0], pts: [c(x1, y1, z0), c(x0, y1, z0), c(x0, y1, z1), c(x1, y1, z1)] },
+    { n: [0, 0, -1], pts: [c(x0, y0, z0), c(x0, y1, z0), c(x1, y1, z0), c(x1, y0, z0)] },
+    { n: [0, 0, 1], pts: [c(x0, y0, z1), c(x1, y0, z1), c(x1, y1, z1), c(x0, y1, z1)] },
+  ];
+}
+const box = (xs, ys, zs, style) => solid(boxFaces(xs, ys, zs), style);
+// a round rod or drum: a ring about `centre` in the plane of u, v, swept along `axis`
+function drumFaces(centre, u, v, r, axis, steps = 14) {
+  const ring = Array.from({ length: steps }, (_, i) => { const a = (i / steps) * Math.PI * 2; return add(centre, add(mul(u, r * Math.cos(a)), mul(v, r * Math.sin(a)))); });
+  const far = ring.map((p) => add(p, axis));
+  const n = unit([u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]);
+  const s = dot(n, axis) > 0 ? 1 : -1;
+  const faces = [{ n: mul(n, -s), pts: ring }, { n: mul(n, s), pts: far }];
+  ring.forEach((p, i) => { const j = (i + 1) % steps, mid = mul(add(p, ring[j]), 0.5); faces.push({ n: unit(sub(mid, centre)), pts: [p, ring[j], far[j], far[i]] }); });
+  return faces;
+}
+// A face-local affine at a point: maps local (u right, v down) metres onto the
+// screen, the way the kit's sideMatrix does. The fans turn inside it.
+function faceMatrix(o, u, v) {
+  const e = 0.05, [x, y] = P(o), a = P(add(o, mul(u, e))), b = P(add(o, mul(v, e)));
+  return `matrix(${[(a[0] - x) / e, (a[1] - y) / e, (b[0] - x) / e, (b[1] - y) / e, x, y].map(f3).join(" ")})`;
+}
 
-const at = (p) => k.iso(p, P);
-const path = (pts, closed = false) => k.pathOf(pts.map(at), closed);
-const S = (paths, style) => k.solidSvg(paths, style);
-const L = (d, style) => k.lineSvg(d, style);
-const D = (pts, style) => k.dotsSvg(pts.map(at), style);
-const slab = (plan, z, h, steps = 2, bevel = 0) => k.slabOf({ r: 0, ...plan }, z, h, P, steps, bevel);
-const depth = (p) => k.depthOf(p, P);
-// a rectangle on a face that looks along +y, at that y: x0..x1, z0..z1
-const frontRect = (y, x0, x1, z0, z1) => path([[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1]], true);
-const frontLine = (y, x0, z0, x1, z1) => path([[x0, y, z0], [x1, y, z1]]);
-// a group in the plane of a face that looks along +y: local (x, -z)
-const onFront = (y, inner, attrs = "") => `<g class="bt-face" transform="${k.sideMatrix([0, y], 0, P, "left")}"${attrs}>${inner}</g>`;
-const onTop = (z, inner, attrs = "") => `<g class="bt-face" transform="${k.topMatrix([0, 0], z, P, "x")}"${attrs}>${inner}</g>`;
-const circle = (cx, cy, r, cls, extra = "") => `<circle class="${cls}" cx="${f1(cx)}" cy="${f1(cy)}" r="${f1(r)}"${extra}/>`;
-
-// Fans: the air conditioners' condensers on the containers and the inverters'
-// roof fans. Each kind's blades and guard are drawn
-// once about the origin of a face; a fan in place is its dark throat, the blades
-// (a <use> the page turns by its own transform, so no shared drawing changes)
-// and the guard over them.
-const FANS = { hvac: { r: 5, blades: 3, spin: "hvac" }, pcs: { r: 4.7, blades: 5, spin: "pcs" } };
+// ── Fans: the containers' air conditioners and the inverter's door fans ─────
+// Each kind's blades and guard are drawn once, in metres about the origin; a fan
+// in place is its dark throat, the blades (a <use> the page turns) and the guard,
+// in the face's own plane.
+const FANS = { hvac: { r: 0.4, blades: 5 }, pcs: { r: 0.27, blades: 7 } };
+const circle = (cx, cy, r, cls) => `<circle class="${cls}" cx="${f3(cx)}" cy="${f3(cy)}" r="${f3(r)}"/>`;
 function fanDefs() {
   return Object.entries(FANS).map(([kind, { r, blades }]) => {
     const blade = (a) => {
       const p = (ang, rad) => [rad * Math.cos(ang), rad * Math.sin(ang)];
-      const [a0, a1] = [a - 0.42, a + 0.38];
-      const pts = [p(a0, r * 0.28), p(a0 - 0.1, r * 0.92), p(a + 0.05, r * 0.97), p(a1, r * 0.9), p(a1 + 0.08, r * 0.3)];
-      return "M" + pts.map((q) => q.map(f1).join(" ")).join("L") + "Z";
+      const [a0, a1] = [a - 0.36, a + 0.3];
+      const pts = [p(a0, r * 0.26), p(a0 - 0.12, r * 0.9), p(a + 0.02, r * 0.96), p(a1, r * 0.88), p(a1 + 0.1, r * 0.28)];
+      return "M" + pts.map((q) => q.map(f3).join(" ")).join("L") + "Z";
     };
     const set = Array.from({ length: blades }, (_, i) => blade((i / blades) * Math.PI * 2)).join("");
-    return `<g id="bt-fan-${kind}"><path class="bt-blade" d="${set}"/>${circle(0, 0, r * 0.24, "bt-hub")}</g>` +
-      `<g id="bt-guard-${kind}">${circle(0, 0, r * 0.62, "bt-guard")}${circle(0, 0, r, "bt-guard bt-rim")}<path class="bt-guard" d="M${f1(-r)} 0H${f1(r)}M0 ${f1(-r)}V${f1(r)}"/></g>`;
+    const rings = [0.38, 0.68].map((t) => circle(0, 0, r * t, "bt-guard")).join("");
+    const spokes = [0, 1, 2, 3].map((i) => { const a = (i * Math.PI) / 2 + Math.PI / 4; return `M${f3(r * 0.12 * Math.cos(a))} ${f3(r * 0.12 * Math.sin(a))}L${f3(r * Math.cos(a))} ${f3(r * Math.sin(a))}`; }).join("");
+    return `<g id="bt-fan-${kind}"><path class="bt-blade" d="${set}"/>${circle(0, 0, r * 0.22, "bt-hub")}</g>` +
+      `<g id="bt-guard-${kind}">${rings}<path class="bt-guard" d="${spokes}"/>${circle(0, 0, r * 0.12, "bt-guard")}${circle(0, 0, r, "bt-guard bt-rim")}</g>`;
   }).join("");
 }
 let fanPhase = 0;
-const fanAt = (cx, cy, kind, throat = true) => {
+function fan(kind, o, u, v) {
   fanPhase = (fanPhase + 137) % 360;
-  return (throat ? circle(cx, cy, FANS[kind].r, "bt-throat") : "") +
-    `<g transform="translate(${f1(cx)} ${f1(cy)})"><use href="#bt-fan-${kind}" data-fan="${FANS[kind].spin}" data-ph="${fanPhase}"/><use href="#bt-guard-${kind}"/></g>`;
-};
-// where the moving parts sit in the shared drawings, for the overlays placed over each copy
-const CX0 = -C.w / 2;
-const LAMP = { x0: CX0 + 27.4, x1: CX0 + 35.4, z0: C.plinth + 2.6, z1: C.plinth + 22.6, y: C.d / 2 };
-const HVAC_FAN = { y: C.d / 2 + 5, cx: CX0 + 49.5, cy: -(C.plinth + 3 + 11.4) };
-const PCS_FANS = { z: 1.4 + PCS.skid + 22 + 2, xs: [-PCS.w / 2 + 12, -PCS.w / 2 + 26] };
-const shadow = (x0, x1, y0, y1) => `<path class="bt-shadow" d="${path([[x0, y0, 0], [x1 + 3, y0, 0], [x1 + 3, y1 + 1.5, 0], [x0, y1 + 1.5, 0]], true)}"/>`;
+  return `<g class="bt-face" transform="${faceMatrix(o, u, v)}">${circle(0, 0, FANS[kind].r, "bt-throat")}<use href="#bt-fan-${kind}" data-fan="${kind}" data-ph="${fanPhase}"/><use href="#bt-guard-${kind}"/></g>`;
+}
 
-// ── A battery container, centred on the origin, at the detail its size earns ─
-function container(tier) {
-  const x = -C.w / 2, z0 = C.plinth, z1 = C.plinth + C.h, y = C.d / 2, out = [];
-  const near = tier === "near", mid = tier === "mid";
-  const plan = { x, y: -C.d / 2, w: C.w, d: C.d, r: 0.3 };
-  out.push(shadow(x - 1, x + C.w, -C.d / 2 - 1, y + 1));
-  // three concrete sleepers under it
-  for (const sx of [x + 3, x + C.w / 2 - 3.5, x + C.w - 10]) out.push(S(slab({ x: sx, y: -C.d / 2 - 1, w: 7, d: C.d + 2 }, 0, z0), { tone: "lo", crease: near ? "faint" : "none" }));
-  const door = { x0: x + 7.5, x1: x + 24.5, z0: z0 + 1.4, z1: z0 + 22.6 };
-  const lamp = LAMP;
-  const hvac = { x0: x + 43, x1: x + 56, z0: z0 + 3, z1: z0 + 21 };
-  const rail = [z0 + 1.4, z1 - 1.4];
-  // the box: rails, corner posts and corrugation are under its outline
-  let inner = "";
-  if (tier !== "far") {
-    const lines = [k.sideSeam(plan, rail[0], P, 2), k.sideSeam(plan, rail[1], P, 2)];
-    const corr = [];
-    for (let cx = x + 3; cx < x + C.w - 2; cx += near ? 2.8 : 5.6) {
-      const inDoor = cx > door.x0 - 0.4 && cx < door.x1 + 0.4;
-      const inLamp = cx > lamp.x0 - 0.4 && cx < lamp.x1 + 0.4;
-      const inHvac = cx > hvac.x0 && cx < hvac.x1;
-      if (inDoor) corr.push(frontLine(y, cx, door.z1, cx, rail[1]));
-      else if (inLamp) corr.push(frontLine(y, cx, rail[0], cx, lamp.z0), frontLine(y, cx, lamp.z1, cx, rail[1]));
-      else if (inHvac) corr.push(frontLine(y, cx, rail[0], cx, hvac.z0), frontLine(y, cx, hvac.z1, cx, rail[1]));
-      else corr.push(frontLine(y, cx, rail[0], cx, rail[1]));
+// The charge lamp: a column of segments behind a window, lit from the bottom up
+// to the plant's state of charge. Every lamp shows the same charge.
+function lamp(F, s0, s1, t0, t1, w, n, steps) {
+  const h = (t1 - t0) / n, segs = [];
+  for (let i = 0; i < n; i++) {
+    const a = t0 + i * h, q = [F(s0, a + h * 0.12, w), F(s1, a + h * 0.12, w), F(s1, a + h * 0.88, w), F(s0, a + h * 0.88, w)];
+    segs.push(`<path class="bt-seg-off" d="${poly(q)}"/><path class="bt-seg" style="--n:${i}" d="${poly(q)}"/>`);
+  }
+  return `<g class="bt-lamp" data-steps="${steps}" style="--segs:${n}">${segs.join("")}</g>`;
+}
+
+// ── A battery container ──────────────────────────────────────────────────────
+// x0 is its door end, yr its row's centre line. Long front (toward the track),
+// from the door end: the wall-hung air conditioner, the charge lamp, rating plate
+// and emergency stop, a personnel door, the DC cable entry. The door end carries
+// the ISO cargo doors. The fan and the lamp sit nearest the card's right edge,
+// where the white fade is thinnest. Detail follows its size on the card.
+function container(x0, yr, tier) {
+  const fy = yr + C.W / 2, by = yr - C.W / 2, x1 = x0 + C.L;
+  const near = tier === "near", far = tier === "far";
+  const F = (s, t, w = 0) => [x0 + s, fy + w, Z0 + t];   // front, s from the door end
+  const E = (e, t, w = 0) => [x0 - w, fy - e, Z0 + t];   // door end, e from the front corner
+  const out = [];
+  // the gravel under it in its own shade, seen through the gap over the sleepers
+  out.push(fill("bt-under", [[[x0 - 0.05, by - 0.05, 0], [x1 + 0.05, by - 0.05, 0], [x1 + 0.05, fy + 0.12, 0], [x0 - 0.05, fy + 0.12, 0]]]));
+  // the strobe beacon of its fire system on the roof, behind the front edge
+  if (!far) {
+    out.push(solid(drumFaces([x0 + 0.45, fy - 0.35, Z1], [1, 0, 0], [0, 1, 0], 0.09, [0, 0, 0.07], 12), { tone: "mid", crease: "none" }));
+    out.push(solid(drumFaces([x0 + 0.45, fy - 0.35, Z1 + 0.07], [1, 0, 0], [0, 1, 0], 0.065, [0, 0, 0.13], 12), { tone: "hi", crease: "none" }));
+    out.push(solid(boxFaces([x1 - 1.3, x1 - 0.9], [yr - 0.2, yr + 0.2], [Z1, Z1 + 0.3]), { tone: "mid" }));
+  }
+  // three concrete sleepers
+  for (const s of [0.2, C.L / 2 - 0.35, C.L - 0.9]) out.push(box([x0 + s, x0 + s + 0.7], [by - 0.1, fy + 0.1], [0, Z0], { tone: "lo", crease: near ? "faint" : "none" }));
+  // the box, with its rails, posts and corrugation under the outline
+  const inner = [];
+  const RAIL = [0.16, C.H - 0.16], POST = 0.15;
+  const railLine = (t) => [E(C.W - POST, t), E(0, t), F(0, t), F(C.L, t)];
+  if (!far) {
+    // corrugation: trapezoid ribs 0.27 m apart, the flank turned from the light in shade
+    const n = 21, pitch = (C.L - 2 * POST) / n, shadeA = [], shadeB = [], crest = [];
+    for (let i = 0; i < n; i++) {
+      const s = POST + i * pitch, d = 0.036, q = pitch / 4;
+      const flank = (sa, wa, sb, wb) => [F(sa, RAIL[0], wa), F(sb, RAIL[0], wb), F(sb, RAIL[1], wb), F(sa, RAIL[1], wa)];
+      shadeA.push(flank(s + q, 0, s + 2 * q, -d));
+      shadeB.push(flank(s + 3 * q, -d, s + 4 * q, 0));
+      if (near) crest.push([F(s + q, RAIL[0]), F(s + q, RAIL[1])]);
+      else if (i % 2 === 0) crest.push([F(s + q, RAIL[0]), F(s + q, RAIL[1])]);
     }
-    const posts = [frontLine(y, x + 1.6, z0, x + 1.6, z1), frontLine(y, x + C.w - 1.6, z0, x + C.w - 1.6, z1)];
-    const end = [path([[x + C.w, y - 1.6, z0], [x + C.w, y - 1.6, z1]]), path([[x + C.w, -y + 1.6, z0], [x + C.w, -y + 1.6, z1]])];
-    // up close, the roof's top rails inset round its edge and its shallow ribs between them
-    const roof = [];
+    const bA = band([0.46, 0.89, 0]), bB = band([-0.46, 0.89, 0]);
+    inner.push(fill(`iso-shade" data-shade="${bA}`, shadeA), fill(`iso-shade" data-shade="${bB}`, shadeB));
+    inner.push(Ls(crest, near ? "lo" : "faint"));
+    // the door end's cargo doors: two leaves of pressed ribs on four lock bars
+    const ribs = [];
+    for (const [e0, e1] of [[POST, C.W / 2 - 0.01], [C.W / 2 + 0.01, C.W - POST]]) for (const t of [0.55, 0.95, 1.35, 1.75, 2.15]) ribs.push([E(e0, t), E(e1, t)]);
+    inner.push(Ls(ribs, "faint"));
+    inner.push(Ls([[E(C.W / 2, RAIL[0]), E(C.W / 2, RAIL[1])], [E(POST, RAIL[0]), E(POST, RAIL[1])], [E(C.W - POST, RAIL[0]), E(C.W - POST, RAIL[1])]], "lo"));
+  }
+  inner.push(Ls([railLine(RAIL[0]), railLine(RAIL[1]), [F(POST, RAIL[0]), F(POST, RAIL[1])], [F(C.L - POST, RAIL[0]), F(C.L - POST, RAIL[1])]], far ? "faint" : "lo"));
+  if (near) {
+    // the rails' lips cast a thin shadow on the panels below them
+    inner.push(fill(`iso-shade" data-shade="0`, [[F(POST, RAIL[1]), F(C.L - POST, RAIL[1]), F(C.L - POST, RAIL[1] - 0.035), F(POST, RAIL[1] - 0.035)]]));
+    // forklift pockets in the bottom rail
+    inner.push(fill("bt-pocket", [C.L / 2 - 1.2, C.L / 2 + 0.85].map((s) => [F(s, 0.025), F(s + 0.355, 0.025), F(s + 0.355, 0.13), F(s, 0.13)])));
+    inner.push(Ls([C.L / 2 - 1.2, C.L / 2 + 0.85].map((s) => [F(s, 0.025), F(s + 0.355, 0.025), F(s + 0.355, 0.13), F(s, 0.13), F(s, 0.025)]), "lo"));
+  }
+  out.push(box([x0, x1], [by, fy], [Z0, Z1], { tone: far ? "mid" : "hi", crease: far ? "none" : "faint", inner: inner.join("") }));
+  if (!far) {
+    // ISO corner castings, each with its oval twistlock hole on both faces
+    const cast = [];
+    for (const t of [0, C.H - 0.118]) {
+      cast.push(box([x0 - 0.004, x0 + 0.178], [fy - 0.162, fy + 0.004], [Z0 + t, Z0 + t + 0.118], { tone: "mid", crease: "none" }));
+      cast.push(box([x1 - 0.178, x1 + 0.004], [fy - 0.162, fy + 0.004], [Z0 + t, Z0 + t + 0.118], { tone: "mid", crease: "none" }));
+      cast.push(box([x0 - 0.004, x0 + 0.178], [by - 0.004, by + 0.162], [Z0 + t, Z0 + t + 0.118], { tone: "mid", crease: "none" }));
+    }
+    out.push(...cast);
     if (near) {
-      const e = 1.4, ry0 = -C.d / 2 + e, ry1 = C.d / 2 - e;
-      roof.push(path([[x + e, ry0, z1], [x + C.w - e, ry0, z1], [x + C.w - e, ry1, z1], [x + e, ry1, z1]], true));
-      for (let rx = x + 5; rx < x + C.w - 3; rx += 5) roof.push(path([[rx, ry0, z1], [rx, ry1, z1]]));
+      const holes = [];
+      for (const t of [0.03, C.H - 0.088]) {
+        holes.push([F(0.04, t, 0.005), F(0.14, t, 0.005), F(0.14, t + 0.055, 0.005), F(0.04, t + 0.055, 0.005)]);
+        holes.push([F(C.L - 0.14, t, 0.005), F(C.L - 0.04, t, 0.005), F(C.L - 0.04, t + 0.055, 0.005), F(C.L - 0.14, t + 0.055, 0.005)]);
+        holes.push([E(0.035, t, 0.005), E(0.125, t, 0.005), E(0.125, t + 0.055, 0.005), E(0.035, t + 0.055, 0.005)]);
+      }
+      out.push(fill("bt-pocket", holes));
     }
-    inner = L(corr.join(""), { tone: near ? "lo" : "faint" }) + L(lines.join("") + posts.join("") + end.join(""), { tone: "lo" }) + (near ? L(roof.join(""), { tone: "faint" }) : "");
   }
-  out.push(S(slab(plan, z0, C.h, 2, near ? 0.5 : 0), { tone: "hi", crease: tier === "far" ? "none" : "faint", inner }));
-  if (near) {
-    // ISO corner castings at the front corners, each with its oval twistlock hole,
-    // and the forklift pockets in the bottom rail
-    const castings = [], holes = [];
-    for (const cx of [x, x + C.w - 3.6]) for (const cz of [z0, z1 - 2.6]) {
-      castings.push(S(slab({ x: cx, y: y - 2.4, w: 3.6, d: 2.7 }, cz, 2.6, 2, 0.2), { tone: "mid", crease: "none" }));
-      holes.push(frontRect(y + 0.3, cx + 0.9, cx + 2.7, cz + 0.8, cz + 1.8));
+  // the door end's lock bars, keepers, cam handles and hinges
+  if (!far) {
+    const bars = [0.42, 0.82, 1.62, 2.02].map((e) => e * (C.W / 2.44));
+    out.push(Ls(bars.map((e) => [E(e, RAIL[0] + 0.06, 0.03), E(e, RAIL[1] - 0.06, 0.03)]), "mid"));
+    if (near) {
+      out.push(fill("bt-keeper", bars.flatMap((e) => [RAIL[0] + 0.03, RAIL[1] - 0.09].map((t) => [E(e - 0.03, t, 0.035), E(e + 0.03, t, 0.035), E(e + 0.03, t + 0.06, 0.035), E(e - 0.03, t + 0.06, 0.035)]))));
+      out.push(Ls(bars.map((e, i) => [E(e, 1.0, 0.03), E(e + (i % 2 ? 0.16 : -0.16) * (i < 2 ? 1 : -1), 1.0, 0.03)]), "mid"));
+      out.push(fill("bt-keeper", [POST + 0.005, C.W - POST - 0.06].flatMap((e) => [0.35, 1.2, 2.05].map((t) => [E(e, t, 0.02), E(e + 0.055, t, 0.02), E(e + 0.055, t + 0.12, 0.02), E(e, t + 0.12, 0.02)]))));
+      // the CSC safety approval plate on the left leaf
+      out.push(L([E(0.3, 1.55, 0.005), E(0.62, 1.55, 0.005), E(0.62, 1.75, 0.005), E(0.3, 1.75, 0.005), E(0.3, 1.55, 0.005)], "lo"));
     }
-    out.push(...castings, L(holes.join(""), { tone: "lo" }));
-    out.push(L([x + 17.3, x + 43.3].map((fx) => frontRect(y, fx - 3, fx + 3, z0 + 0.25, z0 + 1.15)).join(""), { tone: "lo" }));
   }
-  // roof: an exhaust vent and the four lifting castings
-  const vent = [x + C.w - 14, -3];
-  if (tier !== "far") out.push(S(k.cylinder(vent[0], vent[1], 2.6, z1, 1.8, P, near ? 18 : 10), { tone: "mid", crease: "none" }));
-  if (near) {
-    out.push(S(k.cylinder(vent[0], vent[1], 3.4, z1 + 1.8, 0.6, P, 20), { tone: "mid" }));
-    out.push(S(slab({ x: x + 22, y: -9, w: 12, d: 7 }, z1, 0.5), { tone: "lo" }));
-    out.push(D(k.corners(plan, 1.2).map(([cx, cy]) => [cx, cy, z1]), { size: 0.5, tone: "mid" }));
-    // the fire system's strobe beacon on the roof's front corner
-    out.push(S(k.cylinder(x + 6, y - 5, 1.5, z1, 0.8, P, 16), { tone: "mid", crease: "none" }));
-    out.push(S(k.cylinder(x + 6, y - 5, 1, z1 + 0.8, 1.6, P, 14), { tone: "hi", crease: "none" }));
+  // ── what is fixed to the front, far end first ──
+  const fit = [];
+  // DC cable entry: a gland box low on the front, three glands, cables down to the trench
+  if (!far) {
+    const g0 = 5.3, g1 = 5.72;
+    fit.push({ s: g0, svg: () => {
+      const svg = [];
+      if (near) {
+        // cables: each leaves its gland, bends out and drops through the trench cover's open slot
+        for (const [i, s] of [g0 + 0.09, g0 + 0.225, g0 + 0.36].entries()) {
+          const r = 0.028, pts = [];
+          for (let j = 0; j <= 10; j++) {
+            const u = j / 10, w = 0.09 + (TRENCH[0] - C.W / 2 + 0.25 + i * 0.06) * (1 - Math.cos((u * Math.PI) / 2)), t = 0.08 - (0.08 + Z0) * Math.sin((u * Math.PI) / 2);
+            pts.push(F(s, t, w));
+          }
+          svg.push(tube(pts, r));
+        }
+      }
+      svg.push(box([x0 + g0, x0 + g1], [fy, fy + 0.18], [Z0 + 0.12, Z0 + 0.5], { tone: "mid", crease: near ? "faint" : "none", inner: near ? Ls([[F(g0 + 0.03, 0.46, 0.18), F(g1 - 0.03, 0.46, 0.18)]], "faint") : "" }));
+      if (near) for (const s of [g0 + 0.09, g0 + 0.225, g0 + 0.36]) svg.push(solid(drumFaces([x0 + s, fy + 0.09, Z0 + 0.12], [1, 0, 0], [0, 1, 0], 0.042, [0, 0, -0.06], 10), { tone: "mid", crease: "none" }));
+      return svg.join("");
+    } });
   }
-  // the double door: frame and meeting stile; up close, hinges, lock bars, keepers, handles
-  const leaf = (door.x1 - door.x0) / 2, m = door.x0 + leaf;
-  out.push(L(frontRect(y, door.x0, door.x1, door.z0, door.z1) + frontLine(y, m, door.z0, m, door.z1), { tone: tier === "far" ? "mid" : "lo" }));
-  if (near) {
-    out.push(L(frontRect(y, door.x0 + 1, m - 1, door.z0 + 1, door.z1 - 1) + frontRect(y, m + 1, door.x1 - 1, door.z0 + 1, door.z1 - 1), { tone: "faint" }));
-    const hinge = [];
-    for (const hz of [door.z0 + 3, (door.z0 + door.z1) / 2, door.z1 - 3]) for (const hx of [door.x0, door.x1]) hinge.push(frontRect(y + 0.2, hx - 0.6, hx + 0.6, hz - 1, hz + 1));
-    out.push(L(hinge.join(""), { tone: "mid" }));
-    const bars = [], keep = [], handles = [], knobs = [];
-    for (const bx of [m - 2.2, m + 2.2]) {
-      bars.push(frontLine(y + 0.4, bx, door.z0 + 1.6, bx, door.z1 - 1.6));
-      keep.push(frontRect(y + 0.4, bx - 0.7, bx + 0.7, door.z0 + 0.8, door.z0 + 1.6), frontRect(y + 0.4, bx - 0.7, bx + 0.7, door.z1 - 1.6, door.z1 - 0.8));
-      const side = bx < m ? -1 : 1;
-      handles.push(frontLine(y + 0.4, bx, door.z0 + 9, bx + side * 2.6, door.z0 + 9));
-      knobs.push([bx + side * 2.6, y + 0.4, door.z0 + 9]);
+  // the personnel door: two leaves in a frame, seals, hinges, lever handles, a hazard sign
+  const D = { s0: 3.45, s1: 5.13, t0: 0.16, t1: 2.3 };
+  fit.push({ s: D.s0, svg: () => {
+    const svg = [];
+    const m = (D.s0 + D.s1) / 2;
+    const leafIn = (a, b) => [F(a, D.t0 + 0.05, 0.03), F(b, D.t0 + 0.05, 0.03), F(b, D.t1 - 0.05, 0.03), F(a, D.t1 - 0.05, 0.03), F(a, D.t0 + 0.05, 0.03)];
+    svg.push(box([x0 + D.s0, x0 + D.s1], [fy, fy + 0.03], [Z0 + D.t0, Z0 + D.t1], { tone: far ? "faint" : "lo", crease: "none",
+      inner: far ? "" : Ls([[F(m, D.t0, 0.03), F(m, D.t1, 0.03)]], "lo") + (near ? Ls([leafIn(D.s0 + 0.05, m - 0.02), leafIn(m + 0.02, D.s1 - 0.05)], "faint") : "") }));
+    if (near) {
+      const hinges = [];
+      for (const s of [D.s0 + 0.005, D.s1 - 0.045]) for (const t of [0.4, 1.25, 2.0]) hinges.push(box([x0 + s, x0 + s + 0.04], [fy + 0.03, fy + 0.06], [Z0 + t, Z0 + t + 0.12], { tone: "mid", crease: "none" }));
+      svg.push(...hinges);
+      // lever handles, each on its rose
+      svg.push(Ls([[F(m - 0.08, 1.05, 0.06), F(m - 0.26, 1.05, 0.06)], [F(m + 0.08, 1.05, 0.06), F(m + 0.26, 1.05, 0.06)]], "mid"));
+      svg.push(dots([F(m - 0.08, 1.05, 0.06), F(m + 0.08, 1.05, 0.06)], 0.55, "mid"));
+      // battery hazard triangle, with its mark
+      const tc = [m - 0.42, 1.72];
+      svg.push(L([F(tc[0] - 0.13, tc[1], 0.031), F(tc[0] + 0.13, tc[1], 0.031), F(tc[0], tc[1] + 0.23, 0.031), F(tc[0] - 0.13, tc[1], 0.031)], "mid"));
+      svg.push(dots([F(tc[0], tc[1] + 0.07, 0.031)], 0.45, "mid"));
     }
-    out.push(L(bars.join(""), { tone: "mid" }), L(keep.join(""), { tone: "lo" }), L(handles.join(""), { tone: "mid" }), D(knobs, { size: 0.45, tone: "mid" }));
-    // a battery hazard triangle on the left leaf, the CSC approval plate on the right
-    const tx = door.x0 + 3.4, tz = door.z1 - 7.2;
-    out.push(L(path([[tx - 1.8, y, tz], [tx + 1.8, y, tz], [tx, y, tz + 3.1]], true), { tone: "mid" }), D([[tx, y, tz + 0.9]], { size: 0.35, tone: "mid" }));
-    const csc = { x0: m + 3.4, x1: m + 7, z0: door.z1 - 7.2, z1: door.z1 - 4.4 };
-    out.push(L(frontRect(y, csc.x0, csc.x1, csc.z0, csc.z1), { tone: "lo" }));
-    out.push(L([csc.z1 - 0.9, csc.z1 - 1.9].map((rz, j) => frontLine(y, csc.x0 + 0.6, rz, csc.x1 - 0.6 - j * 0.9, rz)).join(""), { tone: "faint", free: true }));
-  } else if (mid) {
-    out.push(L(frontLine(y, m - 2.2, door.z0, m - 2.2, door.z1) + frontLine(y, m + 2.2, door.z0, m + 2.2, door.z1), { tone: "faint" }));
-  }
-  // the state-of-charge lamp's housing beside the door; its segments are lampSegments()
-  out.push(S(slab({ x: lamp.x0, y, w: lamp.x1 - lamp.x0, d: 1.2 }, lamp.z0, lamp.z1 - lamp.z0, 2, near ? 0.3 : 0), { tone: "mid", crease: "none" }));
-  if (near) {
-    // a rating plate
-    const plate = { x0: x + 36.6, x1: x + 41.4, z0: z0 + 15, z1: z0 + 19 };
-    out.push(L(frontRect(y, plate.x0, plate.x1, plate.z0, plate.z1), { tone: "lo" }));
-    out.push(L([plate.z1 - 1, plate.z1 - 2, plate.z1 - 3].map((rz, j) => frontLine(y, plate.x0 + 0.8, rz, plate.x1 - 0.8 - j * 1.1, rz)).join(""), { tone: "faint", free: true }));
-    // the emergency stop: a mushroom button on its box below the plate
-    out.push(S(slab({ x: x + 37.2, y, w: 3.6, d: 0.8 }, z0 + 8.6, 3.6, 2, 0.2), { tone: "mid", crease: "none" }));
-    out.push(onFront(y + 0.8, circle(x + 39, -(z0 + 10.4), 1.1, "bt-hub")));
-    // the air conditioner's condensate drain, down to the gravel
-    out.push(S(slab({ x: hvac.x1 - 2.6, y: y + 3, w: 0.9, d: 0.9 }, 0, hvac.z0), { tone: "lo", crease: "none" }));
-  }
-  // the wall-hung air conditioner: louvres below, a condenser fan behind a guard
-  const hy = y + 5, hplan = { x: hvac.x0, y, w: hvac.x1 - hvac.x0, d: 5, r: 0 };
-  out.push(S(slab(hplan, hvac.z0, hvac.z1 - hvac.z0, 2, near ? 0.4 : 0), { tone: "mid", crease: near ? "faint" : "none", inner: near ? L(k.sideSeam(hplan, hvac.z1 - 1.2, P, 2), { tone: "faint" }) : "" }));
-  const fc = [(hvac.x0 + hvac.x1) / 2, -(hvac.z0 + 11.4)];
-  if (near) {
+    return svg.join("");
+  } });
+  // the wall-hung air conditioner: louvres low, a condenser fan behind its guard,
+  // a condensate tray under it and the tray's drain to the gravel
+  const H = { s0: 0.3, s1: 1.65, t0: 0.38, t1: 2.15, w: 0.55 };
+  fit.push({ s: H.s0, svg: () => {
+    const svg = [];
+    const hf = (s, t) => F(s, t, H.w);
+    if (!far) {
+      svg.push(box([x0 + H.s1 - 0.12, x0 + H.s1 - 0.08], [fy + 0.36, fy + 0.4], [0, Z0 + H.t0 - 0.06], { tone: "lo", crease: "none" }));
+      svg.push(box([x0 + H.s0 - 0.03, x0 + H.s1 + 0.03], [fy, fy + H.w + 0.04], [Z0 + H.t0 - 0.06, Z0 + H.t0], { tone: "mid", crease: "none" }));
+    }
     const louvres = [];
-    for (let lz = hvac.z0 + 1.4; lz < hvac.z0 + 5; lz += 1.2) louvres.push(frontRect(hy, hvac.x0 + 1.2, hvac.x1 - 1.2, lz, lz + 0.5));
-    out.push(L(louvres.join(""), { tone: "lo" }));
-    out.push(onFront(hy, circle(fc[0], fc[1], FANS.hvac.r, "bt-throat")));
-    out.push(D([[hvac.x0 + 1, hy, hvac.z1 - 2.2], [hvac.x1 - 1, hy, hvac.z1 - 2.2]], { size: 0.4, tone: "mid" }));
-  } else if (mid) {
-    out.push(onFront(hy, circle(fc[0], fc[1], 5, "bt-throat") + circle(fc[0], fc[1], 5, "bt-guard bt-rim")));
-  }
-  // DC cables leave through a trunking box down into the aisle's trench
-  if (tier !== "far") out.push(S(slab({ x: x + 2.4, y, w: 4.4, d: TRENCH_DY - y }, 0, z0 + 4, 2, near ? 0.3 : 0), { tone: "mid", crease: "none" }));
+    if (!far) for (let t = H.t0 + 0.12; t < H.t0 + 0.62; t += near ? 0.09 : 0.18) louvres.push([hf(H.s0 + 0.1, t), hf(H.s1 - 0.1, t), hf(H.s1 - 0.1, t + 0.035), hf(H.s0 + 0.1, t + 0.035)]);
+    const lid = [F(H.s0, H.t1 - 0.12, 0), F(H.s0, H.t1 - 0.12, H.w), F(H.s1, H.t1 - 0.12, H.w)];
+    svg.push(box([x0 + H.s0, x0 + H.s1], [fy, fy + H.w], [Z0 + H.t0, Z0 + H.t1], { tone: far ? "mid" : "hi",
+      inner: far ? "" : fill("bt-pocket", louvres) + (near ? Ls(louvres.map((q) => [...q, q[0]]), "lo") : "") + L(lid, "faint") }));
+    const fc = hf((H.s0 + H.s1) / 2, H.t0 + 1.12);
+    if (far) svg.push(`<g class="bt-face" transform="${faceMatrix(fc, [1, 0, 0], [0, 0, -1])}">${circle(0, 0, FANS.hvac.r, "bt-throat")}${circle(0, 0, FANS.hvac.r, "bt-guard bt-rim")}</g>`);
+    else svg.push(fan("hvac", fc, [1, 0, 0], [0, 0, -1]));
+    if (near) svg.push(dots([hf(H.s0 + 0.07, H.t1 - 0.06), hf(H.s1 - 0.07, H.t1 - 0.06), hf(H.s0 + 0.07, H.t0 + 0.06), hf(H.s1 - 0.07, H.t0 + 0.06)], 0.5, "mid"));
+    return svg.join("");
+  } });
+  // the rating plate, and the emergency stop on its box below
+  const PL = 2.68;
+  if (!far) fit.push({ s: PL, svg: () => {
+    const svg = [];
+    svg.push(box([x0 + PL, x0 + PL + 0.43], [fy, fy + 0.012], [Z0 + 1.48, Z0 + 1.82], { tone: "lo", crease: "none",
+      inner: near ? Ls([1.74, 1.66, 1.58].map((t, j) => [F(PL + 0.05, t, 0.012), F(PL + 0.38 - j * 0.07, t, 0.012)]), "faint", "end") : "" }));
+    svg.push(box([x0 + PL + 0.05, x0 + PL + 0.38], [fy, fy + 0.1], [Z0 + 0.92, Z0 + 1.25], { tone: "mid", crease: near ? "faint" : "none" }));
+    if (near) svg.push(solid(drumFaces(F(PL + 0.215, 1.085, 0.1), [1, 0, 0], [0, 0, 1], 0.075, [0, 0.05, 0], 14), { tone: "hi", crease: "none" }));
+    return svg.join("");
+  } });
+  // the charge lamp in its housing, beside the air conditioner
+  const LP = { s0: 1.95, s1: 2.45, t0: 0.42, t1: 2.12, w: 0.07 };
+  fit.push({ s: LP.s0, svg: () =>
+    box([x0 + LP.s0, x0 + LP.s1], [fy, fy + LP.w], [Z0 + LP.t0, Z0 + LP.t1], { tone: "mid", crease: far ? "none" : "faint" }) +
+    lamp(F, LP.s0 + 0.07, LP.s1 - 0.07, LP.t0 + 0.08, LP.t1 - 0.08, LP.w, far ? 5 : 10, { near: 60, mid: 30, far: 10 }[tier]) });
+  // an earth strap from the far bottom casting down to its rod in the gravel
+  if (near) fit.push({ s: C.L - 0.1, svg: () => L([F(C.L - 0.09, 0.03, 0.006), F(C.L - 0.09, -0.06, 0.15), F(C.L - 0.09, -Z0, 0.32)], "mid") + dots([F(C.L - 0.09, -Z0, 0.32)], 0.7, "mid") });
+  fit.sort((a, b) => b.s - a.s);
+  out.push(...fit.map((f) => f.svg()));
   return out.join("");
 }
 
-// The charge lamp's segments, ten up close and five far off: a copy laid over
-// each container. Each segment's light is the copy's --bt-soc, and the page
-// gives every copy the same state of charge: the plant is one battery.
-function lampSegments(tier) {
-  const n = tier === "far" ? 5 : 10, segH = (LAMP.z1 - LAMP.z0 - 1.6) / n, ly = LAMP.y + 1.2, segs = [];
-  for (let s = 0; s < n; s++) {
-    const a = LAMP.z0 + 0.8 + s * segH, d = frontRect(ly, LAMP.x0 + 0.8, LAMP.x1 - 0.8, a, a + segH * 0.74);
-    segs.push(`<path class="bt-seg-off" d="${d}"/><path class="bt-seg" style="--n:${s}" d="${d}"/>`);
-  }
-  return `<g style="--segs:${n}">${segs.join("")}</g>`;
+// A cable: a round section swept along a polyline, as a filled band between its
+// two edges, closed at both ends so its outline ends on itself.
+function tube(pts, r) {
+  const scr = pts.map(P), sc = pts.map(scaleAt);
+  const left = [], right = [];
+  scr.forEach((p, i) => {
+    const a = scr[Math.max(0, i - 1)], b = scr[Math.min(scr.length - 1, i + 1)];
+    const t = [b[0] - a[0], b[1] - a[1]], len = Math.hypot(...t) || 1, n = [-t[1] / len, t[0] / len], h = r * sc[i];
+    left.push([p[0] + n[0] * h, p[1] + n[1] * h]); right.push([p[0] - n[0] * h, p[1] - n[1] * h]);
+  });
+  const d = k.pathOf([...left, ...right.reverse()], true);
+  return `<path class="bt-cable" d="${d}"/>`;
 }
 
-// ── The power conversion skid: inverter, MV transformer, ring main unit ─────
-// Centred on the origin. The inverter's roof fans run with the power it converts.
-function pcs(tier) {
-  const out = [], near = tier === "near", far = tier === "far";
-  const x = -PCS.w / 2, y0 = -PCS.d / 2, fy = PCS.d / 2, zc = 1.4 + PCS.skid;
-  out.push(shadow(x, x + PCS.w, y0, fy));
-  if (!far) for (const sx of [x + 4, x + PCS.w / 2 - 3, x + PCS.w - 10]) out.push(S(slab({ x: sx, y: y0 - 1, w: 6, d: PCS.d + 2 }, 0, 1.4), { tone: "lo", crease: "none" }));
-  const skid = { x, y: y0, w: PCS.w, d: PCS.d, r: 0 };
-  out.push(S(slab(skid, far ? 0 : 1.4, far ? zc : PCS.skid), { tone: "mid", crease: "none", inner: near ? L(k.sideSeam(skid, 2.4 + 1.4, P, 2), { tone: "lo" }) : "" }));
-  // the inverter: a cabinet of four doors, grilles low, two roof fans
-  const inv = { x: x + 3, y: -8, w: 32, d: 16, h: 22 };
-  const top = zc + inv.h, ify = inv.y + inv.d;
+// ── The power conversion skid ────────────────────────────────────────────────
+// The inverter's door fans run with the power it converts.
+function pcs(x0, yr, tier) {
+  const out = [], near = tier !== "far", fy = yr + PCS.W / 2, by = yr - PCS.W / 2, zc = PCS.skid;
+  out.push(fill("bt-under", [[[x0, by, 0], [x0 + PCS.L, by, 0], [x0 + PCS.L, fy + 0.1, 0], [x0, fy + 0.1, 0]]]));
+  out.push(box([x0, x0 + PCS.L], [by, fy], [0.05, zc], { tone: "lo", crease: "none", inner: L([[x0, fy, 0.2], [x0 + PCS.L, fy, 0.2]], "faint") }));
+  // the transformer's bushing box and the inverter's roof hood sit behind the front edges
+  // the RMU: a slim cabinet with its mimic panel
+  const rmu = { x: x0 + 6.0, x1: x0 + 7.1, y0: yr - 0.6, y1: yr + 0.75, h: 1.95 };
+  out.push(box([rmu.x, rmu.x1], [rmu.y0, rmu.y1], [zc, zc + rmu.h], { tone: "hi", inner: near ? L([[rmu.x + 0.08, rmu.y1, zc + 0.08], [rmu.x1 - 0.08, rmu.y1, zc + 0.08], [rmu.x1 - 0.08, rmu.y1, zc + rmu.h - 0.1], [rmu.x + 0.08, rmu.y1, zc + rmu.h - 0.1], [rmu.x + 0.08, rmu.y1, zc + 0.08]], "lo") + L([[rmu.x + 0.15, rmu.y1, zc + 1.4], [rmu.x1 - 0.15, rmu.y1, zc + 1.4]], "mid") : "" }));
+  // the MV transformer: tank, radiator fins toward the track, its cable box on top
+  const tx = { x: x0 + 3.85, x1: x0 + 5.65, y0: yr - 0.7, y1: yr + 0.45, h: 1.7 };
+  out.push(box([tx.x + 0.25, tx.x1 - 0.25], [tx.y0 + 0.2, tx.y1 - 0.2], [zc + tx.h, zc + tx.h + 0.32], { tone: "mid", crease: "none" }));
+  out.push(box([tx.x, tx.x1], [tx.y0, tx.y1], [zc, zc + tx.h], { tone: "mid", crease: "none" }));
+  const fins = [];
+  if (near) for (let x = tx.x + 0.12; x < tx.x1 - 0.1; x += 0.12) fins.push([[x, tx.y1 + 0.42, zc + 0.2], [x, tx.y1 + 0.42, zc + tx.h - 0.3]]);
+  out.push(box([tx.x + 0.08, tx.x1 - 0.08], [tx.y1, tx.y1 + 0.42], [zc + 0.15, zc + tx.h - 0.25], { tone: "mid", crease: "none", inner: Ls(fins, "lo") }));
+  // the inverter: a cabinet of four doors, grilles low, two fans high in the doors
+  const inv = { x: x0 + 0.3, x1: x0 + 3.5, y0: yr - 0.8, y1: yr + 0.8, h: 2.2 };
   const doors = [], grille = [];
-  if (!far) for (let n = 0; n < 4; n++) {
-    const dx0 = inv.x + 1 + n * 7.5, dx1 = dx0 + 7;
-    doors.push(frontRect(ify, dx0, dx1, zc + 1, top - 1.2));
-    if (near) for (let gz = zc + 2.4; gz < zc + 6.5; gz += 1.1) grille.push(frontRect(ify, dx0 + 1.2, dx1 - 1.2, gz, gz + 0.45));
+  for (let n = 0; n < 4; n++) {
+    const a = inv.x + 0.06 + n * 0.785, b = a + 0.735;
+    doors.push([[a, inv.y1, zc + 0.08], [b, inv.y1, zc + 0.08], [b, inv.y1, zc + inv.h - 0.1], [a, inv.y1, zc + inv.h - 0.1], [a, inv.y1, zc + 0.08]]);
+    if (near) for (let t = 0.22; t < 0.62; t += 0.1) grille.push([[a + 0.12, inv.y1, zc + t], [b - 0.12, inv.y1, zc + t], [b - 0.12, inv.y1, zc + t + 0.04], [a + 0.12, inv.y1, zc + t + 0.04]]);
   }
-  out.push(S(slab(inv, zc, inv.h, 2, near ? 0.5 : 0), { tone: "hi", crease: near ? "faint" : "none", inner: L(doors.join(""), { tone: "lo" }) + L(grille.join(""), { tone: "faint" }) }));
-  if (near) {
-    // door handles on their two mounting bosses
-    const hx = [0, 1, 2, 3].map((n) => inv.x + 6.4 + n * 7.5);
-    out.push(L(hx.map((x) => frontLine(ify, x, zc + 10, x, zc + 13)).join(""), { tone: "mid" }));
-    out.push(D(hx.flatMap((x) => [[x, ify, zc + 10], [x, ify, zc + 13]]), { size: 0.4, tone: "mid" }));
-    out.push(D([[inv.x + 4.8, ify, top - 3], [inv.x + 12.3, ify, top - 3]], { size: 0.4, tone: "hi" }));
+  out.push(box([inv.x, inv.x1], [inv.y0, inv.y1], [zc, zc + inv.h], { tone: "hi", inner: Ls(doors, "lo") + (grille.length ? fill("bt-pocket", grille) : "") }));
+  for (const n of [1, 2]) {
+    const c = [inv.x + 0.06 + n * 0.785 + 0.3675, inv.y1, zc + 1.6];
+    out.push(near ? fan("pcs", c, [1, 0, 0], [0, 0, -1]) : `<g class="bt-face" transform="${faceMatrix(c, [1, 0, 0], [0, 0, -1])}">${circle(0, 0, FANS.pcs.r, "bt-throat")}</g>`);
   }
-  for (const fx of PCS_FANS.xs) {
-    out.push(S(k.cylinder(fx, 0, 5.4, top, 2, P, near ? 36 : 14), { tone: "mid", crease: "none" }));
-    if (near) out.push(onTop(PCS_FANS.z, circle(fx, 0, FANS.pcs.r, "bt-throat")));
-  }
-  // the MV transformer: tank, radiator fins toward the viewer, three bushings in a cable box
-  const tx = { x: x + 39, y: -7, w: 18, d: 12, h: 17 };
-  out.push(S(slab(tx, zc, tx.h, 2, near ? 0.4 : 0), { tone: "mid", crease: "none" }));
-  const fins = { x: tx.x + 1.5, y: tx.y + tx.d, w: tx.w - 3, d: 4.5, r: 0 };
-  const plates = [];
-  if (!far) for (let px = fins.x + 0.9; px < fins.x + fins.w - 0.4; px += near ? 1.2 : 2.4) plates.push(path([[px, fins.y + fins.d, zc + 2.5], [px, fins.y + fins.d, zc + tx.h - 3]]));
-  out.push(S(slab(fins, zc + 1.5, tx.h - 3), { tone: "mid", crease: "none", inner: L(plates.join(""), { tone: "lo" }) + (!far ? L(k.sideSeam(fins, zc + 2.5, P, 2) + k.sideSeam(fins, zc + tx.h - 3, P, 2), { tone: "lo" }) : "") }));
-  out.push(S(slab({ x: tx.x + 2, y: tx.y + 2, w: tx.w - 4, d: 6 }, zc + tx.h, 3.4, 2, near ? 0.3 : 0), { tone: "mid", crease: "none" }));
-  // the ring main unit: a slim cabinet with its mimic panel
-  const rmu = { x: x + 60, y: -6, w: 11, d: 13, h: 19 };
-  out.push(S(slab(rmu, zc, rmu.h, 2, near ? 0.4 : 0), { tone: "hi", crease: "none", inner: far ? "" : L(frontRect(rmu.y + rmu.d, rmu.x + 1, rmu.x + rmu.w - 1, zc + 1, zc + rmu.h - 1.2), { tone: "lo" }) }));
-  if (near) {
-    // the mimic: a busbar across the door, a feeder down to its switch
-    const ry = rmu.y + rmu.d, mx = rmu.x + rmu.w / 2;
-    out.push(L(frontLine(ry, rmu.x + 1, zc + 13, rmu.x + rmu.w - 1, zc + 13) + frontLine(ry, mx, zc + 13, mx, zc + 10.5), { tone: "mid" }));
-    out.push(D([[mx, ry, zc + 10.5], [rmu.x + 3, ry, zc + 7], [rmu.x + rmu.w - 3, ry, zc + 7]], { size: 0.5, tone: "mid" }));
-  }
-  // cables drop to the aisle's trench
-  if (!far) out.push(S(slab({ x: x + PCS.w / 2 - 3, y: fy, w: 6, d: TRENCH_DY - fy }, 0, zc + 2, 2, 0.3), { tone: "mid", crease: "none" }));
+  if (near) out.push(dots([0, 1, 2, 3].map((n) => [inv.x + 0.06 + n * 0.785 + 0.62, inv.y1, zc + 1.05]), 0.5, "mid"));
+  // cables down from the skid into the trench
+  out.push(box([x0 + 2.9, x0 + 3.3], [fy, yr + TRENCH[0] + 0.05], [0, zc + 0.12], { tone: "mid", crease: "none" }));
   return out.join("");
 }
 
-// ── Ground: projected point by point, so it converges ───────────────────────
-const sp = (pts, closed = false) => k.pathOf(pts.map(screen), closed);
-const ROWS = 7, BLOCKS = [-6, 4];
-const blockRange = Array.from({ length: BLOCKS[1] - BLOCKS[0] + 1 }, (_, i) => BLOCKS[0] + i);
-// a ground line cut where it passes too close under the camera, far below the
-// frame, where its projection would run off toward infinity
-const MIN_DIST = 150;
-const clipNear = (a, b) => {
-  const [da, db] = [distOf(a), distOf(b)];
-  if (da >= MIN_DIST && db >= MIN_DIST) return [a, b];
-  if (da < MIN_DIST && db < MIN_DIST) return null;
-  const t = (MIN_DIST - da) / (db - da), cut = a.map((v, i) => v + (b[i] - v) * t);
-  return da < MIN_DIST ? [cut, b] : [a, cut];
-};
-// whether a ground line between two world points crosses the frame
-const spans = (a0, b0) => {
-  const ends = clipNear(a0, b0);
-  if (!ends) return false;
-  const [a, b] = ends;
-  const [p, q] = [screen(a), screen(b)];
-  return Math.max(p[0], q[0]) > VEIL && Math.min(p[0], q[0]) < WIDTH + 20 && Math.max(p[1], q[1]) > -20 && Math.min(p[1], q[1]) < HEIGHT + 20;
-};
-const offFrame = ([x, y]) => x < 0 || x > WIDTH || y < 0 || y > HEIGHT;
-// A ground line, projected. An end the frame cuts off is marked free: the card
-// crops the line there, it does not stop.
-function groundLine(a0, b0, tone) {
-  const ends = clipNear(a0, b0);
-  if (!ends || !spans(a0, b0)) return "";
-  const [p, q] = ends.map(screen);
-  const free = [offFrame(p) && "start", offFrame(q) && "end"].filter(Boolean);
-  return L(k.pathOf([p, q]), { tone, free: free.length === 2 ? "both" : free[0] });
+// ── Ground: projected point by point, cut at a near plane ────────────────────
+const NEAR = 1.2;
+function clipNear(pts) {
+  const out = [];
+  pts.forEach((p, i) => {
+    const q = pts[(i + 1) % pts.length], dp = depthOf(p) - NEAR, dq = depthOf(q) - NEAR;
+    if (dp >= 0) out.push(p);
+    if ((dp >= 0) !== (dq >= 0)) out.push(add(p, mul(sub(q, p), dp / (dp - dq))));
+  });
+  return out;
 }
-// a block's patch of the aisle in front of row y: everything between its access roads
-function aisle(b, y, out, add) {
-  const x0 = b * PERIOD, x1 = x0 + BLOCK, e0 = x0 - 10, e1 = x1 + 10;
-  const mid = [x0 + BLOCK / 2, y, 0];
-  if (!spans([e0, y + TRACK.y1, 0], [e1, y - BED.back, 0]) && !spans([e0, y - BED.back, 0], [e1, y + TRACK.y1, 0])) return;
-  const h = hazeOf(mid);
-  // the row's gravel bed and the aisle's track
-  out.push(`<path class="bt-bed bt-h${h}" d="${sp([[x0 - 4, y - BED.back, 0], [x1 + 4, y - BED.back, 0], [x1 + 4, y + BED.front, 0], [x0 - 4, y + BED.front, 0]], true)}"/>`);
-  out.push(`<path class="bt-track bt-h${h}" d="${sp([[e0, y + TRACK.y0, 0], [e1, y + TRACK.y0, 0], [e1, y + TRACK.y1, 0], [e0, y + TRACK.y1, 0]], true)}"/>`);
-  // the trench and the track's kerbs, each from access road to access road
-  const t0 = y + TRENCH_DY, t1 = t0 + 6;
-  const [k0, k1, k2, k3] = [t0, t1, y + TRACK.y0, y + TRACK.y1].map((ly) => groundLine([e0, ly, 0], [e1, ly, 0], "lo"));
-  out.push(`<g class="bt-h${h}">${k0}${k1}${k2}${k3}</g>`);
-  // the trench's cover joints and the track's slab joints, kerb to kerb, where both kerbs are drawn
-  const joints = [];
-  if (k0 && k1) for (let jx = x0 + 9; jx < x1 - 2; jx += 9) joints.push(sp([[jx, t0, 0], [jx, t1, 0]]));
-  if (k2 && k3) for (let jx = e0 + 40; jx < e1 - 10; jx += 40) joints.push(sp([[jx, y + TRACK.y0, 0], [jx, y + TRACK.y1, 0]]));
-  add(h, "faint", joints.join(""));
+const groundPoly = (pts) => { const c = clipNear(pts); return c.length > 2 ? k.pathOf(c.map(P), true) : ""; };
+const offFrame = ([x, y]) => x < -1 || x > WIDTH + 1 || y < -1 || y > HEIGHT + 1;
+// a ground line; an end the frame cuts off is marked free: the card crops it there
+function groundLine(a, b, tone) {
+  const c = clipNear([a, b]);
+  if (c.length < 2) return "";
+  const [p, q] = [c[0], c[c.length - 1]].map(P);
+  if (Math.max(p[0], q[0]) < VEIL || Math.min(p[0], q[0]) > WIDTH || Math.min(p[1], q[1]) > HEIGHT) return "";
+  const free = [offFrame(p) && "start", offFrame(q) && "end"].filter(Boolean);
+  return k.lineSvg(k.pathOf([p, q]), { tone, free: free.length === 2 ? "both" : free[0] });
 }
 function ground() {
-  const out = [], hazeLines = new Map();
-  const add = (level, tone, d) => { const key = `${level}|${tone}`; hazeLines.set(key, (hazeLines.get(key) || "") + d); };
-  for (let r = ROWS - 1; r >= 0; r--) for (const b of blockRange) aisle(b, rowY(r), out, add);
-  // the access roads between blocks, each with a trench down its side that
-  // gathers the rows' cables; the card cuts them off front and back
-  for (const b of blockRange) {
-    const rx0 = b * PERIOD + BLOCK + 10, rx1 = rx0 + ROAD - 20;
-    const front = rowY(0) + PITCH, back = rowY(ROWS);
-    for (const [x, tone] of [[rx0, "lo"], [rx1, "lo"], [rx1 + 2, "faint"], [rx1 + 6, "faint"]]) out.push(groundLine([x, front, 0], [x, back, 0], tone));
+  const out = [], X0 = -1.2, X1 = ROW_END + 1.2;
+  // the paved yard: the tracks, the cross road at the rows' ends, out to the fence
+  out.push(`<path class="bt-pave" d="${groundPoly([[-9, 16, 0], [FENCE_X, 16, 0], [FENCE_X, -40, 0], [-9, -40, 0]])}"/>`);
+  for (const r of ROWS) {
+    const y = rowY(r), h = hazeOf([0, y, 0]);
+    const g = [];
+    // the row's gravel bed with its kerb, and the trench along its front
+    g.push(`<path class="bt-bed" d="${groundPoly([[X0, y + BED[0], 0], [X1, y + BED[0], 0], [X1, y + BED[1], 0], [X0, y + BED[1], 0]])}"/>`);
+    const t0 = y + TRENCH[0], t1 = y + TRENCH[1];
+    g.push(`<path class="bt-trench" d="${groundPoly([[X0 + 0.3, t0, 0], [X1 - 0.3, t0, 0], [X1 - 0.3, t1, 0], [X0 + 0.3, t1, 0]])}"/>`);
+    g.push(groundLine([X0, y + BED[0], 0], [X1, y + BED[0], 0], "lo"), groundLine([X0, y + BED[1], 0], [X1, y + BED[1], 0], "lo"));
+    g.push(groundLine([X0, y + BED[0], 0], [X0, y + BED[1], 0], "lo"), groundLine([X1, y + BED[0], 0], [X1, y + BED[1], 0], "lo"));
+    g.push(groundLine([X0 + 0.3, t0, 0], [X1 - 0.3, t0, 0], "lo"), groundLine([X0 + 0.3, t1, 0], [X1 - 0.3, t1, 0], "lo"));
+    // the trench covers' joints, kerb to kerb; the near ones lifted where cables drop in
+    const joints = [];
+    for (let x = X0 + 0.3 + 0.6; x < X1 - 0.4; x += 0.6) joints.push(groundLine([x, t0, 0], [x, t1, 0], "faint"));
+    g.push(...joints);
+    // the track's slab joints, from the bed's kerb across to the far kerb
+    const ty0 = y + TRACK[0], ty1 = y + TRACK[1];
+    g.push(groundLine([X0, ty0, 0], [X1, ty0, 0], "faint"), groundLine([X0, ty1, 0], [X1, ty1, 0], "faint"));
+    for (let x = X0 + 4; x < X1; x += 4) g.push(groundLine([x, ty0, 0], [x, ty1, 0], "faint"));
+    out.push(`<g class="bt-h${h}">${g.join("")}</g>`);
   }
-  for (const [key, d] of hazeLines) { const [level, tone] = key.split("|"); out.push(`<g class="bt-h${level}">${L(d, { tone })}</g>`); }
+  // open slots in the near trench where the containers' cables go down
+  const slots = [];
+  for (const [sx, kind] of SLOTS) if (kind === "c") slots.push(groundPoly([[sx + C.L - 1.0, TRENCH[0], 0.002], [sx + C.L - 0.3, TRENCH[0], 0.002], [sx + C.L - 0.3, TRENCH[1], 0.002], [sx + C.L - 1.0, TRENCH[1], 0.002]]));
+  out.push(`<path class="bt-slot" d="${slots.join("")}"/>`);
+  out.push(Ls(SLOTS.filter(([, kind]) => kind === "c").map(([sx]) => [[sx + C.L - 1.0, TRENCH[0], 0.002], [sx + C.L - 0.3, TRENCH[0], 0.002], [sx + C.L - 0.3, TRENCH[1], 0.002], [sx + C.L - 1.0, TRENCH[1], 0.002], [sx + C.L - 1.0, TRENCH[0], 0.002]]), "lo"));
   return out.join("");
 }
 
-// ── Compose: shared drawings in <defs>, placed far to near ───────────────────
-const TIERS = ["near", "mid", "far"];
-// A <use> clone sits in its own shadow tree, which the scope's descendant
-// selectors cannot reach, so the shared drawings carry the kit's classes renamed
-// bt-iso-* and those rules (unique to this card) are written unscoped.
-const own = (svg) => svg.replace(/class="iso-/g, 'class="bt-iso-').replace(/ iso-(crease|bevel|edge)/g, " bt-iso-$1");
-const DRAWINGS = Object.fromEntries(TIERS.flatMap((t) => [[`bt-c-${t}`, container(t)], [`bt-l-${t}`, lampSegments(t)], [`bt-p-${t}`, pcs(t)]]));
-const defs = Object.entries(DRAWINGS).map(([id, svg]) => `<g id="${id}">${own(svg)}</g>`).join("") + fanDefs();
-// Each copy is followed by what moves on it, in the same painter's slot: the
-// lamp's segments over every container, the fans over all but the far ones.
-const placedParts = [];
-for (let r = 0; r < ROWS; r++) for (const b of blockRange) for (const slot of SLOTS) {
-  const isPcs = slot === "pcs";
-  const anchor = [b * PERIOD + (isPcs ? PCS_X + PCS.w / 2 : slot + C.w / 2), rowY(r), 0];
-  const [sx, sy] = screen(anchor), s = scaleAt(anchor);
-  if (sx + 50 * s < VEIL || sx - 50 * s > WIDTH || sy < -2 || sy - 40 * s > HEIGHT) continue;
-  const tier = tierOf(anchor), haze = `bt-h${hazeOf(anchor)}`, at = placed(anchor);
-  let svg = `<use href="#bt-${isPcs ? "p" : "c"}-${tier}" class="${haze}" transform="${at}"/>`;
-  if (!isPcs) svg += `<use href="#bt-l-${tier}" class="bt-lamp ${haze}" data-steps="${{ near: 50, mid: 30, far: 10 }[tier]}" transform="${at}"/>`;
-  if (tier !== "far") {
-    const fans = isPcs ? onTop(PCS_FANS.z, PCS_FANS.xs.map((fx) => fanAt(fx, 0, "pcs", false)).join("")) : onFront(HVAC_FAN.y, fanAt(HVAC_FAN.cx, HVAC_FAN.cy, "hvac", false));
-    svg += `<g class="${haze}" transform="${at}">${fans}</g>`;
-  }
-  placedParts.push({ d: distOf(anchor), svg });
+// ── Far off: the horizon and the plant's end fence ───────────────────────────
+function distance() {
+  const out = [];
+  const [hx, hy] = [VEIL, CAM.cy];
+  out.push(k.lineSvg(`M${hx} ${f1(hy)}H${WIDTH}`, { tone: "faint", free: "both" }));
+  // the fence across the rows' far end: posts, a top rail, two tension wires
+  const posts = [], y0 = -36, y1 = 15;
+  for (let y = y0; y <= y1; y += 3) posts.push([[FENCE_X, y, 0], [FENCE_X, y, 2.4]]);
+  out.push(`<g class="bt-h5">${Ls(posts, "lo")}${Ls([[[FENCE_X, y0, 2.4], [FENCE_X, y1, 2.4]], [[FENCE_X, y0, 0.15], [FENCE_X, y1, 0.15]]], "lo")}${Ls([[[FENCE_X, y0, 0.9], [FENCE_X, y1, 0.9]], [[FENCE_X, y0, 1.7], [FENCE_X, y1, 1.7]]], "faint")}</g>`);
+  return out.join("");
 }
-placedParts.sort((a, b) => b.d - a.d);
-const parts = { defs: `<defs>${defs}</defs>`, ground: ground(), plant: placedParts.map((p) => p.svg).join("") };
-const body = parts.defs + parts.ground + `<g class="bt-weight">${parts.plant}</g>`;
+
+// ── Compose: far to near ─────────────────────────────────────────────────────
+const objects = [];
+for (const r of ROWS) for (const [sx, kind] of SLOTS) {
+  const y = rowY(r), isPcs = kind === "pcs";
+  const plan = isPcs ? [sx, sx + PCS.L, y - PCS.W / 2, y + TRENCH[0]] : [sx, sx + C.L, y - C.W / 2, y + TRENCH[1]];
+  const centre = [(plan[0] + plan[1]) / 2, y, 1.4], s = scaleAt(centre);
+  // on the card: all it draws (shape), and the body that hides what is behind it (screen)
+  const silhouette = (xs, ys, z1) => hull(xs.flatMap((x) => ys.flatMap((yy) => [P([x, yy, 0]), P([x, yy, z1])])));
+  const shape = silhouette(plan.slice(0, 2), plan.slice(2, 4), 3.3);
+  const half = isPcs ? PCS.W / 2 : C.W / 2, screen = silhouette(plan.slice(0, 2), [y - half, y + half], isPcs ? 2.3 : Z1);
+  const xs = shape.map((p) => p[0]), ys = shape.map((p) => p[1]);
+  const bbox = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  if (bbox[1] < VEIL || bbox[0] > WIDTH || bbox[2] > HEIGHT) continue;
+  const tier = s > 45 ? "near" : s > 25 ? "mid" : "far";
+  objects.push({ plan, bbox, shape, screen, tier, draw: () => `<g class="bt-h${hazeOf(centre)}">${(isPcs ? pcs : container)(sx, y, tier)}</g>` });
+}
+// Painter's order: for two plans that overlap on the card, a plane between them
+// (x first, else y) says which is nearer. Then a depth-first topological sort.
+function nearer(a, b) {
+  const [ax0, ax1, ay0, ay1] = a.plan, [bx0, bx1, by0, by1] = b.plan;
+  if (ax1 <= bx0 || bx1 <= ax0) { const x = ax1 <= bx0 ? (ax1 + bx0) / 2 : (bx1 + ax0) / 2; return (EYE[0] < x) === (ax1 <= bx0) ? a : b; }
+  const y = ay1 <= by0 ? (ay1 + by0) / 2 : (by1 + ay0) / 2;
+  return (EYE[1] < y) === (ay1 <= by0) ? a : b;
+}
+const overlaps = (a, b) => a.bbox[0] < b.bbox[1] && b.bbox[0] < a.bbox[1] && a.bbox[2] < b.bbox[3] && b.bbox[2] < a.bbox[3];
+const behind = new Map(objects.map((o) => [o, []]));
+for (const a of objects) for (const b of objects) if (a !== b && overlaps(a, b) && nearer(a, b) === a) behind.get(a).push(b);
+const painted = [], state = new Map();
+const visit = (o) => {
+  if (state.get(o) === 2) return;
+  if (state.get(o) === 1) throw new Error("painter's order has a cycle");
+  state.set(o, 1); behind.get(o).forEach(visit); state.set(o, 2); painted.push(o);
+};
+objects.forEach(visit);
+// A unit wholly behind nearer bodies is left out: sample its shape on a 2-unit
+// grid, clipped to the card, against the nearer bodies' outlines.
+const inside = (poly, [x, y]) => poly.every((p, i) => { const q = poly[(i + 1) % poly.length]; return (q[0] - p[0]) * (y - p[1]) - (q[1] - p[1]) * (x - p[0]) >= -1e-6; });
+const hidden = new Set();
+painted.forEach((o, i) => {
+  const nearerBodies = painted.slice(i + 1).map((n) => n.screen);
+  const samples = [];
+  for (let x = Math.max(VEIL, o.bbox[0]); x <= Math.min(WIDTH, o.bbox[1]); x += 2) for (let y = Math.max(0, o.bbox[2]); y <= Math.min(HEIGHT, o.bbox[3]); y += 2) if (inside(o.shape, [x, y])) samples.push([x, y]);
+  if (samples.every((p) => nearerBodies.some((b) => inside(b, p)))) hidden.add(o);
+});
+const shown = painted.filter((o) => !hidden.has(o)).map((o) => ({ ...o, svg: o.draw() }));
+const parts = { defs: `<defs>${fanDefs()}</defs>`, distance: distance(), ground: ground(), plant: shown.map((o) => o.svg).join("") };
+const body = parts.defs + parts.distance + parts.ground + `<g class="bt-weight">${parts.plant}</g>`;
 if (process.argv.includes("--sizes")) {
   console.log(Object.entries(parts).map(([n, v]) => `${n} ${(v.length / 1024).toFixed(1)}`).join(" · "));
-  for (let r = 0; r < 5; r++) console.log(`row ${r} h${hazeOf([0, rowY(r), 0])}: ` + [0, 1, 2].map((b) => {
-    const a = screen([b * PERIOD, rowY(r) + C.d / 2, 0]), z = screen([b * PERIOD + BLOCK, rowY(r) + C.d / 2, 0]), top = screen([b * PERIOD + BLOCK, rowY(r) - C.d / 2, C.plinth + C.h]);
-    return `block ${b} x ${Math.round(a[0])}..${Math.round(z[0])} foot ${Math.round(a[1])}..${Math.round(z[1])} top ${Math.round(top[1])} @${scaleAt([b * PERIOD + BLOCK, rowY(r), 0]).toFixed(2)} ${tierOf([b * PERIOD + BLOCK, rowY(r), 0])}`;
-  }).join(" · "));
-  console.log(TIERS.map((t) => `container ${t} ${(container(t).length / 1024).toFixed(1)} · pcs ${t} ${(pcs(t).length / 1024).toFixed(1)}`).join(" · "), `· ${placedParts.length} placed`);
+  console.log(`horizon ${f1(CAM.cy)} · ` + shown.map((o) => `${o.tier}@${o.plan.slice(0, 3).map(f1)} x${Math.round(o.bbox[0])}..${Math.round(o.bbox[1])} ${(o.svg.length / 1024).toFixed(1)}K`).join(" · "));
 }
 
 // ── Styles, scoped to the card's element ─────────────────────────────────────
@@ -439,7 +534,7 @@ const TOKENS = {
   text: "#7f95a7", strong: "#c9d6e0", muted: "#566d80",
 };
 const NAVY = Object.entries(TOKENS).map(([n, v]) => `--anatomy-${n}:${v}`).join(";");
-const SITE = { lit: "#eef5fa", dot: "#9fb2c2", lamp: "#eef5fa", "lamp-off": "#10283a", bed: "#071520", track: "#0b1c29" };
+const SITE = { lit: "#eef5fa", dot: "#9fb2c2", lamp: "#eef5fa", "lamp-off": "#10283a", bed: "#06131d", pave: "#0a1a26", under: "#030b12" };
 const HAZE = "#0d2131";
 const mix = (a, b, t) => "#" + [0, 1, 2].map((i) => {
   const ca = parseInt(a.slice(1 + 2 * i, 3 + 2 * i), 16), cb = parseInt(b.slice(1 + 2 * i, 3 + 2 * i), 16);
@@ -447,16 +542,21 @@ const mix = (a, b, t) => "#" + [0, 1, 2].map((i) => {
 }).join("");
 // each step of haze pulls lines and faces toward the haze colour; the lamps keep the most
 const LADDER = [1, 2, 3, 4, 5].map((n) => {
-  const t = Math.min(0.92, n * 0.17);
+  const t = Math.min(0.92, n * 0.15);
   const lines = ["hi", "mid", "lo", "faint"].map((n2) => `--anatomy-${n2}:${mix(TOKENS[n2], HAZE, t)}`);
   const faces = ["paper", "face", "shade-0", "shade-1", "shade-2", "shade-3", "top"].map((n2) => `--anatomy-${n2}:${mix(TOKENS[n2], HAZE, Math.min(1, t * 1.15))}`);
-  const lamp = [`--bt-lamp:${mix(SITE.lamp, HAZE, t * 0.55)}`, `--bt-lamp-off:${mix(SITE["lamp-off"], HAZE, t)}`, `--bt-bed:${mix(SITE.bed, HAZE, t)}`, `--bt-track:${mix(SITE.track, HAZE, t)}`];
-  return `.bt-h${n}{${[...lines, ...faces, ...lamp].join(";")}}`;
+  const site = [`--bt-lamp:${mix(SITE.lamp, HAZE, t * 0.5)}`, `--bt-lamp-off:${mix(SITE["lamp-off"], HAZE, t)}`, `--bt-bed:${mix(SITE.bed, HAZE, t * 0.6)}`, `--bt-under:${mix(SITE.under, HAZE, t * 0.6)}`];
+  return `.bt-h${n}{${[...lines, ...faces, ...site].join(";")}}`;
 });
-const SCENE_CSS = `.bt-weight{--anatomy-weight:${f2(0.6 * KS / NEAR_SCALE)}px}
+const SCENE_CSS = `.bt-weight{--anatomy-weight:.7px}
 .bt-face *{vector-effect:non-scaling-stroke}
-.bt-shadow{fill:var(--anatomy-shade-0);opacity:.7}
+.bt-pave{fill:var(--bt-pave);stroke:none}
 .bt-bed{fill:var(--bt-bed);stroke:none}
+.bt-trench{fill:var(--anatomy-shade-3);stroke:none}
+.bt-slot,.bt-pocket{fill:var(--anatomy-shade-0);stroke:none}
+.bt-under{fill:var(--bt-under);stroke:none}
+.bt-keeper{fill:var(--anatomy-shade-3);stroke:var(--anatomy-mid);stroke-width:.4px;stroke-linejoin:round}
+.bt-cable{fill:var(--anatomy-shade-1);stroke:var(--anatomy-lo);stroke-width:var(--anatomy-weight);stroke-linejoin:round}
 .bt-seg-off{fill:var(--bt-lamp-off);stroke:none}
 .bt-seg{fill:var(--bt-lamp);stroke:none;opacity:clamp(0,calc(var(--bt-soc,0) * var(--segs) - var(--n)),1)}
 .bt-throat{fill:var(--anatomy-shade-0);stroke:none}
@@ -464,12 +564,16 @@ const SCENE_CSS = `.bt-weight{--anatomy-weight:${f2(0.6 * KS / NEAR_SCALE)}px}
 .bt-hub{fill:var(--anatomy-top);stroke:var(--anatomy-mid);stroke-width:.4px;vector-effect:non-scaling-stroke}
 .bt-guard{fill:none;stroke:var(--anatomy-mid);stroke-width:.45px;vector-effect:non-scaling-stroke}
 .bt-rim{stroke-width:.6px}
-.bt-track{fill:var(--bt-track);stroke:none}
 ${LADDER.join("\n")}`;
 const KIT = k.ISO_CSS.split("\n").filter((line) => /^\.iso-(fill|shade|top|line|solid|dots|face-text)/.test(line));
 const scope = (rule) => (rule.startsWith("@") ? rule : rule.replace(/^[^{]+/, (sel) => sel.split(",").map((x) => `${SCOPE} ${x.trim()}`).join(",")));
 const siteVars = Object.entries(SITE).map(([n, v]) => (n === "lit" || n === "dot" ? `--anatomy-${n}:${v}` : `--bt-${n}:${v}`)).join(";");
-const css = `${SCOPE}{${NAVY};${siteVars};--anatomy-weight:.6px}` + KIT.map(scope).join("") + KIT.map((rule) => rule.replace(/\.iso-/g, ".bt-iso-")).join("") + SCENE_CSS.replace(/\n/g, "");
+// <use> clones (the fans) sit in their own shadow tree, which the scope's
+// descendant selectors cannot reach, so the fan rules are written unscoped.
+const UNSCOPED = /^\.bt-(blade|hub|guard|rim)/;
+const sceneRules = SCENE_CSS.split("\n");
+const css = `${SCOPE}{${NAVY};${siteVars};--anatomy-weight:.6px}` + KIT.map(scope).join("") +
+  sceneRules.map((rule) => (UNSCOPED.test(rule) || rule.startsWith(".bt-h") ? rule : scope(rule))).join("");
 const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" preserveAspectRatio="xMaxYMax slice" aria-hidden="true" focusable="false"><style>${css}</style>${body}</svg>`;
 
 // ── Live: one day of trading, on a loop ──────────────────────────────────────
@@ -482,12 +586,12 @@ const SPH = ${SECONDS_PER_HOUR}, STILL_HOUR = ${STILL_HOUR};
 const stage = document.querySelector("${SCOPE}");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
-// each lamp is restyled only when its own size can show the change: 50 steps of
-// charge up close, 10 far off, so the far rows cost little while the plant moves
+// each lamp is restyled only when its own size can show the change: 60 steps of
+// charge up close, 10 far off, so the far lamps cost little while the plant moves
 const lamps = [...svg.querySelectorAll(".bt-lamp")].map((el) => ({ el, steps: +el.dataset.steps, shown: -1 }));
 const fans = [...svg.querySelectorAll("[data-fan]")].map((el) => ({ el, kind: el.dataset.fan, ph: +el.dataset.ph }));
 // fans: the containers' air conditioners tick over and work harder with the
-// current; the inverters' fans run with the power they convert and coast to rest
+// current; the inverter's fans run with the power it converts and coast to rest
 const REV = { hvac: [0.25, 1.1], pcs: [0, 1.4] };
 let power = 0, spin = { hvac: REV.hvac[0], pcs: 0 }, angle = { hvac: 0, pcs: 0 };
 function draw(hours, dt) {
@@ -544,17 +648,13 @@ h2{color:#717171;font-weight:500;font-size:1.6rem;margin:0 0 .4rem;text-decorati
 <div class="card-block"><h2>Deep Reinforcement Learning for Grid Scale Lithium-ion Battery Optimisation</h2><p class="date">Oct 10, 2022</p><p class="text">Wholesale arbitrage with DQN agents, benchmarked against MILP</p></div></div></div>
 <script type="module">${live.replace(/<\/(script)/gi, "<\\/$1")}</script></body></html>`;
 writeFileSync(join(HERE, "preview.html"), preview());
-// --stills <dir>: the card held at chosen hours, for captures, and check.html,
-// the same card with every <use> drawn in place, since the line check skips <defs>
+// --stills <dir>: the card held at chosen hours, for captures, and bare.html,
+// the scene without the fade or the title, for close-ups and the line check
 const stills = process.argv.indexOf("--stills");
 if (stills > 0) {
   const dir = process.argv[stills + 1];
   mkdirSync(dir, { recursive: true });
   for (const h of [5.5, 10.5, 15, 19.5]) writeFileSync(join(dir, `preview-${String(h).replace(".", "_")}.html`), preview(h));
-  const inline = markup.replace(/<use href="#(bt-[clp]-\w+)" ([^>]*)\/>/g, (_, id, attrs) => `<g ${attrs}>${DRAWINGS[id]}</g>`);
-  writeFileSync(join(dir, "check.html"), preview(STILL_HOUR, inline));
-  // parts.html: each shared drawing on its own, large, for close-ups
-  const row = Object.entries(DRAWINGS).map(([, svg], n) => `<g transform="translate(${110 + n * 150} 120) scale(1.1)">${svg}</g>`).join("");
-  writeFileSync(join(dir, "parts.html"), preview(STILL_HOUR, markup.replace(/<defs>.*<\/svg>$/, `<g class="bt-weight">${row}</g></svg>`)).replace(".card::after{", ".card-block{display:none}.card::after{display:none;"));
+  writeFileSync(join(dir, "bare.html"), preview(STILL_HOUR).replace(".card::after{", ".card-block{display:none}.card::after{display:none;"));
 }
 console.log(`scene.svg ${(markup.length / 1024).toFixed(1)} KB · scene.js ${(live.length / 1024).toFixed(1)} KB · ${DATE}: SoC ${rows[0].soc} → ${Math.max(...rows.map((r) => r.soc))} → ${rows[24].soc}, prices £${Math.min(...DAY.map((d) => d.price))}–£${Math.max(...DAY.map((d) => d.price))}/MWh`);

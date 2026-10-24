@@ -33,12 +33,12 @@ const SPH = 1.25, STILL_HOUR = 19.5;
 const stage = document.querySelector(".scene-battery");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
-// each lamp is restyled only when its own size can show the change: 50 steps of
-// charge up close, 10 far off, so the far rows cost little while the plant moves
+// each lamp is restyled only when its own size can show the change: 60 steps of
+// charge up close, 10 far off, so the far lamps cost little while the plant moves
 const lamps = [...svg.querySelectorAll(".bt-lamp")].map((el) => ({ el, steps: +el.dataset.steps, shown: -1 }));
 const fans = [...svg.querySelectorAll("[data-fan]")].map((el) => ({ el, kind: el.dataset.fan, ph: +el.dataset.ph }));
 // fans: the containers' air conditioners tick over and work harder with the
-// current; the inverters' fans run with the power they convert and coast to rest
+// current; the inverter's fans run with the power it converts and coast to rest
 const REV = { hvac: [0.25, 1.1], pcs: [0, 1.4] };
 let power = 0, spin = { hvac: REV.hvac[0], pcs: 0 }, angle = { hvac: 0, pcs: 0 };
 function draw(hours, dt) {
