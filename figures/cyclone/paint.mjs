@@ -5,7 +5,8 @@
 //   ground   one fill (or declarations) per piece of land.mjs, in paint order
 //   lines    stroke declarations of the coast, the surf line and the index contour
 //   cloud    the shader's cloud tones (GLSL vec3 source), the core's share of
-//            white, the ground shadow's ink and its strength
+//            white, the ground shadow's ink (null: black) and its strength.
+//            Over a coloured ground the shadow is a cool grey, not black.
 //   card     the card's background before the SVG fades in
 //   suffix   appended to every output name
 
@@ -38,20 +39,20 @@ export const PAINT = {
     tokens: NAVY_TOKENS,
     ground: {
       // deep ocean, shoaling to a lighter blue over the shelf
-      sea: "fill:#1c3d66",
-      shelf: ["#21497a", "#285889", "#336c98"],
+      sea: "fill:#1b3a62",
+      shelf: ["#1f426d", "#244b78", "#2c5885"],
       swell: "fill:#d6e4ee",
       swellOpacity: [".2", ".34", ".55"],
       // a buff coastal plain, sand up the scarp, warmer ochre on the plateau
-      terrace: ["#cdb48e", "#c9ab80", "#c5a274", "#c39b69", "#c19560", "#c28f57", "#c48c52", "#c6894d"],
+      terrace: ["#c2a982", "#bea177", "#bb9a6d", "#b99465", "#b88f5e", "#b98b58", "#bb8853", "#bd8550"],
       dark: "fill:#5b3e24;opacity:.72", rim: "fill:#ecdcb9",
-      wadi: "fill:#4e5236;opacity:.8", fan: "fill:#e2d6bd;opacity:.8",
+      wadi: "fill:#5e5a3c;opacity:.6", fan: "fill:#e2d6bd;opacity:.8",
       hachDark: "fill:#5d3f25;opacity:.7", hachLit: "fill:#f2e2c0;opacity:.6",
       duneDark: "fill:#9a6a3e;opacity:.55", duneLit: "fill:#f3dcae;opacity:.7",
     },
     lines: { coast: "stroke:#7b5e3d;stroke-width:.55", surf: "stroke:#e6eff4;stroke-width:.4;opacity:.75", index: "stroke:#8a6440;stroke-width:.3;opacity:.6" },
-    cloud: { lo: ".55,.63,.73", hi: ".95,.965,.98", core: ".55", shadowInk: ".16,.18,.24", shadow: ".34" },
-    card: "#1c3d66",
+    cloud: { lo: ".38,.46,.58", hi: ".95,.965,.98", core: ".55", shadowInk: ".16,.18,.24", shadow: ".4" },
+    card: "#1b3a62",
     suffix: "-colour",
   },
 };
