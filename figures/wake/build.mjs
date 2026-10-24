@@ -201,19 +201,45 @@ const NAVY = `--anatomy-page:#050f17;--anatomy-card:#081722;--anatomy-paper:#081
 --anatomy-text:#7f95a7;--anatomy-strong:#c9d6e0;--anatomy-muted:#566d80`;
 // Daylight: white and light-grey steel over a deep sea, outlines a darker grey
 // of the same paint, the red aviation lights and the yaw pointer's amber tip
-// the only colour. The canopy shades by facing like every other white part.
+// the strongest colour. The canopy shades by facing like every other white part.
 const DAYLIGHT = `--anatomy-paper:#f2f4f5;--anatomy-face:#f2f4f5;
 --anatomy-shade-0:#8592a0;--anatomy-shade-1:#a6b1bc;--anatomy-shade-2:#c6cfd7;--anatomy-shade-3:#dde3e8;--anatomy-top:#f7f9fa;
 --anatomy-hi:#4f5d6a;--anatomy-mid:#6f7c88;--anatomy-lo:#929ea9;--anatomy-faint:#b4bec7`;
+// The ancillary parts in their real finishes, muted under the white turbine:
+// each base colour shades by facing with the white's own per-channel ratios,
+// so every part takes the same skylight, and its inks run darker.
+const hex = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+const css3 = (rgb) => "#" + rgb.map((v) => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, "0")).join("");
+const WHITE = hex("#f2f4f5"), WHITE_SHADES = ["#8592a0", "#a6b1bc", "#c6cfd7", "#dde3e8"].map(hex);
+const scaled = (rgb, f) => rgb.map((v, i) => v * (Array.isArray(f) ? f[i] : f));
+function paint(base, over = {}) {
+  const c = hex(base), t = { paper: c, top: c.map((v) => v + (255 - v) * 0.12), hi: scaled(c, 0.55), mid: scaled(c, 0.68), lo: scaled(c, 0.8), faint: scaled(c, 0.9), dot: scaled(c, 0.45) };
+  WHITE_SHADES.forEach((s, n) => (t[`shade-${n}`] = scaled(c, s.map((v, i) => v / WHITE[i]))));
+  for (const [name, value] of Object.entries(over)) t[name] = hex(value);
+  return Object.entries(t).map(([name, rgb]) => `--anatomy-${name}:${css3(rgb)}`).join(";");
+}
+const MATERIALS = {
+  safety: paint("#e0b12e", { hi: "#b08414", mid: "#c49a22", lo: "#c49a22" }), // helihoist railings, grab bar
+  deck: paint("#d9b13a", { top: "#8e9a92", hi: "#5b6560" }),                   // non-slip deck, yellow toe boards
+  marking: paint("#e0b12e", { lo: "#d9a91f" }),                                // drop-zone ring
+  galv: paint("#a9b1b8"),                                                      // met mast, platform struts
+  alu: paint("#c3cad0"),                                                       // hatches, louvre, door frame, yaw collar
+  radiator: paint("#98a2aa", { top: "#c6cdd3" }),                              // cooler body, fins and frame rails
+  steel: paint("#76818b"),                                                     // gear ring, gearboxes, pointer arm, shaft
+  motor: paint("#56809f"),                                                     // yaw motors, machinery blue
+  dark: paint("#4b545c"),                                                      // fans, instruments, hinges, bolts, scale
+};
 const THEME = COLOUR
-  ? { suffix: "-colour", vars: `${DAYLIGHT};--anatomy-lit:#f5b301;--anatomy-dot:#56646f`, beacon: "#d2493f", card: "#1d5a89", kit: (line) => !line.includes("[data-lit]") }
-  : { suffix: "", vars: `${NAVY};--anatomy-lit:#c9d6e0;--anatomy-dot:#9fb2c2`, beacon: "#e0675e", card: "#081722", kit: () => true };
+  ? { suffix: "-colour", vars: `${DAYLIGHT};--anatomy-lit:#f5b301;--anatomy-dot:#56646f`, beacon: "#d2493f", card: "#1d5a89", kit: (line) => !line.includes("[data-lit]"),
+      // bolts, hinges and handles are small dark dots, so they keep their ink
+      mats: [...Object.entries(MATERIALS).map(([name, vars]) => `[data-mat="${name}"]{${vars}}`), `[data-mat="dark"] .iso-dots circle{opacity:.8}`] }
+  : { suffix: "", vars: `${NAVY};--anatomy-lit:#c9d6e0;--anatomy-dot:#9fb2c2`, beacon: "#e0675e", card: "#081722", kit: () => true, mats: [] };
 const SCENE_CSS = `.wk-beacon circle{fill:${THEME.beacon}}
 .wk-beacon{animation:wk-blink 2s steps(1) infinite}
 @keyframes wk-blink{0%{opacity:1}30%,100%{opacity:.15}}`;
 const KIT = k.ISO_CSS.split("\n").filter((line) => /^\.iso-(fill|shade|top|line|solid|dots)/.test(line) && THEME.kit(line));
 const scope = (rule) => (rule.startsWith("@") ? rule : rule.replace(/^[^{]+/, (sel) => sel.split(",").map((x) => `${SCOPE} ${x.trim()}`).join(",")));
-const css = `${SCOPE}{${THEME.vars};--anatomy-weight:.6px}` + [...KIT, ...SCENE_CSS.split("\n")].map(scope).join("") +
+const css = `${SCOPE}{${THEME.vars};--anatomy-weight:.6px}` + [...KIT, ...SCENE_CSS.split("\n"), ...THEME.mats].map(scope).join("") +
   `@media (prefers-reduced-motion:reduce){${SCOPE} .wk-beacon{animation:none}}`;
 const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" preserveAspectRatio="xMaxYMax slice" aria-hidden="true" focusable="false"><style>${css}</style>${svgBody}</svg>`;
 mkdirSync(OUT, { recursive: true });
