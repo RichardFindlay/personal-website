@@ -13,6 +13,8 @@
 //      scene.svg and scene.js, and figures/battery/preview.html
 //      --stills <dir>   also the card held at four hours of the day
 //      --sizes          the size of each part of the drawing
+//      --colour         the daylight variant instead: scene-colour.svg, scene-colour.js
+//                       and preview-colour.html
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +31,10 @@ const SCOPE = ".scene-battery";
 const WIDTH = 1400, HEIGHT = 200;
 // Left of this the card's white fade is opaque on every card width, so nothing there is drawn.
 const VEIL = 260;
+const COLOUR = process.argv.includes("--colour");
+const NAME = COLOUR ? "scene-colour" : "scene";
+// a part's material: in daylight each part takes its own paint, in navy every part shares one
+const M = (material, svg) => (COLOUR ? `<g class="bt-m-${material}">${svg}</g>` : svg);
 
 // ── The day: the post's CSV, hour by hour ────────────────────────────────────
 const DATE = "04/12/2018";
@@ -200,12 +206,12 @@ function container(x0, yr, tier) {
   out.push(fill("bt-under", [[[x0 - 0.05, by - 0.05, 0], [x1 + 0.05, by - 0.05, 0], [x1 + 0.05, fy + 0.12, 0], [x0 - 0.05, fy + 0.12, 0]]]));
   // the strobe beacon of its fire system on the roof, behind the front edge
   if (!far) {
-    out.push(solid(drumFaces([x0 + 0.45, fy - 0.35, Z1], [1, 0, 0], [0, 1, 0], 0.09, [0, 0, 0.07], 12), { tone: "mid", crease: "none" }));
-    out.push(solid(drumFaces([x0 + 0.45, fy - 0.35, Z1 + 0.07], [1, 0, 0], [0, 1, 0], 0.065, [0, 0, 0.13], 12), { tone: "hi", crease: "none" }));
-    out.push(solid(boxFaces([x1 - 1.3, x1 - 0.9], [yr - 0.2, yr + 0.2], [Z1, Z1 + 0.3]), { tone: "mid" }));
+    out.push(M("trim", solid(drumFaces([x0 + 0.45, fy - 0.35, Z1], [1, 0, 0], [0, 1, 0], 0.09, [0, 0, 0.07], 12), { tone: "mid", crease: "none" })));
+    out.push(M("amber", solid(drumFaces([x0 + 0.45, fy - 0.35, Z1 + 0.07], [1, 0, 0], [0, 1, 0], 0.065, [0, 0, 0.13], 12), { tone: "hi", crease: "none" })));
+    out.push(M("white", solid(boxFaces([x1 - 1.3, x1 - 0.9], [yr - 0.2, yr + 0.2], [Z1, Z1 + 0.3]), { tone: "mid" })));
   }
   // three concrete sleepers
-  for (const s of [0.2, C.L / 2 - 0.35, C.L - 0.9]) out.push(box([x0 + s, x0 + s + 0.7], [by - 0.1, fy + 0.1], [0, Z0], { tone: "lo", crease: near ? "faint" : "none" }));
+  for (const s of [0.2, C.L / 2 - 0.35, C.L - 0.9]) out.push(M("concrete", box([x0 + s, x0 + s + 0.7], [by - 0.1, fy + 0.1], [0, Z0], { tone: "lo", crease: near ? "faint" : "none" })));
   // the box, with its rails, posts and corrugation under the outline
   const inner = [];
   const RAIL = [0.16, C.H - 0.16], POST = 0.15;
@@ -239,7 +245,7 @@ function container(x0, yr, tier) {
     inner.push(fill("bt-pocket", [C.L / 2 - 1.2, C.L / 2 + 0.85].map((s) => [F(s, 0.025), F(s + 0.355, 0.025), F(s + 0.355, 0.13), F(s, 0.13)])));
     inner.push(Ls([C.L / 2 - 1.2, C.L / 2 + 0.85].map((s) => [F(s, 0.025), F(s + 0.355, 0.025), F(s + 0.355, 0.13), F(s, 0.13), F(s, 0.025)]), "lo"));
   }
-  out.push(box([x0, x1], [by, fy], [Z0, Z1], { tone: far ? "mid" : "hi", crease: far ? "none" : "faint", inner: inner.join("") }));
+  out.push(M("white", box([x0, x1], [by, fy], [Z0, Z1], { tone: far ? "mid" : "hi", crease: far ? "none" : "faint", inner: inner.join("") })));
   if (!far) {
     // ISO corner castings, each with its oval twistlock hole on both faces
     const cast = [];
@@ -248,7 +254,7 @@ function container(x0, yr, tier) {
       cast.push(box([x1 - 0.178, x1 + 0.004], [fy - 0.162, fy + 0.004], [Z0 + t, Z0 + t + 0.118], { tone: "mid", crease: "none" }));
       cast.push(box([x0 - 0.004, x0 + 0.178], [by - 0.004, by + 0.162], [Z0 + t, Z0 + t + 0.118], { tone: "mid", crease: "none" }));
     }
-    out.push(...cast);
+    out.push(M("trim", cast.join("")));
     if (near) {
       const holes = [];
       for (const t of [0.03, C.H - 0.088]) {
@@ -262,13 +268,14 @@ function container(x0, yr, tier) {
   // the door end's lock bars, keepers, cam handles and hinges
   if (!far) {
     const bars = [0.42, 0.82, 1.62, 2.02].map((e) => e * (C.W / 2.44));
-    out.push(Ls(bars.map((e) => (near ? [E(e, RAIL[0] + 0.06, 0.03), E(e, RAIL[1] - 0.06, 0.03)] : [E(e, RAIL[0]), E(e, RAIL[1])])), "mid"));
+    out.push(M("white", Ls(bars.map((e) => (near ? [E(e, RAIL[0] + 0.06, 0.03), E(e, RAIL[1] - 0.06, 0.03)] : [E(e, RAIL[0]), E(e, RAIL[1])])), "mid")));
     if (near) {
-      out.push(fill("bt-keeper", bars.flatMap((e) => [RAIL[0] + 0.03, RAIL[1] - 0.09].map((t) => [E(e - 0.03, t, 0.035), E(e + 0.03, t, 0.035), E(e + 0.03, t + 0.06, 0.035), E(e - 0.03, t + 0.06, 0.035)]))));
-      out.push(Ls(bars.map((e, i) => [E(e, 1.0, 0.03), E(e + (i % 2 ? 0.16 : -0.16) * (i < 2 ? 1 : -1), 1.0, 0.03)]), "mid"));
-      out.push(fill("bt-keeper", [POST + 0.005, C.W - POST - 0.06].flatMap((e) => [0.35, 1.2, 2.05].map((t) => [E(e, t, 0.02), E(e + 0.055, t, 0.02), E(e + 0.055, t + 0.12, 0.02), E(e, t + 0.12, 0.02)]))));
+      out.push(M("trim", fill("bt-keeper", bars.flatMap((e) => [RAIL[0] + 0.03, RAIL[1] - 0.09].map((t) => [E(e - 0.03, t, 0.035), E(e + 0.03, t, 0.035), E(e + 0.03, t + 0.06, 0.035), E(e - 0.03, t + 0.06, 0.035)])))));
+      out.push(M("white", Ls(bars.map((e, i) => [E(e, 1.0, 0.03), E(e + (i % 2 ? 0.16 : -0.16) * (i < 2 ? 1 : -1), 1.0, 0.03)]), "mid")));
+      out.push(M("trim", fill("bt-keeper", [POST + 0.005, C.W - POST - 0.06].flatMap((e) => [0.35, 1.2, 2.05].map((t) => [E(e, t, 0.02), E(e + 0.055, t, 0.02), E(e + 0.055, t + 0.12, 0.02), E(e, t + 0.12, 0.02)])))));
       // the CSC safety approval plate on the left leaf
-      out.push(L([E(0.3, 1.55, 0.005), E(0.62, 1.55, 0.005), E(0.62, 1.75, 0.005), E(0.3, 1.75, 0.005), E(0.3, 1.55, 0.005)], "lo"));
+      if (COLOUR) out.push(M("plate", fill(`iso-shade" data-shade="3`, [[E(0.3, 1.55, 0.005), E(0.62, 1.55, 0.005), E(0.62, 1.75, 0.005), E(0.3, 1.75, 0.005)]])));
+      out.push(M("white", L([E(0.3, 1.55, 0.005), E(0.62, 1.55, 0.005), E(0.62, 1.75, 0.005), E(0.3, 1.75, 0.005), E(0.3, 1.55, 0.005)], "lo")));
     }
   }
   // ── what is fixed to the front, far end first ──
@@ -286,11 +293,11 @@ function container(x0, yr, tier) {
             const u = j / 10, w = 0.09 + (TRENCH[0] - C.W / 2 + 0.25 + i * 0.06) * (1 - Math.cos((u * Math.PI) / 2)), t = 0.08 - (0.08 + Z0) * Math.sin((u * Math.PI) / 2);
             pts.push(F(s, t, w));
           }
-          svg.push(tube(pts, r));
+          svg.push(M("cable", tube(pts, r)));
         }
       }
-      svg.push(box([x0 + g0, x0 + g1], [fy, fy + 0.18], [Z0 + 0.12, Z0 + 0.5], { tone: "mid", crease: near ? "faint" : "none", inner: near ? L([F(g1, 0.42, 0.18), F(g0, 0.42, 0.18), F(g0, 0.42, 0)], "faint") : "" }));
-      if (near) for (const s of [g0 + 0.09, g0 + 0.225, g0 + 0.36]) svg.push(solid(drumFaces([x0 + s, fy + 0.09, Z0 + 0.12], [1, 0, 0], [0, 1, 0], 0.042, [0, 0, -0.06], 10), { tone: "mid", crease: "none" }));
+      svg.push(M("trim", box([x0 + g0, x0 + g1], [fy, fy + 0.18], [Z0 + 0.12, Z0 + 0.5], { tone: "mid", crease: near ? "faint" : "none", inner: near ? L([F(g1, 0.42, 0.18), F(g0, 0.42, 0.18), F(g0, 0.42, 0)], "faint") : "" })));
+      if (near) for (const s of [g0 + 0.09, g0 + 0.225, g0 + 0.36]) svg.push(M("steel", solid(drumFaces([x0 + s, fy + 0.09, Z0 + 0.12], [1, 0, 0], [0, 1, 0], 0.042, [0, 0, -0.06], 10), { tone: "mid", crease: "none" })));
       return svg.join("");
     } });
   }
@@ -300,19 +307,20 @@ function container(x0, yr, tier) {
     const svg = [];
     const m = (D.s0 + D.s1) / 2;
     const leafIn = (a, b) => [F(a, D.t0 + 0.05, 0.03), F(b, D.t0 + 0.05, 0.03), F(b, D.t1 - 0.05, 0.03), F(a, D.t1 - 0.05, 0.03), F(a, D.t0 + 0.05, 0.03)];
-    svg.push(box([x0 + D.s0, x0 + D.s1], [fy, fy + 0.03], [Z0 + D.t0, Z0 + D.t1], { tone: far ? "faint" : "lo", crease: "none",
-      inner: far ? "" : Ls([[F(m, D.t0, 0.03), F(m, D.t1, 0.03)]], "lo") + (near ? Ls([leafIn(D.s0 + 0.05, m - 0.02), leafIn(m + 0.02, D.s1 - 0.05)], "faint") : "") }));
+    svg.push(M("white", box([x0 + D.s0, x0 + D.s1], [fy, fy + 0.03], [Z0 + D.t0, Z0 + D.t1], { tone: far ? "faint" : "lo", crease: "none",
+      inner: far ? "" : Ls([[F(m, D.t0, 0.03), F(m, D.t1, 0.03)]], "lo") + (near ? Ls([leafIn(D.s0 + 0.05, m - 0.02), leafIn(m + 0.02, D.s1 - 0.05)], "faint") : "") })));
     if (near) {
       const hinges = [];
       for (const s of [D.s0 + 0.005, D.s1 - 0.045]) for (const t of [0.4, 1.25, 2.0]) hinges.push(box([x0 + s, x0 + s + 0.04], [fy + 0.03, fy + 0.06], [Z0 + t, Z0 + t + 0.12], { tone: "mid", crease: "none" }));
-      svg.push(...hinges);
+      svg.push(M("trim", hinges.join("")));
       // lever handles, each on its rose
-      svg.push(Ls([[F(m - 0.08, 1.05, 0.06), F(m - 0.26, 1.05, 0.06)], [F(m + 0.08, 1.05, 0.06), F(m + 0.26, 1.05, 0.06)]], "mid"));
-      svg.push(dots([F(m - 0.08, 1.05, 0.06), F(m + 0.08, 1.05, 0.06)], 0.55, "mid"));
+      svg.push(M("steel", Ls([[F(m - 0.08, 1.05, 0.06), F(m - 0.26, 1.05, 0.06)], [F(m + 0.08, 1.05, 0.06), F(m + 0.26, 1.05, 0.06)]], "mid") +
+        dots([F(m - 0.08, 1.05, 0.06), F(m + 0.08, 1.05, 0.06)], 0.55, "mid")));
       // battery hazard triangle, with its mark
       const tc = [m - 0.42, 1.72];
-      svg.push(L([F(tc[0] - 0.13, tc[1], 0.031), F(tc[0] + 0.13, tc[1], 0.031), F(tc[0], tc[1] + 0.23, 0.031), F(tc[0] - 0.13, tc[1], 0.031)], "mid"));
-      svg.push(dots([F(tc[0], tc[1] + 0.07, 0.031)], 0.45, "mid"));
+      const sign = [F(tc[0] - 0.13, tc[1], 0.031), F(tc[0] + 0.13, tc[1], 0.031), F(tc[0], tc[1] + 0.23, 0.031)];
+      svg.push(M("sign", (COLOUR ? fill(`iso-shade" data-shade="3`, [sign]) : "") + L([...sign, sign[0]], "mid") +
+        dots([F(tc[0], tc[1] + 0.07, 0.031)], 0.45, COLOUR ? "hi" : "mid")));
     }
     return svg.join("");
   } });
@@ -323,37 +331,39 @@ function container(x0, yr, tier) {
     const svg = [];
     const hf = (s, t) => F(s, t, H.w);
     if (!far) {
-      svg.push(box([x0 + H.s1 - 0.12, x0 + H.s1 - 0.08], [fy + H.w - 0.17, fy + H.w - 0.13], [0, Z0 + H.t0 - 0.06], { tone: "lo", crease: "none" }));
-      svg.push(box([x0 + H.s0 - 0.03, x0 + H.s1 + 0.03], [fy, fy + H.w + 0.04], [Z0 + H.t0 - 0.06, Z0 + H.t0], { tone: "mid", crease: "none" }));
+      svg.push(M("trim", box([x0 + H.s1 - 0.12, x0 + H.s1 - 0.08], [fy + H.w - 0.17, fy + H.w - 0.13], [0, Z0 + H.t0 - 0.06], { tone: "lo", crease: "none" }) +
+        box([x0 + H.s0 - 0.03, x0 + H.s1 + 0.03], [fy, fy + H.w + 0.04], [Z0 + H.t0 - 0.06, Z0 + H.t0], { tone: "mid", crease: "none" })));
     }
     const louvres = [];
     if (!far) for (let t = H.t0 + 0.12; t < H.t0 + 0.62; t += near ? 0.09 : 0.18) louvres.push([hf(H.s0 + 0.1, t), hf(H.s1 - 0.1, t), hf(H.s1 - 0.1, t + 0.035), hf(H.s0 + 0.1, t + 0.035)]);
     const lid = [F(H.s0, H.t1 - 0.12, 0), F(H.s0, H.t1 - 0.12, H.w), F(H.s1, H.t1 - 0.12, H.w)];
-    svg.push(box([x0 + H.s0, x0 + H.s1], [fy, fy + H.w], [Z0 + H.t0, Z0 + H.t1], { tone: far ? "mid" : "hi",
+    const ac = [];
+    ac.push(box([x0 + H.s0, x0 + H.s1], [fy, fy + H.w], [Z0 + H.t0, Z0 + H.t1], { tone: far ? "mid" : "hi",
       inner: far ? "" : fill("bt-pocket", louvres) + (near ? Ls(louvres.map((q) => [...q, q[0]]), "lo") : "") + L(lid, "faint") }));
     const fc = hf((H.s0 + H.s1) / 2, H.t0 + 1.12);
-    if (far) svg.push(`<g class="bt-face" transform="${faceMatrix(fc, [1, 0, 0], [0, 0, -1])}">${circle(0, 0, FANS.hvac.r, "bt-throat")}${circle(0, 0, FANS.hvac.r, "bt-guard bt-rim")}</g>`);
-    else svg.push(fan("hvac", fc, [1, 0, 0], [0, 0, -1]));
-    if (near) svg.push(dots([hf(H.s0 + 0.07, H.t1 - 0.06), hf(H.s1 - 0.07, H.t1 - 0.06), hf(H.s0 + 0.07, H.t0 + 0.06), hf(H.s1 - 0.07, H.t0 + 0.06)], 0.5, "mid"));
+    if (far) ac.push(M("fan", `<g class="bt-face" transform="${faceMatrix(fc, [1, 0, 0], [0, 0, -1])}">${circle(0, 0, FANS.hvac.r, "bt-throat")}${circle(0, 0, FANS.hvac.r, "bt-guard bt-rim")}</g>`));
+    else ac.push(M("fan", fan("hvac", fc, [1, 0, 0], [0, 0, -1])));
+    if (near) ac.push(dots([hf(H.s0 + 0.07, H.t1 - 0.06), hf(H.s1 - 0.07, H.t1 - 0.06), hf(H.s0 + 0.07, H.t0 + 0.06), hf(H.s1 - 0.07, H.t0 + 0.06)], 0.5, "mid"));
+    svg.push(M("hvac", ac.join("")));
     return svg.join("");
   } });
   // the rating plate, and the emergency stop on its box below
   const PL = 2.55;
   if (!far) fit.push({ s: PL, svg: () => {
     const svg = [];
-    svg.push(box([x0 + PL, x0 + PL + 0.43], [fy, fy + 0.012], [Z0 + 1.48, Z0 + 1.82], { tone: "lo", crease: "none",
-      inner: near ? Ls([1.74, 1.66, 1.58].map((t, j) => [F(PL + 0.05, t, 0.012), F(PL + 0.38 - j * 0.07, t, 0.012)]), "faint", "both") : "" }));
-    svg.push(box([x0 + PL + 0.05, x0 + PL + 0.38], [fy, fy + 0.1], [Z0 + 0.92, Z0 + 1.25], { tone: "mid", crease: near ? "faint" : "none" }));
-    if (near) svg.push(solid(drumFaces(F(PL + 0.215, 1.085, 0.1), [1, 0, 0], [0, 0, 1], 0.075, [0, 0.05, 0], 14), { tone: "hi", crease: "none" }));
+    svg.push(M("plate", box([x0 + PL, x0 + PL + 0.43], [fy, fy + 0.012], [Z0 + 1.48, Z0 + 1.82], { tone: "lo", crease: "none",
+      inner: near ? Ls([1.74, 1.66, 1.58].map((t, j) => [F(PL + 0.05, t, 0.012), F(PL + 0.38 - j * 0.07, t, 0.012)]), "faint", "both") : "" })));
+    svg.push(M("yellow", box([x0 + PL + 0.05, x0 + PL + 0.38], [fy, fy + 0.1], [Z0 + 0.92, Z0 + 1.25], { tone: "mid", crease: near ? "faint" : "none" })));
+    if (near) svg.push(M("red", solid(drumFaces(F(PL + 0.215, 1.085, 0.1), [1, 0, 0], [0, 0, 1], 0.075, [0, 0.05, 0], 14), { tone: "hi", crease: "none" })));
     return svg.join("");
   } });
   // the charge lamp in its housing, at the door end
   const LP = { s0: 0.24, s1: 0.62, t0: 0.42, t1: 2.12, w: 0.07 };
   fit.push({ s: LP.s0, svg: () =>
-    box([x0 + LP.s0, x0 + LP.s1], [fy, fy + LP.w], [Z0 + LP.t0, Z0 + LP.t1], { tone: "mid", crease: far ? "none" : "faint" }) +
-    lamp(F, LP.s0 + 0.06, LP.s1 - 0.06, LP.t0 + 0.08, LP.t1 - 0.08, LP.w, far ? 5 : 10, { near: 60, mid: 30, far: 10 }[tier]) });
+    M("panel", box([x0 + LP.s0, x0 + LP.s1], [fy, fy + LP.w], [Z0 + LP.t0, Z0 + LP.t1], { tone: "mid", crease: far ? "none" : "faint" }) +
+    lamp(F, LP.s0 + 0.06, LP.s1 - 0.06, LP.t0 + 0.08, LP.t1 - 0.08, LP.w, far ? 5 : 10, { near: 60, mid: 30, far: 10 }[tier])) });
   // an earth strap from the far bottom casting down to its rod in the gravel
-  if (near) fit.push({ s: C.L - 0.1, svg: () => L([F(C.L - 0.09, 0, 0.004), F(C.L - 0.09, -0.06, 0.15), F(C.L - 0.09, -Z0, 0.32)], "mid") + dots([F(C.L - 0.09, -Z0, 0.32)], 0.7, "mid") });
+  if (near) fit.push({ s: C.L - 0.1, svg: () => M("earth", L([F(C.L - 0.09, 0, 0.004), F(C.L - 0.09, -0.06, 0.15), F(C.L - 0.09, -Z0, 0.32)], "mid") + dots([F(C.L - 0.09, -Z0, 0.32)], 0.7, "mid")) });
   fit.sort((a, b) => b.s - a.s);
   out.push(...fit.map((f) => f.svg()));
   return out.join("");
@@ -378,17 +388,17 @@ function tube(pts, r) {
 function pcs(x0, yr, tier) {
   const out = [], near = tier !== "far", fy = yr + PCS.W / 2, by = yr - PCS.W / 2, zc = PCS.skid;
   out.push(fill("bt-under", [[[x0, by, 0], [x0 + PCS.L, by, 0], [x0 + PCS.L, fy + 0.1, 0], [x0, fy + 0.1, 0]]]));
-  out.push(box([x0, x0 + PCS.L], [by, fy], [0.05, zc], { tone: "lo", crease: "none", inner: L([[x0, by, 0.2], [x0, fy, 0.2], [x0 + PCS.L, fy, 0.2]], "faint") }));
+  out.push(M("steel", box([x0, x0 + PCS.L], [by, fy], [0.05, zc], { tone: "lo", crease: "none", inner: L([[x0, by, 0.2], [x0, fy, 0.2], [x0 + PCS.L, fy, 0.2]], "faint") })));
   // far end first: the RMU: a slim cabinet with its mimic panel
   const rmu = { x: x0 + 6.0, x1: x0 + 7.1, y0: yr - 0.6, y1: yr + 0.75, h: 1.95 };
-  out.push(box([rmu.x, rmu.x1], [rmu.y0, rmu.y1], [zc, zc + rmu.h], { tone: "hi", inner: near ? L([[rmu.x + 0.08, rmu.y1, zc + 0.08], [rmu.x1 - 0.08, rmu.y1, zc + 0.08], [rmu.x1 - 0.08, rmu.y1, zc + rmu.h - 0.1], [rmu.x + 0.08, rmu.y1, zc + rmu.h - 0.1], [rmu.x + 0.08, rmu.y1, zc + 0.08]], "lo") + L([[rmu.x + 0.15, rmu.y1, zc + 1.4], [rmu.x1 - 0.15, rmu.y1, zc + 1.4]], "mid") : "" }));
+  out.push(M("rmu", box([rmu.x, rmu.x1], [rmu.y0, rmu.y1], [zc, zc + rmu.h], { tone: "hi", inner: near ? L([[rmu.x + 0.08, rmu.y1, zc + 0.08], [rmu.x1 - 0.08, rmu.y1, zc + 0.08], [rmu.x1 - 0.08, rmu.y1, zc + rmu.h - 0.1], [rmu.x + 0.08, rmu.y1, zc + rmu.h - 0.1], [rmu.x + 0.08, rmu.y1, zc + 0.08]], "lo") + L([[rmu.x + 0.15, rmu.y1, zc + 1.4], [rmu.x1 - 0.15, rmu.y1, zc + 1.4]], "mid") : "" })));
   // the MV transformer: tank, radiator fins toward the track, its cable box on top
   const tx = { x: x0 + 3.85, x1: x0 + 5.65, y0: yr - 0.7, y1: yr + 0.45, h: 1.7 };
-  out.push(box([tx.x + 0.25, tx.x1 - 0.25], [tx.y0 + 0.2, tx.y1 - 0.2], [zc + tx.h, zc + tx.h + 0.32], { tone: "mid", crease: "none" }));
-  out.push(box([tx.x, tx.x1], [tx.y0, tx.y1], [zc, zc + tx.h], { tone: "mid", crease: "none" }));
+  out.push(M("tx", box([tx.x + 0.25, tx.x1 - 0.25], [tx.y0 + 0.2, tx.y1 - 0.2], [zc + tx.h, zc + tx.h + 0.32], { tone: "mid", crease: "none" }) +
+    box([tx.x, tx.x1], [tx.y0, tx.y1], [zc, zc + tx.h], { tone: "mid", crease: "none" })));
   const fins = [];
   if (near) for (let x = tx.x + 0.12; x < tx.x1 - 0.1; x += 0.12) fins.push([[x, tx.y1 + 0.42, zc + 0.2], [x, tx.y1 + 0.42, zc + tx.h - 0.3]]);
-  out.push(box([tx.x + 0.08, tx.x1 - 0.08], [tx.y1, tx.y1 + 0.42], [zc + 0.15, zc + tx.h - 0.25], { tone: "mid", crease: "none", inner: Ls(fins, "lo") }));
+  out.push(M("tx", box([tx.x + 0.08, tx.x1 - 0.08], [tx.y1, tx.y1 + 0.42], [zc + 0.15, zc + tx.h - 0.25], { tone: "mid", crease: "none", inner: Ls(fins, "lo") })));
   // the inverter: a cabinet of four doors, grilles low, two fans high in the doors
   const inv = { x: x0 + 0.3, x1: x0 + 3.5, y0: yr - 0.8, y1: yr + 0.8, h: 2.2 };
   const doors = [], grille = [];
@@ -397,14 +407,15 @@ function pcs(x0, yr, tier) {
     doors.push([[a, inv.y1, zc + 0.08], [b, inv.y1, zc + 0.08], [b, inv.y1, zc + inv.h - 0.1], [a, inv.y1, zc + inv.h - 0.1], [a, inv.y1, zc + 0.08]]);
     if (near) for (let t = 0.22; t < 0.62; t += 0.1) grille.push([[a + 0.12, inv.y1, zc + t], [b - 0.12, inv.y1, zc + t], [b - 0.12, inv.y1, zc + t + 0.04], [a + 0.12, inv.y1, zc + t + 0.04]]);
   }
-  out.push(box([inv.x, inv.x1], [inv.y0, inv.y1], [zc, zc + inv.h], { tone: "hi", inner: Ls(doors, "lo") + (grille.length ? fill("bt-pocket", grille) : "") }));
+  const cabinet = [box([inv.x, inv.x1], [inv.y0, inv.y1], [zc, zc + inv.h], { tone: "hi", inner: Ls(doors, "lo") + (grille.length ? fill("bt-pocket", grille) : "") })];
   for (const n of [1, 2]) {
     const c = [inv.x + 0.06 + n * 0.785 + 0.3675, inv.y1, zc + 1.6];
-    out.push(near ? fan("pcs", c, [1, 0, 0], [0, 0, -1]) : `<g class="bt-face" transform="${faceMatrix(c, [1, 0, 0], [0, 0, -1])}">${circle(0, 0, FANS.pcs.r, "bt-throat")}</g>`);
+    cabinet.push(M("fan", near ? fan("pcs", c, [1, 0, 0], [0, 0, -1]) : `<g class="bt-face" transform="${faceMatrix(c, [1, 0, 0], [0, 0, -1])}">${circle(0, 0, FANS.pcs.r, "bt-throat")}</g>`));
   }
-  if (near) out.push(dots([0, 1, 2, 3].map((n) => [inv.x + 0.06 + n * 0.785 + 0.62, inv.y1, zc + 1.05]), 0.5, "mid"));
+  if (near) cabinet.push(dots([0, 1, 2, 3].map((n) => [inv.x + 0.06 + n * 0.785 + 0.62, inv.y1, zc + 1.05]), 0.5, "mid"));
+  out.push(M("inverter", cabinet.join("")));
   // cables down from the skid into the trench
-  out.push(box([x0 + 2.9, x0 + 3.3], [fy, yr + TRENCH[0] + 0.05], [0, zc + 0.12], { tone: "mid", crease: "none" }));
+  out.push(M("steel", box([x0 + 2.9, x0 + 3.3], [fy, yr + TRENCH[0] + 0.05], [0, zc + 0.12], { tone: "mid", crease: "none" })));
   return out.join("");
 }
 
@@ -587,9 +598,50 @@ const siteVars = Object.entries(SITE).map(([n, v]) => (n === "lit" || n === "dot
 // descendant selectors cannot reach, so the fan rules are written unscoped.
 const UNSCOPED = /^\.bt-(blade|hub|guard|rim)/;
 const sceneRules = SCENE_CSS.split("\n");
-const css = `${SCOPE}{${NAVY};${siteVars};--anatomy-weight:.6px}` + KIT.map(scope).join("") +
+const navyCss = `${SCOPE}{${NAVY};${siteVars};--anatomy-weight:.6px}` + KIT.map(scope).join("") +
   sceneRules.map((rule) => (UNSCOPED.test(rule) || rule.startsWith(".bt-h") ? rule : scope(rule))).join("");
-const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" preserveAspectRatio="xMaxYMax slice" aria-hidden="true" focusable="false"><style>${css}</style>${body}</svg>`;
+
+// ── Daylight: each part in its own paint, haze toward the horizon's blue ─────
+const SKY = { top: "#6f9fca", horizon: "#cfe1ef" };
+// a colour darkened by f, cooler the deeper the shade (shadows take the sky's blue)
+const tint = (c, f) => "#" + [f - 0.1 * (1 - f), f, f + 0.1 * (1 - f)].map((g, i) =>
+  Math.round(Math.min(255, parseInt(c.slice(1 + 2 * i, 3 + 2 * i), 16) * g)).toString(16).padStart(2, "0")).join("");
+// a paint: faces by facing (shade-3 meets the sun, the top lighter still) and inks
+// for outlines and detail lines 16–45% darker than the sunlit face
+const paint = (base, inks = {}) => ({
+  paper: tint(base, 0.91), top: mix(base, "#ffffff", 0.4), "shade-3": base, "shade-2": tint(base, 0.91), "shade-1": tint(base, 0.8), "shade-0": tint(base, 0.67),
+  hi: tint(base, 0.55), mid: tint(base, 0.64), lo: tint(base, 0.74), faint: tint(base, 0.84), dot: tint(base, 0.35), ...inks,
+});
+const PAINTS = {
+  ground: paint("#cbc8c1", { hi: "#5f5c57", mid: "#6d6a64", lo: "#85827a", faint: "#a09d96", dot: "#3f3b35" }),
+  white: paint("#f2f4f5"), trim: paint("#b6bdc3"), steel: paint("#7f878e"), concrete: paint("#cfcdc6"),
+  cable: paint("#3a3f44"), plate: paint("#c8cdd1"), panel: paint("#3d464d"), earth: paint("#9cbf4a"),
+  yellow: paint("#e3b23c"), amber: paint("#e8a23a"), red: paint("#d2493f"),
+  sign: paint("#e3b23c", { hi: "#1d1d1b", mid: "#242421", lo: "#2c2b27", faint: "#3a3833", dot: "#141412" }),
+  hvac: paint("#d5dade"), fan: paint("#4b545c", { "shade-0": "#22282d", mid: "#a3abb2", lo: "#2a3035", top: "#6b747c" }),
+  inverter: paint("#b9c4bc"), rmu: paint("#5d8a6b"), tx: paint("#8d969d"),
+};
+const DAY_SITE = { lamp: "#4fbf6a", "lamp-off": "#2e3a33", bed: "#a59d91", under: "#706a61", trench: "#8f9499", hole: "#33383c" };
+const INKS = new Set(["hi", "mid", "lo", "faint", "dot"]);
+const hazeVars = (tokens, t) => Object.entries(tokens).map(([n, v]) => `--anatomy-${n}:${mix(v, SKY.horizon, INKS.has(n) ? t : Math.min(1, t * 1.15))}`).join(";");
+const siteHaze = (t) => Object.entries({ lamp: 0.5, "lamp-off": 1, bed: 0.6, under: 0.6, trench: 0.6, hole: 1 }).map(([n, w]) => `--bt-${n}:${mix(DAY_SITE[n], SKY.horizon, t * w)}`).join(";");
+const DAY_LADDER = [1, 2, 3, 4, 5].flatMap((n) => {
+  const t = Math.min(0.92, n * 0.15);
+  return [`.bt-h${n}{${hazeVars(PAINTS.ground, t)};${siteHaze(t)}}`, ...Object.entries(PAINTS).map(([m, tokens]) => `.bt-h${n} .bt-m-${m}{${hazeVars(tokens, t)}}`)];
+});
+const dayCss = `${SCOPE}{${hazeVars(PAINTS.ground, 0)};${Object.entries(DAY_SITE).map(([n, v]) => `--bt-${n}:${v}`).join(";")};--anatomy-lit:#ffffff;--anatomy-weight:.6px}` +
+  KIT.map(scope).join("") +
+  sceneRules.filter((rule) => !rule.startsWith(".bt-h")).map((rule) => (UNSCOPED.test(rule) ? rule : scope(rule))).join("") +
+  [".bt-pave{fill:url(#bt-pave)}", ".bt-trench{fill:var(--bt-trench)}", ".bt-slot,.bt-pocket{fill:var(--bt-hole)}"].map(scope).join("") +
+  Object.entries(PAINTS).map(([m, tokens]) => `.bt-m-${m}{${hazeVars(tokens, 0)}}`).join("") + DAY_LADDER.join("");
+// the sky down to the horizon, and the fields beyond the plant's fence below it
+function daylight() {
+  const h = f1(CAM.cy), grad = (id, y0, y1, a, b) => `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" y1="${y0}" x2="0" y2="${y1}"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>`;
+  return `<defs>${grad("bt-sky", 0, h, SKY.top, SKY.horizon)}${grad("bt-field", h, HEIGHT, mix("#8fb35a", SKY.horizon, 0.55), mix("#8fb35a", SKY.horizon, 0.2))}${grad("bt-pave", h, HEIGHT, mix("#cbc8c1", SKY.horizon, 0.6), "#cbc8c1")}</defs>` +
+    `<rect fill="url(#bt-sky)" width="${WIDTH}" height="${h}"/><rect fill="url(#bt-field)" y="${h}" width="${WIDTH}" height="${f1(HEIGHT - CAM.cy)}"/>`;
+}
+const css = COLOUR ? dayCss : navyCss;
+const markup = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" preserveAspectRatio="xMaxYMax slice" aria-hidden="true" focusable="false"><style>${css}</style>${COLOUR ? daylight() : ""}${body}</svg>`;
 
 // ── Live: one day of trading, on a loop ──────────────────────────────────────
 // Every lamp in the plant shows the one state of charge and the fans turn with
@@ -645,14 +697,14 @@ if (fixed === undefined) new IntersectionObserver((entries) => {
 `;
 
 mkdirSync(OUT, { recursive: true });
-writeFileSync(join(OUT, "scene.svg"), markup);
-writeFileSync(join(OUT, "scene.js"), `// Generated by figures/battery/build.mjs: runs one day of the post's DQN\n// battery on its card. Edit the build, not this file.\n${live}`);
+writeFileSync(join(OUT, `${NAME}.svg`), markup);
+writeFileSync(join(OUT, `${NAME}.js`), `// Generated by figures/battery/build.mjs: runs one day of the post's DQN\n// battery on its card. Edit the build, not this file.\n${live}`);
 
 // ── Preview: the card as the homepage draws it ───────────────────────────────
 const preview = (hour, svg = markup) => `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Battery card</title><style>
 body{margin:0;padding:24px 15px;background:#fff;font-family:"Quicksand",system-ui,sans-serif}
 .wrap{max-width:1110px;margin:0 auto}
-.card{position:relative;height:160px;border:1px solid rgba(0,0,0,.125);border-radius:.25rem;overflow:hidden;background:#081722;display:flex}
+.card{position:relative;height:160px;border:1px solid rgba(0,0,0,.125);border-radius:.25rem;overflow:hidden;background:${COLOUR ? SKY.horizon : "#081722"};display:flex}
 .scene-battery{position:absolute;inset:0}
 .scene-battery svg{display:block;width:100%;height:100%}
 .card::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(-90deg,rgba(255,255,255,0.2),white 80%)}
@@ -662,7 +714,7 @@ h2{color:#717171;font-weight:500;font-size:1.6rem;margin:0 0 .4rem;text-decorati
 </style></head><body><div class="wrap"><div class="card"><div class="scene-battery"${hour === undefined ? "" : ` data-hour="${hour}"`} aria-hidden="true">${svg}</div>
 <div class="card-block"><h2>Deep Reinforcement Learning for Grid Scale Lithium-ion Battery Optimisation</h2><p class="date">Oct 10, 2022</p><p class="text">Wholesale arbitrage with DQN agents, benchmarked against MILP</p></div></div></div>
 <script type="module">${live.replace(/<\/(script)/gi, "<\\/$1")}</script></body></html>`;
-writeFileSync(join(HERE, "preview.html"), preview());
+writeFileSync(join(HERE, COLOUR ? "preview-colour.html" : "preview.html"), preview());
 // --stills <dir>: the card held at chosen hours, for captures, and bare.html,
 // the scene without the fade or the title, for close-ups and the line check
 const stills = process.argv.indexOf("--stills");
@@ -672,4 +724,4 @@ if (stills > 0) {
   for (const h of [5.5, 10.5, 15, 19.5]) writeFileSync(join(dir, `preview-${String(h).replace(".", "_")}.html`), preview(h));
   writeFileSync(join(dir, "bare.html"), preview(STILL_HOUR).replace(".card::after{", ".card-block{display:none}.card::after{display:none;"));
 }
-console.log(`scene.svg ${(markup.length / 1024).toFixed(1)} KB · scene.js ${(live.length / 1024).toFixed(1)} KB · ${DATE}: SoC ${rows[0].soc} → ${Math.max(...rows.map((r) => r.soc))} → ${rows[24].soc}, prices £${Math.min(...DAY.map((d) => d.price))}–£${Math.max(...DAY.map((d) => d.price))}/MWh`);
+console.log(`${NAME}.svg ${(markup.length / 1024).toFixed(1)} KB · ${NAME}.js ${(live.length / 1024).toFixed(1)} KB · ${DATE}: SoC ${rows[0].soc} → ${Math.max(...rows.map((r) => r.soc))} → ${rows[24].soc}, prices £${Math.min(...DAY.map((d) => d.price))}–£${Math.max(...DAY.map((d) => d.price))}/MWh`);
