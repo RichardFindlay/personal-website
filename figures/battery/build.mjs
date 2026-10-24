@@ -185,7 +185,7 @@ function lamp(F, s0, s1, t0, t1, w, n, steps) {
 
 // ── A battery container ──────────────────────────────────────────────────────
 // x0 is its door end, yr its row's centre line. Long front (toward the track),
-// from the door end: the wall-hung air conditioner, the charge lamp, rating plate
+// from the door end: the charge lamp, the wall-hung air conditioner, rating plate
 // and emergency stop, a personnel door, the DC cable entry. The door end carries
 // the ISO cargo doors. The fan and the lamp sit nearest the card's right edge,
 // where the white fade is thinnest. Detail follows its size on the card.
@@ -260,7 +260,7 @@ function container(x0, yr, tier) {
   // the door end's lock bars, keepers, cam handles and hinges
   if (!far) {
     const bars = [0.42, 0.82, 1.62, 2.02].map((e) => e * (C.W / 2.44));
-    out.push(Ls(bars.map((e) => [E(e, RAIL[0] + 0.06, 0.03), E(e, RAIL[1] - 0.06, 0.03)]), "mid"));
+    out.push(Ls(bars.map((e) => (near ? [E(e, RAIL[0] + 0.06, 0.03), E(e, RAIL[1] - 0.06, 0.03)] : [E(e, RAIL[0]), E(e, RAIL[1])])), "mid"));
     if (near) {
       out.push(fill("bt-keeper", bars.flatMap((e) => [RAIL[0] + 0.03, RAIL[1] - 0.09].map((t) => [E(e - 0.03, t, 0.035), E(e + 0.03, t, 0.035), E(e + 0.03, t + 0.06, 0.035), E(e - 0.03, t + 0.06, 0.035)]))));
       out.push(Ls(bars.map((e, i) => [E(e, 1.0, 0.03), E(e + (i % 2 ? 0.16 : -0.16) * (i < 2 ? 1 : -1), 1.0, 0.03)]), "mid"));
@@ -287,7 +287,7 @@ function container(x0, yr, tier) {
           svg.push(tube(pts, r));
         }
       }
-      svg.push(box([x0 + g0, x0 + g1], [fy, fy + 0.18], [Z0 + 0.12, Z0 + 0.5], { tone: "mid", crease: near ? "faint" : "none", inner: near ? Ls([[F(g0 + 0.03, 0.46, 0.18), F(g1 - 0.03, 0.46, 0.18)]], "faint") : "" }));
+      svg.push(box([x0 + g0, x0 + g1], [fy, fy + 0.18], [Z0 + 0.12, Z0 + 0.5], { tone: "mid", crease: near ? "faint" : "none", inner: near ? L([F(g1, 0.42, 0.18), F(g0, 0.42, 0.18), F(g0, 0.42, 0)], "faint") : "" }));
       if (near) for (const s of [g0 + 0.09, g0 + 0.225, g0 + 0.36]) svg.push(solid(drumFaces([x0 + s, fy + 0.09, Z0 + 0.12], [1, 0, 0], [0, 1, 0], 0.042, [0, 0, -0.06], 10), { tone: "mid", crease: "none" }));
       return svg.join("");
     } });
@@ -316,12 +316,12 @@ function container(x0, yr, tier) {
   } });
   // the wall-hung air conditioner: louvres low, a condenser fan behind its guard,
   // a condensate tray under it and the tray's drain to the gravel
-  const H = { s0: 0.3, s1: 1.65, t0: 0.38, t1: 2.15, w: 0.55 };
+  const H = { s0: 0.82, s1: 2.17, t0: 0.38, t1: 2.15, w: 0.42 };
   fit.push({ s: H.s0, svg: () => {
     const svg = [];
     const hf = (s, t) => F(s, t, H.w);
     if (!far) {
-      svg.push(box([x0 + H.s1 - 0.12, x0 + H.s1 - 0.08], [fy + 0.36, fy + 0.4], [0, Z0 + H.t0 - 0.06], { tone: "lo", crease: "none" }));
+      svg.push(box([x0 + H.s1 - 0.12, x0 + H.s1 - 0.08], [fy + H.w - 0.17, fy + H.w - 0.13], [0, Z0 + H.t0 - 0.06], { tone: "lo", crease: "none" }));
       svg.push(box([x0 + H.s0 - 0.03, x0 + H.s1 + 0.03], [fy, fy + H.w + 0.04], [Z0 + H.t0 - 0.06, Z0 + H.t0], { tone: "mid", crease: "none" }));
     }
     const louvres = [];
@@ -336,22 +336,22 @@ function container(x0, yr, tier) {
     return svg.join("");
   } });
   // the rating plate, and the emergency stop on its box below
-  const PL = 2.68;
+  const PL = 2.55;
   if (!far) fit.push({ s: PL, svg: () => {
     const svg = [];
     svg.push(box([x0 + PL, x0 + PL + 0.43], [fy, fy + 0.012], [Z0 + 1.48, Z0 + 1.82], { tone: "lo", crease: "none",
-      inner: near ? Ls([1.74, 1.66, 1.58].map((t, j) => [F(PL + 0.05, t, 0.012), F(PL + 0.38 - j * 0.07, t, 0.012)]), "faint", "end") : "" }));
+      inner: near ? Ls([1.74, 1.66, 1.58].map((t, j) => [F(PL + 0.05, t, 0.012), F(PL + 0.38 - j * 0.07, t, 0.012)]), "faint", "both") : "" }));
     svg.push(box([x0 + PL + 0.05, x0 + PL + 0.38], [fy, fy + 0.1], [Z0 + 0.92, Z0 + 1.25], { tone: "mid", crease: near ? "faint" : "none" }));
     if (near) svg.push(solid(drumFaces(F(PL + 0.215, 1.085, 0.1), [1, 0, 0], [0, 0, 1], 0.075, [0, 0.05, 0], 14), { tone: "hi", crease: "none" }));
     return svg.join("");
   } });
-  // the charge lamp in its housing, beside the air conditioner
-  const LP = { s0: 1.95, s1: 2.45, t0: 0.42, t1: 2.12, w: 0.07 };
+  // the charge lamp in its housing, at the door end
+  const LP = { s0: 0.24, s1: 0.62, t0: 0.42, t1: 2.12, w: 0.07 };
   fit.push({ s: LP.s0, svg: () =>
     box([x0 + LP.s0, x0 + LP.s1], [fy, fy + LP.w], [Z0 + LP.t0, Z0 + LP.t1], { tone: "mid", crease: far ? "none" : "faint" }) +
-    lamp(F, LP.s0 + 0.07, LP.s1 - 0.07, LP.t0 + 0.08, LP.t1 - 0.08, LP.w, far ? 5 : 10, { near: 60, mid: 30, far: 10 }[tier]) });
+    lamp(F, LP.s0 + 0.06, LP.s1 - 0.06, LP.t0 + 0.08, LP.t1 - 0.08, LP.w, far ? 5 : 10, { near: 60, mid: 30, far: 10 }[tier]) });
   // an earth strap from the far bottom casting down to its rod in the gravel
-  if (near) fit.push({ s: C.L - 0.1, svg: () => L([F(C.L - 0.09, 0.03, 0.006), F(C.L - 0.09, -0.06, 0.15), F(C.L - 0.09, -Z0, 0.32)], "mid") + dots([F(C.L - 0.09, -Z0, 0.32)], 0.7, "mid") });
+  if (near) fit.push({ s: C.L - 0.1, svg: () => L([F(C.L - 0.09, 0, 0.004), F(C.L - 0.09, -0.06, 0.15), F(C.L - 0.09, -Z0, 0.32)], "mid") + dots([F(C.L - 0.09, -Z0, 0.32)], 0.7, "mid") });
   fit.sort((a, b) => b.s - a.s);
   out.push(...fit.map((f) => f.svg()));
   return out.join("");
@@ -376,9 +376,8 @@ function tube(pts, r) {
 function pcs(x0, yr, tier) {
   const out = [], near = tier !== "far", fy = yr + PCS.W / 2, by = yr - PCS.W / 2, zc = PCS.skid;
   out.push(fill("bt-under", [[[x0, by, 0], [x0 + PCS.L, by, 0], [x0 + PCS.L, fy + 0.1, 0], [x0, fy + 0.1, 0]]]));
-  out.push(box([x0, x0 + PCS.L], [by, fy], [0.05, zc], { tone: "lo", crease: "none", inner: L([[x0, fy, 0.2], [x0 + PCS.L, fy, 0.2]], "faint") }));
-  // the transformer's bushing box and the inverter's roof hood sit behind the front edges
-  // the RMU: a slim cabinet with its mimic panel
+  out.push(box([x0, x0 + PCS.L], [by, fy], [0.05, zc], { tone: "lo", crease: "none", inner: L([[x0, by, 0.2], [x0, fy, 0.2], [x0 + PCS.L, fy, 0.2]], "faint") }));
+  // far end first: the RMU: a slim cabinet with its mimic panel
   const rmu = { x: x0 + 6.0, x1: x0 + 7.1, y0: yr - 0.6, y1: yr + 0.75, h: 1.95 };
   out.push(box([rmu.x, rmu.x1], [rmu.y0, rmu.y1], [zc, zc + rmu.h], { tone: "hi", inner: near ? L([[rmu.x + 0.08, rmu.y1, zc + 0.08], [rmu.x1 - 0.08, rmu.y1, zc + 0.08], [rmu.x1 - 0.08, rmu.y1, zc + rmu.h - 0.1], [rmu.x + 0.08, rmu.y1, zc + rmu.h - 0.1], [rmu.x + 0.08, rmu.y1, zc + 0.08]], "lo") + L([[rmu.x + 0.15, rmu.y1, zc + 1.4], [rmu.x1 - 0.15, rmu.y1, zc + 1.4]], "mid") : "" }));
   // the MV transformer: tank, radiator fins toward the track, its cable box on top
@@ -450,9 +449,22 @@ function ground() {
     // the track's slab joints, from the bed's kerb across to the far kerb
     const ty0 = y + TRACK[0], ty1 = y + TRACK[1];
     g.push(groundLine([X0, ty0, 0], [X1, ty0, 0], "faint"), groundLine([X0, ty1, 0], [X1, ty1, 0], "faint"));
+    g.push(groundLine([X0, ty0, 0], [X0, ty1, 0], "faint"), groundLine([X1, ty0, 0], [X1, ty1, 0], "faint"));
     for (let x = X0 + 4; x < X1; x += 4) g.push(groundLine([x, ty0, 0], [x, ty1, 0], "faint"));
     out.push(`<g class="bt-h${h}">${g.join("")}</g>`);
   }
+  // gravel on the near bed, each stone as big as its distance allows
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const stones = new Map();
+  for (const [y0, y1] of [[C.W / 2 + 0.1, TRENCH[0] - 0.05], [TRENCH[1] + 0.05, BED[1] - 0.05]]) for (let i = 0; i < 520; i++) {
+    const p = [X0 + rand() * 22, y0 + rand() * (y1 - y0), 0], size = Math.min(1, Math.round(0.013 * scaleAt(p) * 10) / 10);
+    if (size < 0.3) continue;
+    const [sx, sy] = P(p);
+    if (sx < VEIL || sx > WIDTH || sy > HEIGHT) continue;
+    stones.set(size, [...(stones.get(size) || []), p]);
+  }
+  for (const [size, pts] of stones) out.push(dots(pts, size, "faint"));
   // open slots in the near trench where the containers' cables go down
   const slots = [];
   for (const [sx, kind] of SLOTS) if (kind === "c") slots.push(groundPoly([[sx + C.L - 1.0, TRENCH[0], 0.002], [sx + C.L - 0.3, TRENCH[0], 0.002], [sx + C.L - 0.3, TRENCH[1], 0.002], [sx + C.L - 1.0, TRENCH[1], 0.002]]));
@@ -469,7 +481,7 @@ function distance() {
   // the fence across the rows' far end: posts, a top rail, two tension wires
   const posts = [], y0 = -36, y1 = 15;
   for (let y = y0; y <= y1; y += 3) posts.push([[FENCE_X, y, 0], [FENCE_X, y, 2.4]]);
-  out.push(`<g class="bt-h5">${Ls(posts, "lo")}${Ls([[[FENCE_X, y0, 2.4], [FENCE_X, y1, 2.4]], [[FENCE_X, y0, 0.15], [FENCE_X, y1, 0.15]]], "lo")}${Ls([[[FENCE_X, y0, 0.9], [FENCE_X, y1, 0.9]], [[FENCE_X, y0, 1.7], [FENCE_X, y1, 1.7]]], "faint")}</g>`);
+  out.push(`<g class="bt-h5">${Ls(posts, "lo")}${Ls([[[FENCE_X, y0, 2.4], [FENCE_X, y1, 2.4]], [[FENCE_X, y0, 0.15], [FENCE_X, y1, 0.15]], [[FENCE_X, y0, 0], [FENCE_X, y1, 0]]], "lo")}${Ls([[[FENCE_X, y0, 0.9], [FENCE_X, y1, 0.9]], [[FENCE_X, y0, 1.7], [FENCE_X, y1, 1.7]]], "faint")}</g>`);
   return out.join("");
 }
 
