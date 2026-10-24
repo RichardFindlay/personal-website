@@ -114,3 +114,21 @@ void main(){
   o.rgb=min(o.rgb,o.a);
   gl_FragColor=o;
 }`;
+
+// The same shader in another paint: its cloud tones, the core's share of white,
+// and a coloured ground shadow (null keeps the black one). Each swap must find
+// its target, so a change to the shader above can't silently drop a paint.
+export function paintedFragment({ lo, hi, core, shadowInk }) {
+  const swaps = [
+    ["vec3(.36,.45,.55),vec3(.93,.955,.975)", `vec3(${lo}),vec3(${hi})`],
+    ["col=mix(col,vec3(.98,.985,.99),.3*c0.z);", `col=mix(col,vec3(.98,.985,.99),${core}*c0.z);`],
+    ...(shadowInk ? [
+      ["return vec4(0.,0.,0.,sa);", `return vec4(vec3(${shadowInk})*sa,sa);`],
+      ["return vec4(col*a,a+sa*(1.-a));", `return vec4(col*a+vec3(${shadowInk})*sa*(1.-a),a+sa*(1.-a));`],
+    ] : []),
+  ];
+  return swaps.reduce((source, [from, to]) => {
+    if (!source.includes(from)) throw new Error(`cloud.mjs: no "${from}" to repaint`);
+    return source.replace(from, to);
+  }, FRAGMENT);
+}

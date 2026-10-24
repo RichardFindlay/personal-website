@@ -6,12 +6,14 @@
 // Run: node build.mjs        scene.svg + scene.js in staticfiles/image/thumbnails/cyclone,
 //                            preview.html and bake.html beside this file
 //      node bake.mjs         renders bake.html to fallback.webp, then rebuild
+//      --colour              on both: the daylight paint (paint.mjs), every name with -colour
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as M from "./model.mjs";
 import { landSvg } from "./land.mjs";
-import { FRAGMENT } from "./cloud.mjs";
+import { paintedFragment } from "./cloud.mjs";
+import { PAINT } from "./paint.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = join(HERE, "../../staticfiles/image/thumbnails/cyclone");
@@ -20,44 +22,41 @@ const WIDTH = 1400, HEIGHT = 200;
 // the baked cloud: a square of side 2·HALF units round the eye, at BAKE px a unit
 const HALF = 240, BAKE = 0.8, BAKED = { strength: 0.95, age: 50 };
 
+const paint = PAINT[process.argv.includes("--colour") ? "colour" : "navy"];
+const FRAGMENT = paintedFragment(paint.cloud);
+const named = (name, ext) => `${name}${paint.suffix}.${ext}`;
 const land = landSvg();
 
 // ── The cloud without WebGL: the baked shader frame, turned and moved ───────
-const webp = join(HERE, "fallback.webp");
+const webp = join(HERE, named("fallback", "webp"));
 const atRest = M.stormsAt(M.STILL);
 const place = (s) => `translate(${s.x.toFixed(2)} ${s.y.toFixed(2)}) rotate(${(-s.spin * 180 / Math.PI).toFixed(2)}) scale(${s.size.toFixed(3)}) translate(${-HALF} ${-HALF})`;
 const fallback = existsSync(webp)
   ? `<defs><image id="cy-cloud" width="${2 * HALF}" height="${2 * HALF}" href="data:image/webp;base64,${readFileSync(webp).toString("base64")}"/></defs>` +
     `<g class="cy-fallback">${atRest.map((s) => `<use href="#cy-cloud" transform="${place(s)}" style="opacity:${s.visible.toFixed(3)}"/>`).join("")}</g>`
   : "";
-if (!fallback) console.warn("no fallback.webp yet: run node bake.mjs, then build again");
+if (!fallback) console.warn(`no ${named("fallback", "webp")} yet: run node bake.mjs${paint.suffix && " --colour"}, then build again`);
 
-// ── Styles: the shared navy tokens, then the ground's own tints ─────────────
-const NAVY = `--anatomy-page:#050f17;--anatomy-card:#081722;--anatomy-paper:#081722;--anatomy-face:#0c1f2d;
---anatomy-shade-0:#040e17;--anatomy-shade-1:#061521;--anatomy-shade-2:#091b29;--anatomy-shade-3:#0c2131;--anatomy-top:#10283a;
---anatomy-lit-top:#163045;--anatomy-lit-shade:#12293b;
---anatomy-hi:#9fb2c2;--anatomy-mid:#5a7184;--anatomy-lo:#2f475a;--anatomy-faint:#1a3041;--anatomy-halo:#01070c;
---anatomy-text:#7f95a7;--anatomy-strong:#c9d6e0;--anatomy-muted:#566d80`;
-const EXTRA = `--anatomy-lit:#e8f0f6;--anatomy-dot:#c9d6e0;--anatomy-weight:.6px`;
-const TERRACE = ["#0b1f2e", "#0d2333", "#0f2738", "#112a3d", "#132e42", "#163248", "#19374e", "#1c3c54"];
+// ── Styles: the paint's tokens and the ground's own tints ───────────────────
+const { ground: g, lines: l } = paint;
 const SCENE_CSS = [
-  `.cy-sea{fill:#040d15}`,
-  `.cy-shelf[data-n="0"]{fill:#05111b}`, `.cy-shelf[data-n="1"]{fill:#061420}`, `.cy-shelf[data-n="2"]{fill:#081927}`,
-  `.cy-swell{fill:var(--anatomy-hi)}`, `.cy-swell[data-n="0"]{opacity:.16}`, `.cy-swell[data-n="1"]{opacity:.28}`, `.cy-swell[data-n="2"]{opacity:.45}`,
-  ...TERRACE.map((c, n) => `.cy-terrace[data-n="${n}"]{fill:${c}}`),
-  `.cy-dark{fill:#01060b;opacity:.8}`, `.cy-rim{fill:#36556c}`,
-  `.cy-wadi{fill:#050f18;opacity:.85}`, `.cy-fan{fill:#1d3a51;opacity:.75}`,
-  `.cy-hach-dark{fill:#030b12;opacity:.75}`, `.cy-hach-lit{fill:#56738a;opacity:.6}`,
-  `.cy-dune-dark{fill:#0b1c29;opacity:.6}`, `.cy-dune-lit{fill:#2a475e;opacity:.6}`,
+  `.cy-sea{${g.sea}}`,
+  ...g.shelf.map((c, n) => `.cy-shelf[data-n="${n}"]{fill:${c}}`),
+  `.cy-swell{${g.swell}}`, ...g.swellOpacity.map((o, n) => `.cy-swell[data-n="${n}"]{opacity:${o}}`),
+  ...g.terrace.map((c, n) => `.cy-terrace[data-n="${n}"]{fill:${c}}`),
+  `.cy-dark{${g.dark}}`, `.cy-rim{${g.rim}}`,
+  `.cy-wadi{${g.wadi}}`, `.cy-fan{${g.fan}}`,
+  `.cy-hach-dark{${g.hachDark}}`, `.cy-hach-lit{${g.hachLit}}`,
+  `.cy-dune-dark{${g.duneDark}}`, `.cy-dune-lit{${g.duneLit}}`,
   `.iso-line{fill:none;stroke-linecap:round;stroke-linejoin:round}`,
-  `.cy-coast{stroke:var(--anatomy-hi);stroke-width:.55}`, `.cy-surf{stroke:var(--anatomy-lo);stroke-width:.4}`, `.cy-index{stroke:var(--anatomy-lo);stroke-width:.3;opacity:.8}`,
+  `.cy-coast{${l.coast}}`, `.cy-surf{${l.surf}}`, `.cy-index{${l.index}}`,
   `.cy-gl{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;transition:opacity 1.2s ease}`,
   `.in .cy-gl{opacity:1}`,
   `[data-gl] .cy-fallback{display:none}`,
 ];
 // states of the scene element itself (.in, [data-gl]) attach to the scope; the rest descend from it
 const scope = (rule) => rule.replace(/^[^{]+/, (sel) => sel.split(",").map((x) => (/^(\.in |\[)/.test(x) ? SCOPE + x : `${SCOPE} ${x}`)).join(","));
-const css = `${SCOPE}{${NAVY};${EXTRA}}` + SCENE_CSS.map(scope).join("");
+const css = `${SCOPE}{${paint.tokens}}` + SCENE_CSS.map(scope).join("");
 
 // straight-segment paths rewritten in relative steps: the same picture in fewer bytes
 function relative(d) {
@@ -148,7 +147,7 @@ function draw(t) {
     gl.uniform4f(at.uB, b.x, b.y, b.spin, b.strength);
     gl.uniform4f(at.uL, a.age, a.visible, b.age, b.visible);
     gl.uniform2f(at.uK, a.size, b.size);
-    gl.uniform1f(at.uShadow, .42);
+    gl.uniform1f(at.uShadow, ${paint.cloud.shadow});
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     return;
   }
@@ -176,8 +175,8 @@ new IntersectionObserver((entries) => {
 `;
 
 mkdirSync(OUT, { recursive: true });
-writeFileSync(join(OUT, "scene.svg"), svg);
-writeFileSync(join(OUT, "scene.js"), live);
+writeFileSync(join(OUT, named("scene", "svg")), svg);
+writeFileSync(join(OUT, named("scene", "js")), live);
 
 // ── Preview: the card as the homepage draws it ──────────────────────────────
 // ?raw drops the fade and the text, ?land the cloud too, ?at=<s> starts the loop there, ?frozen holds it.
@@ -188,7 +187,7 @@ const preview = `<!doctype html><html><head><meta charset="utf-8"><meta name="vi
 body{margin:0;background:#fff;font-family:Quicksand,system-ui,sans-serif}
 .wrap{max-width:1140px;margin:24px auto;padding:0 15px}
 .card{position:relative;height:160px;overflow:hidden;border:1px solid rgba(0,0,0,.125);border-radius:4px;display:flex}
-.scene-card{background:#081722}
+.scene-card{background:${paint.card}}
 .card-scene{position:absolute;inset:0}
 .card-scene svg{display:block;width:100%;height:100%;opacity:0;transition:opacity 1.2s ease}
 .card-scene.in svg{opacity:1}
@@ -210,7 +209,7 @@ if (q.has("frozen")) st.dataset.frozen = "";
 </script>
 <script type="module">${live}
 requestAnimationFrame(() => stage.classList.add("in"));</script></body></html>`;
-writeFileSync(join(HERE, "preview.html"), preview);
+writeFileSync(join(HERE, named("preview", "html")), preview);
 
 // ── Bake: one storm in its own square, for the fallback image ───────────────
 const bake = `<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#000}canvas{display:block}</style></head><body>
@@ -234,5 +233,5 @@ gl.uniform1f(at.uShadow, 0);
 gl.drawArrays(gl.TRIANGLES, 0, 3);
 window.baked = layer.canvas.toDataURL("image/png");
 </script></body></html>`;
-writeFileSync(join(HERE, "bake.html"), bake);
-console.log("scene.svg", (svg.length / 1024).toFixed(0) + " KB · scene.js", (live.length / 1024).toFixed(1) + " KB ·", JSON.stringify(land.stats));
+writeFileSync(join(HERE, named("bake", "html")), bake);
+console.log(named("scene", "svg"), (svg.length / 1024).toFixed(0) + " KB · " + named("scene", "js"), (live.length / 1024).toFixed(1) + " KB ·", JSON.stringify(land.stats));
