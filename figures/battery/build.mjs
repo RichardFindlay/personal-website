@@ -1,7 +1,8 @@
 // The battery post's card: a grid battery plant seen by someone standing on its
-// perimeter track. Eye height 1.7 m, about nine metres off the outermost row,
-// looking along it: the nearest 20 ft battery container fills the right of the
-// card, cut by its bottom edge, its door end turned toward you; the next one,
+// perimeter track. Eye height 1.7 m, ten and a half metres off the outermost row
+// and six back from its end, looking along it: the nearest 20 ft battery
+// container stands whole at the right of the card, roof to sleepers, its door
+// end turned toward you and cut by the card's edge; the next one,
 // the row's power conversion skid (inverter, MV transformer, ring main unit)
 // and the last two containers recede to the left. Past the near container's
 // door end are the ends of the rows behind. Every container's charge lamp and
@@ -61,7 +62,7 @@ const FENCE_X = ROW_END + 7;
 // A pinhole camera, level (verticals stay vertical), eye at 1.7 m. Placed so the
 // near container's front top corner at its door end sits at ANCHOR on the card.
 const RAD = Math.PI / 180;
-const EYE = [-2, 10.2, 1.7], YAW = -52 * RAD, FOCAL = 660, ANCHOR = { at: [0, C.W / 2, Z1], screen: [1385, 8] };
+const EYE = [-6.5, 11.8, 1.7], YAW = -45 * RAD, FOCAL = 660, ANCHOR = { at: [0, C.W / 2, Z1], screen: [1385, 14] };
 const CAM = (() => {
   const probe = lookFrom(EYE, YAW, 0, FOCAL, 0, 0), [x, y] = persp(ANCHOR.at, probe);
   return lookFrom(EYE, YAW, 0, FOCAL, ANCHOR.screen[0] - x, ANCHOR.screen[1] - y);
@@ -208,7 +209,8 @@ function container(x0, yr, tier) {
   // the box, with its rails, posts and corrugation under the outline
   const inner = [];
   const RAIL = [0.16, C.H - 0.16], POST = 0.15;
-  const railLine = (t) => [E(C.W - POST, t), E(0, t), F(0, t), F(C.L, t)];
+  // far off the door end has no corner posts to stop on, so its rails run to the outline
+  const railLine = (t) => [E(far ? C.W : C.W - POST, t), E(0, t), F(0, t), F(C.L, t)];
   if (!far) {
     // corrugation: trapezoid ribs 0.27 m apart, the flank turned from the light in shade
     const n = 21, pitch = (C.L - 2 * POST) / n, shadeA = [], shadeB = [], crest = [];
@@ -498,7 +500,7 @@ for (const r of ROWS) for (const [sx, kind] of SLOTS) {
   const xs = shape.map((p) => p[0]), ys = shape.map((p) => p[1]);
   const bbox = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
   if (bbox[1] < VEIL || bbox[0] > WIDTH || bbox[2] > HEIGHT) continue;
-  const tier = s > 45 ? "near" : s > 25 ? "mid" : "far";
+  const tier = s > 40 ? "near" : s > 25 ? "mid" : "far";
   objects.push({ plan, bbox, shape, screen, tier, draw: () => `<g class="bt-h${hazeOf(centre)}">${(isPcs ? pcs : container)(sx, y, tier)}</g>` });
 }
 // Painter's order: for two plans that overlap on the card, a plane between them
