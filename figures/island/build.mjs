@@ -23,8 +23,8 @@ const OUT = join(ROOT, "staticfiles/image/island");
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
 
-// ── The camera the page uses: a game's classic parallel view, 45° round and 30° up
-export const CAMERA = { azimuth: 45, elevation: 30, frame: [1440, 900], pad: 44, headroom: 64 };
+// ── The camera the page uses: a parallel view, 58° round as in the sketch, 30° up
+export const CAMERA = { azimuth: 58, elevation: 30, frame: [1440, 900], pad: 44, headroom: 64 };
 
 const run = (cmd, argv, what) => {
   const r = spawnSync(cmd, argv, { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", shell: false });

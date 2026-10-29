@@ -69,7 +69,8 @@ function river(x, y) {
   return { ...best, level: W.riverLevel(best.t) };
 }
 const inRect = (cx, cy, w, d, x, y, gap = 0) => Math.abs(x - cx) < w / 2 + gap && Math.abs(y - cy) < d / 2 + gap;
-const onPlinth = (x, y, gap = 0) => inRect(W.CITY_A.x, W.CITY_A.y, ...W.CITY_A.plinth, x, y, gap) || inRect(W.CITY_B.x, W.CITY_B.y, ...W.CITY_B.plinth, x, y, gap);
+const plinthOf = (C) => [C.cols * C.pitch + 12, C.rows * C.pitch + 12];
+const onPlinth = (x, y, gap = 0) => [W.CITY_A, W.CITY_B].some((C) => inRect(C.x, C.y, ...plinthOf(C), x, y, gap));
 const reservoir = (x, y) => ((x - W.RESERVOIR.x) / W.RESERVOIR.rx) ** 2 + ((y - W.RESERVOIR.y) / W.RESERVOIR.ry) ** 2;
 
 function groundZ(x, y, f = W.reach(x, y)) {
@@ -282,29 +283,46 @@ function block(x, y, w, d, h, colour, crown = true) {
   tall.push([x, y, z + h + 4]);
 }
 function city(C, heightAt) {
-  const [pw, pd] = C.plinth;
+  const [pw, pd] = plinthOf(C);
   P("rbox", { at: [C.x, C.y, TOP - 1], size: [pw, pd, 2.6], r: 1.4, colour: PALETTE.pavement });
   // the streets across the plinth, between the blocks
-  for (let i = 0; i <= C.cols; i++) P("box", { at: [C.x + (i - C.cols / 2) * C.pitch, C.y, TOP + 1.62], size: [5, pd - 4, 0.06], colour: PALETTE.asphalt });
-  for (let j = 0; j <= C.rows; j++) P("box", { at: [C.x, C.y + (j - C.rows / 2) * C.pitch, TOP + 1.62], size: [pw - 4, 5, 0.06], colour: PALETTE.asphalt });
+  for (let i = 0; i <= C.cols; i++) P("box", { at: [C.x + (i - C.cols / 2) * C.pitch, C.y, TOP + 1.62], size: [8, pd - 6, 0.06], colour: PALETTE.asphalt });
+  for (let j = 0; j <= C.rows; j++) P("box", { at: [C.x, C.y + (j - C.rows / 2) * C.pitch, TOP + 1.62], size: [pw - 6, 8, 0.06], colour: PALETTE.asphalt });
+  // street trees at the junctions, small, on the plinth
+  for (let i = 0; i <= C.cols; i++) for (let j = 0; j <= C.rows; j++) {
+    if (hash(i, j, 21) < 0.35) continue;
+    const x = C.x + (i - C.cols / 2) * C.pitch + 6.5, y = C.y + (j - C.rows / 2) * C.pitch + 6.5;
+    instances.push({ proto: "tree_round", at: [x, y, TOP + 1.6], rot: R() * 6.28, scale: 0.42 + R() * 0.1 });
+  }
   for (let j = 0; j < C.rows; j++) for (let i = 0; i < C.cols; i++) {
     const x = C.x + (i - (C.cols - 1) / 2) * C.pitch, y = C.y + (j - (C.rows - 1) / 2) * C.pitch;
+    if (C.park && C.park[0] === i && C.park[1] === j) {
+      // the park: a lawn, a few trees, a pond
+      P("rbox", { at: [x, y, TOP + 1.5], size: [C.pitch - 12, C.pitch - 12, 0.4], r: 0.6, colour: PALETTE.grass[1] });
+      P("cyl", { at: [x + 5, y + 4, TOP + 1.9], r: 6, h: 0.2, seg: 24, colour: "#4cc0d6" });
+      for (const [dx, dy] of [[-10, -10], [10, -11], [-11, 9], [-2, -13]]) instances.push({ proto: "tree_round", at: [x + dx, y + dy, TOP + 1.9], rot: R() * 6.28, scale: 0.55 + R() * 0.15 });
+      continue;
+    }
     const [h, kind] = heightAt(i, j);
     const colour = PALETTE.towers[(i * 3 + j * 5) % PALETTE.towers.length];
+    const fw = C.pitch - 22 - hash(i, j, 4) * 6, fd = C.pitch - 22 - hash(i, j, 6) * 6;
     if (kind === "tower") {
-      block(x, y, C.pitch - 9, C.pitch - 9, h, colour);
+      block(x, y, fw, fd, h, colour);
       if (h > 110) { P("cyl", { at: [x, y, TOP + 1.6 + h + 3], r: 0.8, r2: 0.25, h: 20, seg: 6, colour: PALETTE.steel }); P("sphere", { at: [x, y, TOP + 1.6 + h + 23.5], r: 1.1, sub: 1, colour: PALETTE.red, group: "lights:beacon" }); tall.push([x, y, TOP + h + 30]); }
     } else {
-      // a mid-rise pair with a little yard between
-      block(x - 5, y - 4, C.pitch - 16, C.pitch - 15, h, colour);
-      block(x + 7, y + 7, 11, 11, h * 0.6, PALETTE.towers[(i + j + 2) % PALETTE.towers.length], false);
+      // a mid-rise and a lower neighbour, a yard between them
+      block(x - 4, y - 4, fw * 0.62, fd * 0.7, h, colour);
+      block(x + fw * 0.32, y + fd * 0.3, fw * 0.36, fd * 0.36, h * 0.55, PALETTE.towers[(i + j + 2) % PALETTE.towers.length], false);
     }
   }
   claim(C.x, C.y, Math.hypot(pw, pd) / 2 + 2);
 }
+// the main city: tallest at the back, stepping down toward the river, so no
+// row hides the one behind it
 city(W.CITY_A, (i, j) => {
-  const d = Math.hypot(i - (W.CITY_A.cols - 1) / 2, j - (W.CITY_A.rows - 1) / 2);
-  return [Math.round(150 - d * 44 + (hash(i, j, 3) - 0.5) * 26), "tower"];
+  const back = W.CITY_A.rows - 1 - j, middle = 1 - Math.abs(i - (W.CITY_A.cols - 1) / 2) / 2;
+  const h = 52 + back * 34 + middle * 30 + (hash(i, j, 3) - 0.5) * 20;
+  return [Math.round(h), j === W.CITY_A.rows - 1 && hash(i, j, 9) < 0.6 ? "mid" : "tower"];
 });
 city(W.CITY_B, (i, j) => {
   const d = Math.hypot(i - 1, j - 1);
