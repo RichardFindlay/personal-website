@@ -102,6 +102,7 @@ export async function mountIsland(stage, { still = false } = {}) {
         lights_window: lamp(0xffcf7a), lights_glow: lamp(0xffb45a), lights_beacon: lamp(0xff4b3a, 0.6),
         lights_led: lamp(0x3ee07f, 0.8), lights_head: lamp(0xfff2c4), lights_lamp: lamp(0xfff0b0, 0.3),
         lights_trace: lamp(0x46e0e6, 1.6),
+        foam: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xe8f7ff, emissiveIntensity: 0.35, roughness: 0.6, transparent: true, opacity: 0.92, side: THREE.DoubleSide }),
     };
     const lights = {};
     for (const [name, m] of Object.entries(MATERIALS)) if (name.startsWith('lights_')) lights[name.slice(7)] = m;
@@ -114,7 +115,7 @@ export async function mountIsland(stage, { still = false } = {}) {
         const name = o.material?.name || '';
         if (name === 'lights_heat') { o.visible = false; return; }
         o.material = MATERIALS[name] || solid;
-        o.castShadow = name !== 'water' && !name.startsWith('lights_');
+        o.castShadow = name !== 'water' && name !== 'foam' && !name.startsWith('lights_');
         o.receiveShadow = name !== 'water';
     });
     for (const p of Object.values(protos)) model.remove(p);
@@ -234,17 +235,18 @@ export async function mountIsland(stage, { still = false } = {}) {
         return new THREE.CanvasTexture(c);
     })();
     const puffs = [];
-    const vents = [...meta.steam.map((v) => ({ v, smoke: false })), ...(meta.smoke || []).map((v) => ({ v, smoke: true }))];
-    for (const { v: vent, smoke } of vents) for (let n = 0; n < (smoke ? 6 : 9); n++) {
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, transparent: true, depthWrite: false, color: smoke ? 0xc9c4bd : 0xffffff, toneMapped: false }));
+    const vents = [...meta.steam.map((v) => ({ v, kind: 'steam' })), ...(meta.smoke || []).map((v) => ({ v, kind: 'smoke' })), ...(meta.spray || []).map((v) => ({ v, kind: 'spray' }))];
+    const PUFF = { steam: { n: 9, size: 1, colour: 0xffffff, rise: 1, life: 11 }, smoke: { n: 6, size: 0.45, colour: 0xc9c4bd, rise: 1, life: 11 }, spray: { n: 5, size: 0.22, colour: 0xffffff, rise: 0.25, life: 2.6 } };
+    for (const { v: vent, kind } of vents) for (let n = 0; n < PUFF[kind].n; n++) {
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, transparent: true, depthWrite: false, color: PUFF[kind].colour, toneMapped: false }));
         scene.add(sprite);
-        puffs.push({ sprite, vent: V(vent), age: n / (smoke ? 6 : 9), size: smoke ? 0.45 : 1 });
+        puffs.push({ sprite, vent: V(vent), age: n / PUFF[kind].n, size: PUFF[kind].size, rise: PUFF[kind].rise, life: PUFF[kind].life });
     }
     function placeSteam(dt) {
         for (const p of puffs) {
-            p.age = (p.age + dt / 11) % 1;
+            p.age = (p.age + dt / p.life) % 1;
             const a = p.age;
-            p.sprite.position.copy(p.vent).add(new THREE.Vector3((18 * a + 4 * Math.sin(a * 9 + p.vent.x)) * p.size, (6 + 55 * a) * p.size, -10 * a * p.size));
+            p.sprite.position.copy(p.vent).add(new THREE.Vector3((18 * a + 4 * Math.sin(a * 9 + p.vent.x)) * p.size, (6 + 55 * a) * p.size * p.rise, -10 * a * p.size));
             p.sprite.scale.setScalar((16 + 40 * a) * p.size);
             p.sprite.material.opacity = 0.7 * Math.sin(Math.PI * Math.min(1, a * 1.15));
         }
@@ -263,7 +265,7 @@ export async function mountIsland(stage, { still = false } = {}) {
         });
     }
     function placeClouds(t) {
-        meta.clouds.forEach((c, i) => {
+        (meta.clouds || []).forEach((c, i) => {
             const at = [c.at[0] + 14 * Math.sin(t / 23 + i * 1.7), c.at[1] + 8 * Math.cos(t / 31 + i), c.at[2] + 2.5 * Math.sin(t / 7 + i * 2.3)];
             q.setFromAxisAngle(yAxis, -c.rot);
             m4.compose(V(at), q, s.setScalar(c.scale));
@@ -272,10 +274,10 @@ export async function mountIsland(stage, { still = false } = {}) {
         for (const { mesh } of cloudParts) mesh.instanceMatrix.needsUpdate = true;
     }
 
-    // ── Energy pulses running along the circuit traces to the city ─────────
-    const pulseGeo = new THREE.SphereGeometry(2.6, 12, 8);
+    // ── Energy pulses running along the pylon lines, source to city ────────
+    const pulseGeo = new THREE.SphereGeometry(1.5, 12, 8);
     const pulseMat = new THREE.MeshBasicMaterial({ color: 0xb8fbff, toneMapped: false });
-    const traces = (meta.traces || []).map((pts) => {
+    const traces = (meta.lines || meta.traces || []).map((pts) => {
         const lens = [0];
         for (let i = 1; i < pts.length; i++) lens.push(lens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
         const dots = [0, 1, 2].map(() => { const m = new THREE.Mesh(pulseGeo, pulseMat); scene.add(m); return m; });
@@ -289,7 +291,7 @@ export async function mountIsland(stage, { still = false } = {}) {
     };
     function placePulses(t) {
         traces.forEach((tr, i) => tr.dots.forEach((dot, n) => {
-            const d = ((t * 42 + n * tr.total / 3 + i * 17) % tr.total);
+            const d = ((t * 38 + n * tr.total / 3 + i * 17) % tr.total);
             dot.position.copy(V(pointOn(tr, d)));
         }));
     }
