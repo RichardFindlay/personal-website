@@ -1,0 +1,44 @@
+{% comment %}
+  Title, description, social cards, structured data, analytics and icons for the
+  redesigned homepage. The same tags base.html carries, kept here so home.html
+  can stand on its own without base.html's Bootstrap, jQuery and d3.
+{% endcomment %}
+<title>{{ seo_page.title }}</title>
+<meta name="description" content="{{ seo_page.description }}">
+<link rel="canonical" href="{{ canonical_url }}">
+{% if request.path != '/' %}<meta name="robots" content="noindex">{% endif %}
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XC3XLQBL96"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-XC3XLQBL96');
+</script>
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="{{ seo_page.kind }}">
+<meta property="og:url" content="{{ canonical_url }}">
+<meta property="og:title" content="{{ seo_page.title }}">
+<meta property="og:description" content="{{ seo_page.description }}">
+<meta property="og:image" content="{{ seo_page.image }}">
+<meta property="og:site_name" content="Richard Findlay">
+<meta property="og:locale" content="en_GB">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@__RichFind__">
+<meta name="twitter:title" content="{{ seo_page.title }}">
+<meta name="twitter:description" content="{{ seo_page.description }}">
+<meta name="twitter:image" content="{{ seo_page.image }}">
+
+{% if json_ld %}<script type="application/ld+json">{{ json_ld }}</script>{% endif %}
+
+<!-- icons for tab and other stuff -->
+<link rel="apple-touch-icon" sizes="180x180" href="https://raw.githubusercontent.com/RichardFindlay/personal-website/main/favicon_package_v2/apple-touch-icon-180x180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://raw.githubusercontent.com/RichardFindlay/personal-website/main/favicon_package_v2/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="https://raw.githubusercontent.com/RichardFindlay/personal-website/main/favicon_package_v2/favicon-16x16.png">
+<link rel="manifest" href="https://raw.githubusercontent.com/RichardFindlay/personal-website/main/favicon_package_v2/site.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Richard Findlay">
+<meta name="application-name" content="Richard Findlay">
