@@ -11,7 +11,8 @@
 //     --tablet               also 768 x 1024
 //     --reduced              shoot with prefers-reduced-motion: reduce, into <milestone>/reduced/
 //     --posts                also the top of each blog post, into <milestone>/posts/, to catch regressions
-//     --video                also record the whole scroll at 1440 x 900, both themes, as webm
+//     --video                also record the whole scroll at 1440 x 900, as webm
+//     --dark                 also shoot the dark theme
 // Analytics requests are blocked so review runs never count as visits.
 import { createRequire } from "node:module";
 import { mkdirSync, readdirSync, renameSync, rmSync } from "node:fs";
@@ -34,7 +35,8 @@ const PATH = option("path", "/home-preview");
 const OUT = join(ROOT, "review", milestone, flag("reduced") ? "reduced" : "");
 const VIEWPORTS = [{ width: 1440, height: 900 }, { width: 390, height: 844, mobile: true }];
 if (flag("tablet")) VIEWPORTS.splice(1, 0, { width: 768, height: 1024, mobile: true });
-const THEMES = ["light", "dark"];
+// light only for now; --dark adds the dark theme back
+const THEMES = flag("dark") ? ["light", "dark"] : ["light"];
 const PROGRESS = [0, 0.25, 0.5, 0.75, 1];
 const POSTS = [
     "/reinforcement-learning-for-offshore-wind-farm-optimisation-1",

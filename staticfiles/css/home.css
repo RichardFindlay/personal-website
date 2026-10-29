@@ -135,14 +135,14 @@ a { color: inherit; }
     display: flex;
     align-items: center;
     gap: 14px;
-    padding: 9px 10px 9px 24px;
+    padding: 13px 26px;
     border-radius: 999px;
     overflow: hidden;
     isolation: isolate;
     box-shadow: 0 6px 6px rgba(0, 0, 0, 0.2), 0 0 20px rgba(0, 0, 0, 0.1);
     transition: padding 0.7s var(--glass-spring), box-shadow 0.7s var(--ease-out);
 }
-.glass-nav:hover { padding: 11px 12px 11px 26px; }
+.glass-nav:hover { padding: 15px 28px; }
 .glass-layer { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
 .glass-distort {
     z-index: 0;
@@ -298,8 +298,8 @@ main, .footer { position: relative; z-index: 1; }
 /* ── Small screens: the pill is just the name and the toggle ────────────── */
 @media (max-width: 600px) {
     .masthead { padding-top: 12px; }
-    .glass-nav { gap: 10px; padding: 7px 8px 7px 18px; }
-    .glass-nav:hover { padding: 7px 8px 7px 18px; }
+    .glass-nav { padding: 10px 20px; }
+    .glass-nav:hover { padding: 10px 20px; }
     .masthead-name { font-size: 12px; letter-spacing: 0.2em; }
     .masthead-tagline { display: none; }
 }

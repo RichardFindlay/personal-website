@@ -1,35 +1,7 @@
-// The redesigned homepage: theme toggle and smooth scrolling. The island, the
-// camera and the sections join this at later milestones.
+// The redesigned homepage: smooth scrolling and the island. The camera and the
+// sections join this at later milestones. Light mode only for now.
 (() => {
-    const root = document.documentElement;
     const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const systemDark = matchMedia('(prefers-color-scheme: dark)');
-
-    // ── Theme ────────────────────────────────────────────────────────────────
-    // The inline script in the head has already set data-theme. A choice made
-    // with the toggle is saved; until one is made, the page follows the system.
-    const toggle = document.querySelector('.theme-toggle');
-    const saved = () => { try { return localStorage.getItem('theme'); } catch (e) { return null; } };
-
-    const applyTheme = (theme) => {
-        root.dataset.theme = theme;
-        const dark = theme === 'dark';
-        toggle.setAttribute('aria-pressed', String(dark));
-        toggle.setAttribute('aria-label', dark ? 'Switch to light mode' : 'Switch to dark mode');
-        document.dispatchEvent(new CustomEvent('themechange', { detail: { theme } }));
-    };
-
-    applyTheme(root.dataset.theme);
-
-    toggle.addEventListener('click', () => {
-        const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
-        try { localStorage.setItem('theme', next); } catch (e) {}
-        applyTheme(next);
-    });
-
-    systemDark.addEventListener('change', (e) => {
-        if (!saved()) applyTheme(e.matches ? 'dark' : 'light');
-    });
 
     // ── Smooth scrolling ─────────────────────────────────────────────────────
     // Lenis smooths the wheel; with reduced motion the browser scrolls natively.

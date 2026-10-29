@@ -1,20 +1,11 @@
 {% load static %}<!DOCTYPE html>
-<html lang="en-GB">
+<!-- Light mode only for now: the dark tokens stay in home.css for later. -->
+<html lang="en-GB" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="google" content="notranslate">
-    <!-- Set the theme before anything paints: the saved choice, else the system's. -->
-    <script>
-        (function () {
-            var t = null;
-            try { t = localStorage.getItem('theme'); } catch (e) {}
-            if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            document.documentElement.dataset.theme = t;
-        })();
-    </script>
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#ffffff">
     {% include "partials/head_meta.html" %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,8 +16,8 @@
 <body class="home">
 
     <header class="masthead">
-        <!-- A floating pill of liquid glass with a thin-film sheen: the name, which
-             leads to AB0UT ME, and the theme toggle. -->
+        <!-- A floating pill of liquid glass with a thin-film sheen around the name,
+             which leads to AB0UT ME. -->
         <nav class="glass-nav" aria-label="Site">
             <span class="glass-layer glass-distort" aria-hidden="true"></span>
             <span class="glass-layer glass-tint" aria-hidden="true"></span>
@@ -35,16 +26,6 @@
             <h1 class="masthead-name">
                 <a href="#about" aria-label="Richard Findlay: about me">RICHARD FINDLAY</a>
             </h1>
-            <span class="glass-divider" aria-hidden="true"></span>
-            <button class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false">
-            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="4.2"/>
-                <path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>
-            </svg>
-            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M19.5 14.6A8 8 0 0 1 9.4 4.5a8 8 0 1 0 10.1 10.1Z"/>
-            </svg>
-            </button>
         </nav>
         <p class="masthead-tagline">Energy | Climate Change | Artificial Intelligence</p>
     </header>
