@@ -14,7 +14,7 @@ export function makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads, ra
   const V = G.viewOf(P), L = G.lightOf(P), KS = G.scaleOf(P);
   const up = [0, 0, 1];
   const R1 = (v) => Math.round(v * 10) / 10;
-  const circle = (c, r, cls, extra = "") => `<circle class="${cls}" cx="${R1(c[0])}" cy="${R1(c[1])}" r="${R1(r)}"${extra}/>`;
+  const circle = (c, r, cls, extra = "") => `<circle${cls ? ` class="${cls}"` : ""} cx="${R1(c[0])}" cy="${R1(c[1])}" r="${R1(r)}"${extra}/>`;
   const quad = (pts) => path(pts.map(at), true);
   // a rectangle footprint turned to `dir` (a unit floor vector), centred on c
   const turned = ([cx, cy], dir, len, wid) => {
@@ -318,7 +318,10 @@ export function makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads, ra
     // steam over the towers
     for (const [x, y, z] of tops) {
       const c = at([x, y, z + 14]);
-      over.push(`<g class="il-plume">${[[0, 0, 15], [-12, -8, 11], [12, -14, 12], [2, -24, 13], [20, -30, 9]].map(([dx, dy, r]) => circle([c[0] + dx, c[1] + dy], r, "il-steam")).join("")}</g>`);
+      // a soft cloud: an edge-coloured set of puffs under the same puffs in white,
+      // so only the outside of the cloud has an edge
+      const puffs = [[0, 0, 15], [-12, -8, 11], [12, -14, 12], [2, -24, 13], [20, -30, 9]];
+      over.push(`<g class="il-plume"><g class="il-steam-edge">${puffs.map(([dx, dy, r]) => circle([c[0] + dx, c[1] + dy], r + 0.6, "")).join("")}</g><g class="il-steam">${puffs.map(([dx, dy, r]) => circle([c[0] + dx, c[1] + dy], r, "")).join("")}</g></g>`);
     }
   }
 
@@ -524,7 +527,7 @@ export function makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads, ra
     `.il-head{fill:#fff6cf;opacity:0}`,
     `.il-foam{fill:none;stroke:#eef4f8;stroke-width:.7;opacity:.8}`,
     `.il-tower-mouth{fill:#5d6668;stroke:#8f948f;stroke-width:.5}`,
-    `.il-steam{fill:#ffffff;opacity:.55}`,
+    `.il-plume{opacity:.9}`, `.il-steam-edge circle{fill:#b9c4cd}`, `.il-steam circle{fill:#eef2f5}`,
     `.il-glow{fill:#ffcf7a;opacity:0}`,
     `.il-fan{fill:#4b545c;opacity:.8;stroke:#36404a;stroke-width:.4}`,
     `.il-pipe{fill:none;stroke:#b7bfc5;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}`,
