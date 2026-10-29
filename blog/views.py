@@ -73,6 +73,13 @@ class PostList(generic.ListView):
 
 
 
+# The redesigned homepage, served at /home-preview while it is built; it
+# replaces PostList on the home route once it is ready.
+class HomePage(PostList):
+	template_name = 'home.html'
+
+
+
 def AboutMe(request):
     return render(request, 'about.html')
 
