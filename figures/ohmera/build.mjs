@@ -12,12 +12,14 @@
 //                                staticfiles/image/thumbnails/ohmera/offshore.svg and .js
 //      node build.mjs --colour   the daylight card, offshore-colour.svg and .js
 // Each also writes its preview, preview.html or preview-colour.html.
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 
-const SKILL = join(homedir(), ".claude/skills/anatomy");
+// the anatomy skill: the copy vendored in figures/lib first, else the installed one
+const VENDORED = join(dirname(fileURLToPath(import.meta.url)), "../lib/anatomy");
+const SKILL = existsSync(join(VENDORED, "kit/iso-kit.mjs")) ? VENDORED : join(homedir(), ".claude/skills/anatomy");
 const k = await import(join(SKILL, "kit/iso-kit.mjs"));
 const G = await import(join(SKILL, "kit/lathe.mjs"));
 const HERE = dirname(fileURLToPath(import.meta.url));

@@ -8,12 +8,14 @@
 //                                and scene.js, and the preview pages beside this file
 //      node build.mjs --colour   writes the daylight-coloured scene-colour.svg and
 //                                scene-colour.js, and preview-colour.html
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 
-const SKILL = join(homedir(), ".claude/skills/anatomy");
+// the anatomy skill: the copy vendored in figures/lib first, else the installed one
+const VENDORED = join(dirname(fileURLToPath(import.meta.url)), "../lib/anatomy");
+const SKILL = existsSync(join(VENDORED, "kit/iso-kit.mjs")) ? VENDORED : join(homedir(), ".claude/skills/anatomy");
 const k = await import(join(SKILL, "kit/iso-kit.mjs"));
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FILES = { rotor: join(HERE, "rotor.mjs"), camera: join(HERE, "camera.mjs"), model: join(HERE, "model.mjs"), turbine: join(HERE, "turbine.mjs") };

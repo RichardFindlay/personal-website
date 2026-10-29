@@ -3,14 +3,16 @@
 // a browser has no WebGL. Run build.mjs again afterwards to embed it.
 //   node bake.mjs [--colour]   (needs a Node with WebSocket, 22 or newer)
 import { spawnSync } from "node:child_process";
-import { closeSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir, tmpdir } from "node:os";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const suffix = process.argv.includes("--colour") ? "-colour" : "";
-const drive = join(homedir(), ".claude/skills/anatomy/scripts/drive.mjs");
+// the anatomy skill's browser driver: the copy vendored in figures/lib first, else the installed one
+const VENDORED = join(HERE, "../lib/anatomy/scripts/drive.mjs");
+const drive = existsSync(VENDORED) ? VENDORED : join(homedir(), ".claude/skills/anatomy/scripts/drive.mjs");
 // to a file, not a pipe: a pipe loses whatever is unflushed when drive exits
 const out = join(tmpdir(), `cyclone-bake-${process.pid}.txt`), fd = openSync(out, "w");
 spawnSync(process.execPath, [drive, join(HERE, `bake${suffix}.html`), JSON.stringify([["until", "window.baked", 20000], ["eval", "window.baked"]]), "--width", "700", "--height", "700"], { stdio: ["ignore", fd, "inherit"] });

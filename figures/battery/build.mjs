@@ -15,14 +15,16 @@
 //      --sizes          the size of each part of the drawing
 //      --colour         the daylight variant instead: scene-colour.svg, scene-colour.js
 //                       and preview-colour.html
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { BATTERY, dayOf, stateAt } from "./model.mjs";
 import { lookFrom, persp } from "./camera.mjs";
 
-const SKILL = join(homedir(), ".claude/skills/anatomy");
+// the anatomy skill: the copy vendored in figures/lib first, else the installed one
+const VENDORED = join(dirname(fileURLToPath(import.meta.url)), "../lib/anatomy");
+const SKILL = existsSync(join(VENDORED, "kit/iso-kit.mjs")) ? VENDORED : join(homedir(), ".claude/skills/anatomy");
 const k = await import(join(SKILL, "kit/iso-kit.mjs"));
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "../..");
