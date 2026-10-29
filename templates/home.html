@@ -1,0 +1,83 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="google" content="notranslate">
+    <!-- Set the theme before anything paints: the saved choice, else the system's. -->
+    <script>
+        (function () {
+            var t = null;
+            try { t = localStorage.getItem('theme'); } catch (e) {}
+            if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.dataset.theme = t;
+        })();
+    </script>
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+    {% include "partials/head_meta.html" %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
+    <link rel="stylesheet" href="{% static 'js/vendor/lenis-1.3.26/lenis.css' %}">
+    <link rel="stylesheet" href="{% static 'css/home.css' %}">
+</head>
+<body class="home">
+
+    <header class="masthead">
+        <h1 class="masthead-name">
+            <a href="#about" class="iridescent" aria-label="Richard Findlay: about me">RICHARD FINDLAY</a>
+        </h1>
+        <p class="masthead-tagline">Energy | Climate Change | Artificial Intelligence</p>
+        <button class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false">
+            <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4.2"/>
+                <path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>
+            </svg>
+            <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M19.5 14.6A8 8 0 0 1 9.4 4.5a8 8 0 1 0 10.1 10.1Z"/>
+            </svg>
+        </button>
+    </header>
+
+    <main>
+        <!-- The island arrives at M1; until then the hero holds its place. -->
+        <section class="hero" aria-label="An isometric island of the GB power system">
+            <div class="island-stage" id="island"></div>
+            <p class="scroll-cue" aria-hidden="true">SCR0LL</p>
+        </section>
+
+        <!-- Section shells: anchors and labels only until M3 sets them in the island's plane. -->
+        <section class="section" id="blog" aria-labelledby="blog-label">
+            <h2 class="section-label" id="blog-label" aria-label="Blog posts">BL0G P0STS</h2>
+        </section>
+        <section class="section" id="reading" aria-labelledby="reading-label">
+            <h2 class="section-label" id="reading-label" aria-label="Reading and media">READING / MEDIA</h2>
+        </section>
+        <section class="section" id="about" aria-labelledby="about-label">
+            <h2 class="section-label" id="about-label" aria-label="About me">AB0UT ME</h2>
+        </section>
+        <section class="section" id="projects" aria-labelledby="projects-label">
+            <h2 class="section-label" id="projects-label" aria-label="Other projects">0THER PR0JECTS</h2>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p class="footer-name">RICHARD FINDLAY</p>
+        <nav class="socials" aria-label="Social links">
+            <a href="https://x.com/__RichFind__" target="_blank" rel="noopener" aria-label="X">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.4l-5.8-7.59-6.64 7.59H.47l8.6-9.83L0 1.15h7.6l5.24 6.93Zm-1.29 19.5h2.04L6.49 3.24H4.3Z"/></svg>
+            </a>
+            <a href="https://www.linkedin.com/in/richard-findlay-a4a8365a/" target="_blank" rel="noopener" aria-label="LinkedIn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg>
+            </a>
+            <a href="https://github.com/RichardFindlay" target="_blank" rel="noopener" aria-label="GitHub">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.82-.26.82-.57v-2.04c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.67-.31-5.47-1.34-5.47-5.94 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.63-5.48 5.92.43.37.82 1.1.82 2.22v3.29c0 .32.21.69.82.57A12 12 0 0 0 12 .3"/></svg>
+            </a>
+        </nav>
+    </footer>
+
+    <script src="{% static 'js/vendor/lenis-1.3.26/lenis.min.js' %}" defer></script>
+    <script src="{% static 'js/home/home.js' %}" defer></script>
+</body>
+</html>

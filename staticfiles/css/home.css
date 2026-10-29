@@ -1,0 +1,268 @@
+/* The redesigned homepage (templates/home.html). Space Mono throughout; every
+   colour is a custom property so the theme toggle swaps the lot. The page is
+   pure white or pure black; accents are taken from the island's daylight
+   palette (figures/ohmera/build.mjs and figures/wake/build.mjs), not from a
+   separate brand palette. */
+
+/* ── Tokens ──────────────────────────────────────────────────────────────── */
+:root {
+    /* island accents, daylight */
+    --island-sea-near: #1d5a89;
+    --island-sea-far: #3f7aae;
+    --island-sky: #a9c8e1;
+    --island-steel: #6f7c88;
+    --island-gold: #dfa92e;
+
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --font: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    --radius: 18px;
+    --gutter: clamp(16px, 3vw, 32px);
+}
+
+:root,
+:root[data-theme="light"] {
+    color-scheme: light;
+    --page: #ffffff;
+    --ink: #111418;
+    --muted: #6f7c88;
+    --glass: rgba(255, 255, 255, 0.55);
+    --glass-line: rgba(17, 20, 24, 0.08);
+    --glass-highlight: rgba(255, 255, 255, 0.85);
+    --glass-shadow: 0 10px 40px rgba(17, 20, 24, 0.08);
+    /* thin-film colours for the name, deep enough to read on white */
+    --film-1: #1d5a89;
+    --film-2: #2c7f86;
+    --film-3: #a8801f;
+    --film-4: #94566b;
+    --film-5: #3f7aae;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #000000;
+    --ink: #eef2f5;
+    --muted: #929ea9;
+    --glass: rgba(0, 0, 0, 0.45);
+    --glass-line: rgba(238, 242, 245, 0.12);
+    --glass-highlight: rgba(255, 255, 255, 0.10);
+    --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    --film-1: #a9c8e1;
+    --film-2: #86cbc4;
+    --film-3: #ecbf4f;
+    --film-4: #d9a3b6;
+    --film-5: #8db1ce;
+}
+
+/* Without the inline theme script (JavaScript off), follow the system. */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+        color-scheme: dark;
+        --page: #000000;
+        --ink: #eef2f5;
+        --muted: #929ea9;
+        --glass: rgba(0, 0, 0, 0.45);
+        --glass-line: rgba(238, 242, 245, 0.12);
+        --glass-highlight: rgba(255, 255, 255, 0.10);
+        --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        --film-1: #a9c8e1;
+        --film-2: #86cbc4;
+        --film-3: #ecbf4f;
+        --film-4: #d9a3b6;
+        --film-5: #8db1ce;
+    }
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { background: var(--page); }
+
+body.home {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.6s var(--ease-out), color 0.6s var(--ease-out);
+}
+
+a { color: inherit; }
+
+:focus-visible { outline: 2px solid var(--island-sea-far); outline-offset: 3px; border-radius: 4px; }
+
+/* ── Glass, for every floating panel ─────────────────────────────────────── */
+.glass {
+    background: var(--glass);
+    border: 1px solid var(--glass-line);
+    border-radius: var(--radius);
+    box-shadow: inset 0 1px 0 var(--glass-highlight), var(--glass-shadow);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+    backdrop-filter: blur(16px) saturate(1.3);
+}
+
+/* ── Fixed masthead ──────────────────────────────────────────────────────── */
+.masthead {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 20;
+    display: grid;
+    justify-items: center;
+    padding: 22px var(--gutter) 28px;
+    pointer-events: none;
+    /* a soft veil of the page colour keeps the name legible over the island */
+    background: linear-gradient(to bottom, var(--page) 0%, color-mix(in srgb, var(--page) 70%, transparent) 55%, transparent 100%);
+}
+.masthead > * { pointer-events: auto; }
+
+.masthead-name {
+    margin: 0;
+    font-size: clamp(22px, 3vw, 40px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: 0.2em;
+    /* the letter spacing trails the last letter; pull it back so the name centres */
+    margin-right: -0.2em;
+}
+.masthead-name a { text-decoration: none; }
+
+/* Oil on water: a slow drift of thin-film colours through the letters. */
+.iridescent {
+    background-image: linear-gradient(105deg,
+        var(--film-1) 0%, var(--film-2) 18%, var(--film-3) 34%, var(--film-4) 50%,
+        var(--film-5) 66%, var(--film-2) 82%, var(--film-1) 100%);
+    background-size: 300% 100%;
+    background-position: 0% 50%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: film 16s ease-in-out infinite alternate;
+}
+@keyframes film {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+}
+
+.masthead-tagline {
+    margin: 6px 0 0;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-align: center;
+}
+
+.theme-toggle {
+    position: absolute;
+    top: 20px;
+    right: var(--gutter);
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: var(--ink);
+    cursor: pointer;
+    background: var(--glass);
+    border: 1px solid var(--glass-line);
+    border-radius: 50%;
+    box-shadow: inset 0 1px 0 var(--glass-highlight);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    transition: transform 0.5s var(--ease-out), background-color 0.6s var(--ease-out);
+}
+.theme-toggle:hover { transform: rotate(-12deg); }
+.theme-icon { grid-area: 1 / 1; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; transition: opacity 0.5s var(--ease-out), transform 0.6s var(--ease-out); }
+.theme-icon-moon { fill: currentColor; stroke: none; }
+/* show what the button switches to: the moon in light mode, the sun in dark */
+:root[data-theme="light"] .theme-icon-sun,
+:root[data-theme="dark"] .theme-icon-moon { opacity: 0; transform: rotate(-60deg) scale(0.6); }
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+.hero {
+    position: relative;
+    height: 100vh;
+    height: 100svh;
+}
+.island-stage { position: absolute; inset: 0; }
+
+.scroll-cue {
+    position: absolute;
+    left: 50%;
+    bottom: 28px;
+    margin: 0;
+    transform: translateX(-50%);
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    display: grid;
+    justify-items: center;
+    gap: 10px;
+}
+.scroll-cue::after {
+    content: "";
+    width: 1px;
+    height: 34px;
+    background: linear-gradient(to bottom, var(--muted), transparent);
+    transform-origin: top;
+    animation: cue 2.4s var(--ease-out) infinite;
+}
+@keyframes cue {
+    0%   { transform: scaleY(0); opacity: 1; }
+    70%  { transform: scaleY(1); opacity: 1; }
+    100% { transform: scaleY(1); opacity: 0; }
+}
+
+/* ── Sections (shells until M3) ──────────────────────────────────────────── */
+.section {
+    min-height: 100vh;
+    padding: 120px var(--gutter) 60px;
+}
+
+.section-label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.32em;
+    color: var(--muted);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+.footer {
+    display: grid;
+    justify-items: center;
+    gap: 14px;
+    padding: 64px var(--gutter) 48px;
+}
+.footer-name {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    margin-right: -0.3em;
+}
+.socials { display: flex; gap: 18px; }
+.socials a {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    color: var(--muted);
+    transition: color 0.5s var(--ease-out);
+}
+.socials a:hover { color: var(--ink); }
+.socials svg { width: 18px; height: 18px; fill: currentColor; }
+
+/* ── Small screens: the masthead is just the name and the toggle ────────── */
+@media (max-width: 600px) {
+    .masthead { justify-items: start; padding-top: 18px; }
+    .masthead-name { font-size: 18px; letter-spacing: 0.16em; margin-right: 0; padding-right: 56px; }
+    .masthead-tagline { display: none; }
+    .theme-toggle { top: 12px; }
+}
+
+/* ── Reduced motion: nothing drifts ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    .iridescent, .scroll-cue::after { animation: none; }
+    body.home, .theme-toggle, .theme-icon { transition: none; }
+}
