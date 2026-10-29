@@ -156,7 +156,8 @@ async function recordScroll(browser) {
     }
 }
 
-const browser = await chromium.launch();
+// headless Chrome draws the 3D island in software when there is no GPU
+const browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
 try {
     await shootHome(browser);
     if (flag("posts")) await shootPosts(browser);

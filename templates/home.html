@@ -12,6 +12,9 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
     <link rel="stylesheet" href="{% static 'js/vendor/lenis-1.3.26/lenis.css' %}">
     <link rel="stylesheet" href="{% static 'css/home.css' %}">
+    <script type="importmap">
+        {"imports": {"three": "{% static 'js/vendor/three-0.185.1/build/three.module.min.js' %}", "three/addons/": "{% static 'js/vendor/three-0.185.1/examples/jsm/' %}"}}
+    </script>
 </head>
 <body class="home">
 
@@ -48,9 +51,10 @@
         </filter>
     </svg>
 
-    <!-- The island: fixed behind everything, fetched after the page is up. -->
-    <div class="island-stage island-scene" id="island" aria-hidden="true"
-         data-svg="{% static 'image/island/island.svg' %}" data-js="{% static 'image/island/island.js' %}"></div>
+    <!-- The island: fixed behind everything, a live 3D scene loaded after the page is up. -->
+    <div class="island-stage" id="island" aria-hidden="true"
+         data-glb="{% static 'image/island/island.glb' %}" data-meta="{% static 'image/island/island.json' %}"
+         data-module="{% static 'js/home/island.js' %}"></div>
 
     <main>
         <section class="hero" aria-label="An isometric island of the GB power system">

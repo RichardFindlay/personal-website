@@ -24,19 +24,17 @@
     });
 
     // ── The island ───────────────────────────────────────────────────────────
-    // Fetched after first paint so it never holds the page up; it fades in once
-    // its script has mounted it. If it fails the page simply has no island.
+    // A live 3D scene, loaded after first paint so it never holds the page up;
+    // it fades in once it has drawn. If it fails the page simply has no island.
     const stage = document.getElementById('island');
     const island = new Promise((resolve) => {
-        const load = () => fetch(stage.dataset.svg)
-            .then((r) => (r.ok ? r.text() : Promise.reject(new Error('island ' + r.status))))
-            .then((svg) => { stage.insertAdjacentHTML('beforeend', svg); return import(stage.dataset.js); })
-            .then((module) => {
-                const mounted = module.mount(stage);
+        const load = () => import(stage.dataset.module)
+            .then(({ mountIsland }) => mountIsland(stage))
+            .then((mounted) => {
                 requestAnimationFrame(() => stage.classList.add('in'));
                 resolve(mounted);
             })
-            .catch(() => resolve(null));
+            .catch((error) => { console.warn('island:', error); resolve(null); });
         if (document.readyState === 'complete') requestAnimationFrame(load);
         else addEventListener('load', () => requestAnimationFrame(load), { once: true });
     });
