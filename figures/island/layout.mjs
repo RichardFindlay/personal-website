@@ -2,7 +2,7 @@
 // south (toward the viewer), z up; the land's surface is z = 0. Pure data and
 // small helpers, so the build and the page's live script place things alike.
 
-export const TILE = { x: 0, y: 0, w: 1100, d: 760, r: 36 };
+export const TILE = { x: 0, y: 0, w: 1100, d: 760, r: 0 };
 export const DEPTH = 150;      // the block's cut faces reach this far down
 export const SEA_LEVEL = -3;   // the sea and river lie a little under the land
 
