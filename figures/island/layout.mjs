@@ -64,10 +64,10 @@ export function fromRiver(x, y) {
 
 // ── Hills: low domes, in metres of radius and height ─────────────────────────
 export const HILLS = [
-  { x: 712, y: 372, r: 104, h: 24 },  // the wind farm's ridge
-  { x: 806, y: 468, r: 70, h: 15 },
-  { x: 96, y: 300, r: 84, h: 20 },    // the wooded hill behind the town
-  { x: 470, y: 66, r: 66, h: 13 },
+  { x: 712, y: 372, r: 110, h: 42 },  // the wind farm's ridge
+  { x: 806, y: 468, r: 74, h: 26 },
+  { x: 96, y: 300, r: 92, h: 38 },    // the wooded hill behind the town
+  { x: 470, y: 66, r: 70, h: 24 },
 ];
 // the land's height at a point: the sum of the hills' smooth bumps
 export const heightAt = (x, y) => HILLS.reduce((z, h) => {

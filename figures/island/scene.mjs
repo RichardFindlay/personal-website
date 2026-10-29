@@ -27,14 +27,14 @@ const fbm = (x, y, seed = 0) => { let s = 0, amp = 0.5, n = 0; for (let o = 0; o
 
 // ── Palette: a bright, soft daylight toy ─────────────────────────────────────
 export const PALETTE = {
-  grass: ["#7cbf4a", "#86c853", "#71b443", "#93cf5c", "#a6cf5e", "#c9cf6e"],
-  urban: "#9fc47e", pad: "#d4d1c8", sand: "#e8d8a8", wetsand: "#d2c08f", rock: "#9aa2a8", rockDark: "#7d868d",
+  grass: ["#5eb233", "#6abd3c", "#56a730", "#77c444", "#8cc449", "#b7c25a"],
+  urban: "#8fbd6a", pad: "#d4d1c8", sand: "#e8d8a8", wetsand: "#d2c08f", rock: "#9aa2a8", rockDark: "#7d868d",
   seabed: "#dccb98", seabedDeep: "#6fa4a8", bank: "#b9a77a",
   asphalt: "#7c8187", marking: "#f3f3ee",
   layers: { grass: "#6fb043", topsoil: "#6e5238", subsoil: "#a07a52", sediment: "#d8c69a", sandstone: "#cfa86f", mudstone: "#8f877a", limestone: "#e1d8c2", granite: "#ab998e", water: "#2f9cc0" },
   render: "#f1ece2", brick: "#c27a58", stone: "#dcd2bf", slate: "#5f6d78", tile: "#b5603f", glass: "#9fc3d9",
   concrete: "#dedad1", hall: "#a9bccb", steel: "#9aa4ac", white: "#f4f6f7", safety: "#e7b52d", dark: "#4b545c",
-  pv: "#2c4870", pvFrame: "#c9d2da", container: "#eef1f3", leaf: ["#5fae3c", "#6cbd44", "#4f9e34", "#7dc94f"], trunk: "#7a5b40",
+  pv: "#2c4870", pvFrame: "#c9d2da", container: "#eef1f3", leaf: ["#4fa52f", "#5cb636", "#3f9228", "#72c746"], trunk: "#7a5b40",
   red: "#cf4b3c", boat: "#f6f6f3", pitch: "#6fbf4c",
   cars: ["#f2f3f4", "#d0483d", "#3f72a8", "#2e9486", "#e8b730", "#2f353b"],
 };
@@ -49,7 +49,7 @@ function groundZ(x, y) {
   const c = cliffiness(y);
   let z;
   if (d >= 0) {
-    const raise = c * (7 + 3 * fbm(x / 40, y / 40, 4)) * (1 - smooth(50, 150, d));
+    const raise = c * (15 + 5 * fbm(x / 40, y / 40, 4)) * (1 - smooth(60, 170, d));
     z = LAND + W.heightAt(x, y) + 0.7 * fbm(x / 70, y / 70, 1) + raise;
     if (c < 0.5) z = lerp(SEA_LEVEL - 0.6, z, smooth(0, 22, d)); // a beach shelving into the sea
   } else {
@@ -67,7 +67,7 @@ function groundZ(x, y) {
 }
 const PAD_NAMES = ["nuclear", "gas", "geothermal", "battery", "converter", "substation", "solar"];
 const PADS = PAD_NAMES.map((n) => ({ ...W.SITES[n], name: n, z: 0 }));
-for (const p of PADS) p.z = LAND + W.heightAt(p.x + p.w / 2, p.y + p.d / 2) + (p.name === "nuclear" ? 6 : p.name === "converter" ? 5 : 0);
+for (const p of PADS) p.z = LAND + W.heightAt(p.x + p.w / 2, p.y + p.d / 2) + (p.name === "nuclear" ? 13 : p.name === "converter" ? 11 : 0);
 export const ground = (x, y) => groundZ(x, y);
 
 // field colours: a jittered grid of soft greens, a hay meadow here and there
@@ -301,11 +301,21 @@ const wood = (cx, cy, rad, count) => {
     placeTree(x, y); n++;
   }
 };
-wood(84, 296, 66, 70);
-wood(470, 58, 48, 26);
-wood(560, 600, 36, 18);
-wood(36, 640, 30, 12);
-wood(520, 150, 26, 10);
+wood(84, 296, 70, 95);
+wood(470, 58, 52, 40);
+wood(560, 600, 40, 26);
+wood(36, 640, 34, 18);
+wood(520, 150, 30, 16);
+wood(760, 260, 34, 18);
+wood(330, 360, 30, 14);
+wood(40, 470, 30, 14);
+// hedgerow lines: trees strung along a few field boundaries
+for (const [x0, y0, x1, y1] of [[20, 220, 300, 250], [420, 300, 520, 420], [600, 640, 520, 740], [700, 520, 840, 540], [300, 700, 480, 680], [40, 400, 200, 380], [640, 120, 760, 100]]) {
+  for (let t = 0; t <= 1; t += 0.06) {
+    const x = x0 + (x1 - x0) * t + (R() - 0.5) * 6, y = y0 + (y1 - y0) * t + (R() - 0.5) * 6;
+    if (clear(x, y, 4) && free(x, y, 3)) placeTree(x, y, 0.75 + R() * 0.4);
+  }
+}
 for (let i = 3; i < W.RIVER.length - 3; i += 2) {
   const [x, y] = W.RIVER[i], [x2, y2] = W.RIVER[i + 1], dx = x2 - x, dy = y2 - y, l = Math.hypot(dx, dy) || 1;
   for (const side of [-1, 1]) {
@@ -315,7 +325,7 @@ for (let i = 3; i < W.RIVER.length - 3; i += 2) {
   }
 }
 // scattered field trees, as on a hedgerow
-for (let n = 0; n < 140; n++) {
+for (let n = 0; n < 200; n++) {
   const x = 20 + R() * 840, y = 20 + R() * 720;
   if (clear(x, y, 6) && free(x, y, 5) && !Object.values(W.URBAN).some((p) => W.inside(p, x, y))) placeTree(x, y, 0.7 + R() * 0.5);
 }
@@ -501,6 +511,17 @@ protos.car = [
   { kind: "box", at: [2.22, 0.55, 0.8], size: [0.05, 0.4, 0.25], colour: "#fff6cf", group: "lights:head" },
   { kind: "box", at: [2.22, -0.55, 0.8], size: [0.05, 0.4, 0.25], colour: "#fff6cf", group: "lights:head" },
 ];
+
+// ── Boulders at the foot of the cliffs, half in the sea ─────────────────────
+protos.rock = [{ kind: "sphere", at: [0, 0, 0.4], r: 1, sub: 1, colour: PALETTE.rock, jitter: 0.28 }];
+for (let y = 6; y < TILE.d; y += 4) {
+  if (cliffiness(y) < 0.6) continue;
+  for (let n = 0; n < 2; n++) {
+    const x = W.coastX(y) + 1 + R() * 9;
+    if (x > TILE.w - 4) continue;
+    instances.push({ proto: "rock", at: [x, y + R() * 3, SEA_LEVEL - 1.2], rot: R() * 6.3, scale: 1.6 + R() * 3.2 });
+  }
+}
 
 // ── Sheep in the western pastures ───────────────────────────────────────────
 protos.sheep = [{ kind: "sphere", at: [0, 0, 1], r: 1, sub: 1, colour: "#fbfbf6" }, { kind: "sphere", at: [0.9, 0, 1.1], r: 0.45, sub: 1, colour: "#3d3a36" }];

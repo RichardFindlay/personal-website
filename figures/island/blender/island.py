@@ -273,8 +273,7 @@ for edge in S["edges"]:
             if p["z"][l] - p["z"][l + 1] < 0.02 and q["z"][l] - q["z"][l + 1] < 0.02:
                 continue
             pts = [b((p["x"], p["y"], p["z"][l])), b((q["x"], q["y"], q["z"][l])), b((q["x"], q["y"], q["z"][l + 1])), b((p["x"], p["y"], p["z"][l + 1]))]
-            shade = 0.96 + 0.08 * math.sin(i * 0.7 + l * 2.1)
-            colour = tuple(min(1, v * shade) for v in layer_cols[l])
+            colour = layer_cols[l]
             centre = sum(pts, Vector()) / 4
             sides.face([sides.vert(v) for v in pts], colour, ("dir", Vector((centre.x - mid.x, centre.y - mid.y, 0))))
 bottom = [b((0, 0, -data["depth"])), b((TILE["w"], 0, -data["depth"])), b((TILE["w"], TILE["d"], -data["depth"])), b((0, TILE["d"], -data["depth"]))]

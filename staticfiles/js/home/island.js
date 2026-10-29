@@ -26,9 +26,9 @@ export async function mountIsland(stage, { still = false } = {}) {
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.0;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     stage.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -77,10 +77,11 @@ export async function mountIsland(stage, { still = false } = {}) {
     }
 
     // ── Light: a warm low sun from the upper left, and the sky ──────────────
-    const hemi = new THREE.HemisphereLight(0xe4f3ff, 0xb9c99c, 1.55);
+    const hemi = new THREE.HemisphereLight(0xd6ecff, 0x9db878, 1.0);
     scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xfff0d8, 2.6);
-    const sunDir = new THREE.Vector3(-0.86, 0.95, 0.12).normalize();
+    const sun = new THREE.DirectionalLight(0xfff0d8, 3.4);
+    // from the south-west and high: the faces turned to the viewer catch it
+    const sunDir = new THREE.Vector3(-0.72, 1.0, 0.58).normalize();
     sun.position.copy(target).addScaledVector(sunDir, 1500);
     sun.target.position.copy(target);
     sun.castShadow = true;
@@ -222,16 +223,18 @@ export async function mountIsland(stage, { still = false } = {}) {
         c.width = c.height = 64;
         const g = c.getContext('2d');
         const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+        // white at the heart, a cool grey towards the edge, so it reads on a white page
         grad.addColorStop(0, 'rgba(255,255,255,1)');
-        grad.addColorStop(0.6, 'rgba(250,252,255,0.75)');
-        grad.addColorStop(1, 'rgba(245,248,252,0)');
+        grad.addColorStop(0.45, 'rgba(240,244,248,0.9)');
+        grad.addColorStop(0.75, 'rgba(196,207,218,0.55)');
+        grad.addColorStop(1, 'rgba(190,202,214,0)');
         g.fillStyle = grad;
         g.fillRect(0, 0, 64, 64);
         return new THREE.CanvasTexture(c);
     })();
     const puffs = [];
     for (const vent of meta.steam) for (let n = 0; n < 9; n++) {
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, transparent: true, depthWrite: false, color: 0xf4f7fa }));
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, transparent: true, depthWrite: false, color: 0xffffff, toneMapped: false }));
         scene.add(sprite);
         puffs.push({ sprite, vent: V(vent), age: n / 9 });
     }
@@ -241,7 +244,7 @@ export async function mountIsland(stage, { still = false } = {}) {
             const a = p.age;
             p.sprite.position.copy(p.vent).add(new THREE.Vector3(18 * a + 4 * Math.sin(a * 9 + p.vent.x), 6 + 55 * a, -10 * a));
             p.sprite.scale.setScalar(16 + 40 * a);
-            p.sprite.material.opacity = 0.85 * Math.sin(Math.PI * Math.min(1, a * 1.15));
+            p.sprite.material.opacity = 0.7 * Math.sin(Math.PI * Math.min(1, a * 1.15));
         }
     }
 
