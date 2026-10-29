@@ -4,7 +4,7 @@
 // with a depth; the build sorts them. Lights that come on at night carry a
 // class (il-win, il-glow, il-beacon, il-led, il-head) for the live script.
 
-export function makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads, random, makeRotor }) {
+export function makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads, random, islandRotor }) {
   const items = [], ground = [], over = [], hillShade = [];
   const depth = (p) => k.depthOf(p, P);
   const put = (p, svg, bias = 0) => items.push({ key: depth(p) + bias, svg });
@@ -83,7 +83,7 @@ export function makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads, ra
   // woods on the hill behind the town and along the river
   const clear = (x, y, gap = 6) => W.onLand(x + 12, y) && W.fromRiver(x, y) > gap &&
     Object.entries(roads).every(([name, line]) => line.every(([px, py]) => Math.hypot(px - x, py - y) > W.ROAD_WIDTH[name] / 2 + gap)) &&
-    Object.values(W.SITES).every((s) => x < s.x - 4 || x > s.x + s.w + 4 || y < s.y - 4 || y > s.y + s.d + 4);
+    Object.entries(W.SITES).filter(([name]) => name !== "town" && name !== "village").map(([, s]) => s).every((s) => x < s.x - 4 || x > s.x + s.w + 4 || y < s.y - 4 || y > s.y + s.d + 4);
   const wood = (cx, cy, rad, count) => {
     for (let n = 0, tries = 0; n < count && tries < count * 8; tries++) {
       const a = random() * Math.PI * 2, d = Math.sqrt(random()) * rad, x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.8;
@@ -126,8 +126,14 @@ export function makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads, ra
       wins.push(quad([[plan.x + plan.w + 0.02, ys - 0.7, zw0], [plan.x + plan.w + 0.02, ys + 0.7, zw0], [plan.x + plan.w + 0.02, ys + 0.7, zw1], [plan.x + plan.w + 0.02, ys - 0.7, zw1]]));
     }
     houses.push({ x: cx, y: cy, r: Math.max(w, d) / 2 + 1.5 });
-    putOn(cx, cy, z, mat(walls, box(plan, z, h, { tone: "mid" })) + `<path class="il-win" d="${wins.join("")}"/>` + mat(roof, solid(roofPaths, { tone: "mid" })));
+    // the roof hides the walls' top, and both are convex, so neither needs its fill
+    const wallPaths = k.slabOf(plan, z, h, P, 2);
+    putOn(cx, cy, z, mat(walls, lean(wallPaths, false)) + `<path class="il-win" d="${wins.join("")}"/>` + mat(roof, lean(roofPaths, true)));
   }
+  // a convex solid drawn as only its visible faces and outline: no fill under
+  // them and no crease, and the top only when nothing covers it
+  const lean = (paths, withTop) => paths.shades.map((d, n) => (d ? `<path class="iso-shade" data-shade="${n}" d="${d}"/>` : "")).join("") +
+    (withTop && paths.top ? `<path class="iso-top" d="${paths.top}"/>` : "") + `<path class="iso-line iso-edge" data-tone="mid" d="${paths.outline}"/>`;
   const freeFor = (x, y, r) => houses.every((h) => Math.hypot(h.x - x, h.y - y) > h.r + r) && clear(x, y, r - 2);
   // houses either side of a road, gables along it
   function street(line, from, to, gap = 13, set = 0.5) {
@@ -199,6 +205,19 @@ export function makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads, ra
     put([plan.x + 17, plan.y + 11, 0], mat("hall", box(plan, 0, 7, { tone: "mid" })) + `<path class="il-pv-flat" d="${panels.join("")}"/>`);
   }
 
+  // infill: houses on a loose grid wherever the built-up ground has room, with
+  // a garden tree now and then
+  for (const [name, poly] of Object.entries(W.URBAN)) {
+    const step = name === "town" ? 15 : 17;
+    const xs = poly.map((p) => p[0]), ys = poly.map((p) => p[1]);
+    for (let y = Math.min(...ys) + 6; y < Math.max(...ys); y += step) for (let x = Math.min(...xs) + 6; x < Math.max(...xs); x += step) {
+      const hx = x + (random() - 0.5) * 5, hy = y + (random() - 0.5) * 5;
+      if (!W.inside(poly, hx, hy) || random() < 0.18) continue;
+      if (freeFor(hx, hy, 6.5)) house(hx, hy, random() < 0.5 ? "x" : "y");
+      else if (random() < 0.3 && freeFor(hx + 4, hy + 4, 3)) tree(hx + 4, hy + 4, 3 + random() * 1.5);
+    }
+  }
+
   // ── Ground works: site pads, the pitch, sheep ───────────────────────────────
   const pad = (s, cls = "il-pad", inset = 0) => ground.push(`<path class="${cls}" d="${quad([[s.x + inset, s.y + inset, 0], [s.x + s.w - inset, s.y + inset, 0], [s.x + s.w - inset, s.y + s.d - inset, 0], [s.x + inset, s.y + s.d - inset, 0]])}"/>`);
   for (const name of ["nuclear", "gas", "geothermal", "battery", "converter", "substation"]) pad(W.SITES[name]);
@@ -242,8 +261,7 @@ export function makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads, ra
     ground.push(`<g class="il-car">${mat(c.paint, solid(body, { tone: "mid", crease: "none" }))}${mat("glass", solid(cabin, { tone: "mid", crease: "none" }))}${lamps.map((p) => circle(p, 0.5, "il-head")).join("")}</g>`);
   }
 
-  // ── Wind turbines: the wake card's rotor, in the island's parallel view ─────
-  const ctx = { P, iso: k.iso, pathOf: k.pathOf, V, L, BANDS: [0, 0.2, 0.42, 0.62] };
+  // ── Wind turbines: tower, nacelle and a rotor turned into the wind ─────────
   const AX = W.WIND_FROM; // the rotor's axis points into the wind
   const SIDE = [-AX[1], AX[0], 0];
   function turbine(x, y, { base = W.heightAt(x, y), hub = 70, R = 40, tower = [2.4, 1.4], offshore = false, phase = random() * Math.PI * 2 } = {}) {
@@ -255,15 +273,13 @@ export function makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads, ra
       out.push(mat("safety", solid(G.solidOf([[W.SEA_LEVEL - 1, 3.4], [base, 3.4]], G.frameOf([x, y, 0], up, [1, 0, 0], [0, 1, 0]), P, { steps: 20 }), { tone: "mid" })));
       out.push(mat("safety", box({ x: x - 6, y: y - 6, w: 12, d: 12, r: 6 }, base, 0.8, { tone: "mid" }, 6)));
     }
-    out.push(mat("white", solid(G.solidOf([[0, tower[0]], [top - base, tower[1]]], G.frameOf([x, y, base], up, [1, 0, 0], [0, 1, 0]), P, { steps: 14 }), { tone: "mid" })));
+    out.push(mat("white", solid(G.solidOf([[0, tower[0]], [top - base, tower[1]]], G.frameOf([x, y, base], up, [1, 0, 0], [0, 1, 0]), P, { steps: 10 }), { tone: "mid" })));
     // the nacelle, a box along the axis
     const NF = G.frameOf([x - AX[0] * 4, y - AX[1] * 4, top + 2], AX, SIDE, up);
     out.push(mat("white", solid(G.prismOf(NF, [[-1.8, -1.8], [1.8, -1.8], [1.8, 1.6], [-1.8, 1.6]], 0, 10, P), { tone: "mid" })));
     const hubAt = [x + AX[0] * 6.5, y + AX[1] * 6.5, top + 2];
-    const spec = { hub: hubAt, axis: AX, R, rootR: 1.6, span: R - 1.6, collar: null, sections: 5, arc: 5, bisect: 5, girth: R / 60 };
-    const blades = makeRotor(spec, ctx).pose(phase);
-    const bladeSvg = (b) => (b ? solid({ ...b.blade, crease: "" }, { tone: "mid" }) : "");
-    out.push(`<g class="il-rotor" data-hub="${hubAt.map(R1).join(",")}" data-r="${R}" data-phase="${phase.toFixed(3)}">${mat("white", blades.filter((b) => !b.toward).map(bladeSvg).join(""))}${mat("white", solid(G.sphereOf(hubAt, 1.9, P, { steps: 16 }), { tone: "mid" }))}${mat("white", blades.filter((b) => b.toward).map(bladeSvg).join(""))}</g>`);
+    const blades = islandRotor({ hub: hubAt, axis: AX, R }, at)(phase);
+    out.push(`<g class="il-rotor" data-hub="${hubAt.map(R1).join(",")}" data-r="${R}" data-phase="${phase.toFixed(3)}" data-mat="white"><path class="il-blade" data-half="lead" d="${blades.lead}"/><path class="il-blade" data-half="trail" d="${blades.trail}"/>${lean(G.sphereOf(hubAt, 1.9, P, { steps: 12 }), true)}</g>`);
     out.push(circle(at([x - AX[0] * 7, y - AX[1] * 7, top + 4]), 0.9, "il-beacon"));
     putOn(x, y, base, `<g class="il-turbine">${out.join("")}</g>`);
   }
@@ -522,6 +538,7 @@ export function makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads, ra
     `.il-band{fill:none;stroke:#c4503f;stroke-width:1.6}`,
     `.il-wake{fill:none;stroke:#f4f8fb;stroke-width:1;opacity:.7}`,
     `.il-sail{fill:#fbfbf9;stroke:#9aa5ad;stroke-width:.4}`,
+    `.il-blade{stroke:var(--anatomy-mid);stroke-width:.35;stroke-linejoin:round}`, `.il-blade[data-half="lead"]{fill:var(--anatomy-top)}`, `.il-blade[data-half="trail"]{fill:var(--anatomy-shade-2)}`,
     `.il-lattice{fill:none;stroke:#7f8a92;stroke-width:.45;stroke-linecap:round}`,
     `.il-wire{fill:none;stroke:#6b767e;stroke-width:.45;opacity:.85}`,
     `.il-beacon{fill:#d2493f;opacity:.9}`,

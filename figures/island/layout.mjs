@@ -103,6 +103,20 @@ export const SITES = {
   village: { x: 70, y: 62, w: 140, d: 112 },
 };
 
+// ── Where people live: the town's and the village's built-up ground ─────────
+export const URBAN = {
+  town: [[140, 490], [214, 468], [206, 340], [244, 326], [272, 418], [332, 440], [424, 456], [456, 494], [452, 646], [382, 662], [300, 646], [246, 606], [204, 562], [140, 556]],
+  village: [[66, 72], [196, 58], [214, 176], [126, 204], [58, 170]],
+};
+export function inside(poly, x, y) {
+  let hit = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+}
+
 // ── Wind: onshore on the ridge, offshore in rows in the sea ──────────────────
 // Every rotor faces south-south-west, into the prevailing wind.
 export const WIND_FROM = (() => { const a = (200 * Math.PI) / 180; return [Math.sin(a), -Math.cos(a), 0]; })();

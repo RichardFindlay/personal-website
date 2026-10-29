@@ -21,8 +21,8 @@ const ROOT = join(HERE, "../..");
 const OUT = join(ROOT, "staticfiles/image/island");
 const SCOPE = ".island-scene";
 const { makeParts } = await import(join(HERE, "parts.mjs"));
-// the wake card's rotor, which takes a parallel view as readily as its own perspective
-const { makeRotor } = await import(join(HERE, "../wake/rotor.mjs"));
+// the island's own small rotor: the wake card's lofted blades are made for a close-up
+const { islandRotor } = await import(join(HERE, "rotor.mjs"));
 
 // ── The camera ──────────────────────────────────────────────────────────────
 // The kit's parallel projection, turned to 60° so the long south face with its
@@ -40,12 +40,20 @@ const { sinA, cosA } = k.cameraOf(P);
 const TOWARD = [cosA, sinA];                      // the floor direction to the viewer
 const LIGHT = [-sinA, cosA];                      // the kit's light, on the floor
 const random = W.seeded(11);
+const segmentGap = (a, b, c) => {
+  const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1;
+  const t = Math.max(0, Math.min(1, ((c[0] - a[0]) * dx + (c[1] - a[1]) * dy) / l2));
+  return Math.hypot(c[0] - a[0] - t * dx, c[1] - a[1] - t * dy);
+};
 // the ground follows the hills: a plan line split into short steps, each at its height
 function densify(pts, closed = false, step = 8) {
   const out = [];
   const n = closed ? pts.length : pts.length - 1;
   for (let i = 0; i < n; i++) {
-    const a = pts[i], b = pts[(i + 1) % pts.length], m = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step));
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    // only a segment that crosses a hill needs to bend
+    const nearHill = W.HILLS.some((h) => segmentGap(a, b, [h.x, h.y]) < h.r);
+    const m = nearHill ? Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step)) : 1;
     for (let j = 0; j < m; j++) out.push([a[0] + ((b[0] - a[0]) * j) / m, a[1] + ((b[1] - a[1]) * j) / m]);
   }
   if (!closed) out.push(pts[pts.length - 1]);
@@ -95,7 +103,7 @@ const SAMPLES = [];
 {
   let s = 0;
   for (const f of RUN) {
-    const len = Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1]), n = Math.max(1, Math.ceil(len / 6));
+    const len = Math.hypot(f.b[0] - f.a[0], f.b[1] - f.a[1]), n = Math.max(1, Math.ceil(len / 10));
     for (let i = 0; i < n; i++) SAMPLES.push({ x: f.a[0] + ((f.b[0] - f.a[0]) * i) / n, y: f.a[1] + ((f.b[1] - f.a[1]) * i) / n, s: s + (len * i) / n, f });
     s += len;
   }
@@ -213,7 +221,7 @@ function fields() {
     // crop rows in the arable fields, edge to edge across the field
     if (crop === "wheat" || crop === "barley" || crop === "plough") {
       const [a, b, c, d] = cell;
-      for (let f = 0.14; f < 0.95; f += 0.16) rows3.push(path(drape([[a[0] + (d[0] - a[0]) * f, a[1] + (d[1] - a[1]) * f], [b[0] + (c[0] - b[0]) * f, b[1] + (c[1] - b[1]) * f]])));
+      for (let f = 0.17; f < 0.95; f += 0.22) rows3.push(path(drape([[a[0] + (d[0] - a[0]) * f, a[1] + (d[1] - a[1]) * f], [b[0] + (c[0] - b[0]) * f, b[1] + (c[1] - b[1]) * f]])));
     }
     hedges.push(path(drape([cell[1], cell[2], cell[3]])));
   }
@@ -233,6 +241,14 @@ function ribbon(line, width, z = 0) {
     right.push([p[0] + (dy / l) * w, p[1] - (dx / l) * w]);
   });
   return { left, right, outline: [...left, ...right.reverse()] };
+}
+
+// The built-up ground: gardens, yards and verges, softer than the fields
+function urban() {
+  return Object.entries(W.URBAN).map(([name, poly]) => {
+    const pts = W.smoothLine([...poly, poly[0]], 6);
+    return `<path class="il-urban" data-area="${name}" d="${path(drape(pts, true), true)}"/>`;
+  }).join("");
 }
 
 function river() {
@@ -279,7 +295,7 @@ function rim() {
 }
 
 // ── Everything that stands on the ground, painted back to front ──────────────
-const parts = makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads: ROAD_LINES, random: W.seeded(29), makeRotor });
+const parts = makeParts({ k, G, W, P, at, flat, path, ribbon, drape, roads: ROAD_LINES, random: W.seeded(29), islandRotor });
 
 // ── Styles ──────────────────────────────────────────────────────────────────
 // The daylight palette of the cards' colour versions: white steel, a deep sea
@@ -307,7 +323,8 @@ const SCENE_CSS = [
   `.il-field[data-crop="pasture"]{fill:#8db365}`, `.il-field[data-crop="grass"]{fill:#a2c179}`, `.il-field[data-crop="wheat"]{fill:#d8c784}`,
   `.il-field[data-crop="barley"]{fill:#c9c27c}`, `.il-field[data-crop="rape"]{fill:#e2cf55}`, `.il-field[data-crop="plough"]{fill:#a8865f}`,
   `.il-furrow{fill:none;stroke:#7c6a45;stroke-width:.35;opacity:.35}`,
-  `.il-hedge{fill:none;stroke:#5e8746;stroke-width:1.1;stroke-linecap:round;stroke-linejoin:round}`,
+  `.il-hedge{fill:none;stroke:#628b4a;stroke-width:.9;stroke-linecap:round;stroke-linejoin:round}`,
+  `.il-urban{fill:#b9c79a;stroke:#9fb07f;stroke-width:.6}`,
   `.il-river{fill:#5b93c1}`, `.il-bank{fill:none}`, `.il-bank-line{stroke:#c7b48a}`,
   `.il-road{fill:#868b90}`, `.il-road-mark{fill:none;stroke:#eef0f1;stroke-width:.45;stroke-dasharray:2 3;opacity:.85}`,
   `.il-beach{fill:#e3d3a8}`, `.il-cliff{fill:#c7b083}`, `.il-surf{fill:none;stroke:#f4f8fb;stroke-width:.8;opacity:.8}`,
@@ -338,7 +355,7 @@ function relative(d) {
 const compact = (markup) => markup.replace(/ d="([MLZ0-9.\s-]+)"/g, (_, d) => ` d="${relative(d)}"`);
 
 const defs = `<defs>${grainDefs}<linearGradient id="il-sea-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4b88ba"/><stop offset="1" stop-color="#2a6798"/></linearGradient></defs>`;
-const body = [defs, `<g class="il-ground">`, faces(), top(), fields(), river(), shore(), roads(), rim(), `</g>`, parts.ground, `<g class="il-things">`, parts.things, `</g>`, parts.over].join("");
+const body = [defs, `<g class="il-ground">`, top(), fields(), urban(), river(), shore(), roads(), faces(), rim(), `</g>`, parts.ground, `<g class="il-things">`, parts.things, `</g>`, parts.over].join("");
 const label = "An isometric island of the GB power system: nuclear and gas stations, onshore and offshore wind, solar, a battery, geothermal, the grid, towns with electric cars, and the rock beneath";
 const svg = compact(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${WIDTH} ${HEIGHT}" class="island-svg" role="img" aria-label="${label}"><style>${css}</style>${body}</svg>`);
 
