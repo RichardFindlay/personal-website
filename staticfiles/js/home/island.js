@@ -51,7 +51,7 @@ export async function mountIsland(stage, { still = false } = {}) {
     const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
     const extremes = [];
     for (const x of [0, tile.w]) for (const y of [0, tile.d]) for (const z of [-depth, 0]) extremes.push(V([x, y, z]));
-    extremes.push(V([850, 80, 120]), V([1030, 74, 140]));
+    for (const p of meta.tall || []) extremes.push(V(p));
     let minR = Infinity, maxR = -Infinity, minU = Infinity, maxU = -Infinity;
     for (const p of extremes) {
         const d = p.clone().sub(target);
@@ -212,8 +212,8 @@ export async function mountIsland(stage, { still = false } = {}) {
         grad.addColorStop(1, 'rgba(210,80,40,0)');
         g.fillStyle = grad;
         g.fillRect(0, 0, 128, 128);
-        const glow = new THREE.Mesh(new THREE.PlaneGeometry(80, 34), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, toneMapped: false }));
-        glow.position.copy(V([120, tile.d + 0.6, -130]));
+        const glow = new THREE.Mesh(new THREE.PlaneGeometry(110, 46), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, toneMapped: false }));
+        glow.position.copy(V([meta.bore[0], meta.bore[1] + 0.6, meta.bore[2]]));
         scene.add(glow);
     }
 

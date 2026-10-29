@@ -1,12 +1,20 @@
 // The island's plan: where everything stands, in metres. x runs east, y runs
-// south (toward the viewer), z up; the land's surface is z = 0. Pure data and
-// small helpers, so the build and the page's live script place things alike.
+// south (toward the viewer), z up; the land's surface is about z = 3, the sea's
+// z = -3. Pure data and small helpers, shared by the scene and the page.
+//
+// The composition, as the hero camera sees it from the south-east: a dense city
+// in the middle where the river meets a bay, its towers the tallest thing on
+// the island; wooded hills behind it to the left with the onshore wind on the
+// ridge; the power stations on a raised headland behind it to the right; open
+// sea to the right with the offshore farm well out; and a low strip along the
+// front (solar, farmland, a village, geothermal) so nothing stands in front of
+// the city.
 
-export const TILE = { x: 0, y: 0, w: 1100, d: 760, r: 0 };
-export const DEPTH = 150;      // the block's cut faces reach this far down
-export const SEA_LEVEL = -3;   // the sea and river lie a little under the land
+export const TILE = { x: 0, y: 0, w: 1100, d: 820, r: 0 };
+export const DEPTH = 110;      // the block's cut faces reach this far down
+export const SEA_LEVEL = -3;
+export const LAND = 3;
 
-// Seeded randomness, the same generator the card builds use.
 export const seeded = (seed) => () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
 // Catmull-Rom through plan points, about `step` metres a sample.
@@ -23,90 +31,12 @@ export function smoothLine(points, step = 6) {
   out.push(points[points.length - 1]);
   return out;
 }
-
-// ── The coast: land to the west of it, the sea to the east ──────────────────
-// Its y only ever increases, so coastX(y) is a function: a headland for the
-// power stations at the back, a bay, the converter station's point, then the
-// shore runs out through the front face.
-export const COAST_POINTS = [[930, 0], [952, 44], [938, 110], [958, 172], [930, 236], [884, 282], [902, 340], [888, 410], [866, 462], [884, 526], [910, 592], [890, 652], [858, 712], [842, 760]];
-export const COAST = smoothLine(COAST_POINTS, 5);
-export function coastX(y) {
-  for (let i = 0; i < COAST.length - 1; i++) {
-    const [ax, ay] = COAST[i], [bx, by] = COAST[i + 1];
+const along = (line, y) => {
+  for (let i = 0; i < line.length - 1; i++) {
+    const [ax, ay] = line[i], [bx, by] = line[i + 1];
     if (y >= ay && y <= by) return ax + ((bx - ax) * (y - ay)) / ((by - ay) || 1);
   }
-  return y < 0 ? COAST[0][0] : COAST[COAST.length - 1][0];
-}
-export const onLand = (x, y) => x < coastX(y);
-
-// ── The river: from the hills at the back, out through the front face ───────
-export const RIVER_POINTS = [[236, 0], [256, 70], [318, 158], [418, 238], [494, 318], [548, 418], [590, 508], [628, 600], [664, 690], [684, 760]];
-export const RIVER = smoothLine(RIVER_POINTS, 6);
-export const riverWidth = (t) => 14 + 18 * t * t;   // t from 0 at the back to 1 at the front
-export function riverAt(y) {
-  for (let i = 0; i < RIVER.length - 1; i++) {
-    const [ax, ay] = RIVER[i], [bx, by] = RIVER[i + 1];
-    if (y >= ay && y <= by) return ax + ((bx - ax) * (y - ay)) / ((by - ay) || 1);
-  }
-  return null;
-}
-// distance from a point to the river's centre line, less its half width
-export function fromRiver(x, y) {
-  let best = Infinity;
-  for (let i = 0; i < RIVER.length - 1; i++) {
-    const [ax, ay] = RIVER[i], [bx, by] = RIVER[i + 1], dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
-    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2));
-    const d = Math.hypot(x - ax - t * dx, y - ay - t * dy) - riverWidth((i + t) / (RIVER.length - 1)) / 2;
-    best = Math.min(best, d);
-  }
-  return best;
-}
-
-// ── Hills: low domes, in metres of radius and height ─────────────────────────
-export const HILLS = [
-  { x: 712, y: 372, r: 110, h: 42 },  // the wind farm's ridge
-  { x: 806, y: 468, r: 74, h: 26 },
-  { x: 96, y: 300, r: 92, h: 38 },    // the wooded hill behind the town
-  { x: 470, y: 66, r: 70, h: 24 },
-];
-// the land's height at a point: the sum of the hills' smooth bumps
-export const heightAt = (x, y) => HILLS.reduce((z, h) => {
-  const q = Math.hypot(x - h.x, y - h.y) / h.r;
-  return q >= 1 ? z : z + h.h * (1 - q * q) ** 2;
-}, 0);
-
-// ── Roads, as centre lines ────────────────────────────────────────────────────
-export const ROADS = {
-  // the A road: in from the west edge, through the town, over the river, on to the coast
-  main: [[0, 506], [90, 512], [180, 528], [262, 534], [350, 520], [430, 494], [522, 472], [600, 470], [676, 498], [742, 552], [796, 600], [852, 614]],
-  // north from the town to the village, round the wooded hill
-  north: [[262, 534], [232, 450], [196, 382], [178, 300], [186, 214], [168, 150], [132, 96]],
-  // the power stations' road, up the east side of the river
-  station: [[676, 498], [636, 420], [612, 330], [616, 252], [652, 194], [700, 166], [756, 196], [790, 210]],
-  // down to the geothermal plant and the front
-  south: [[180, 528], [168, 600], [150, 672], [128, 716]],
-  // the town's loop
-  loop: [[262, 534], [300, 600], [372, 628], [430, 588], [430, 494]],
-};
-export const ROAD_WIDTH = { main: 9, north: 7, station: 7, south: 6, loop: 6 };
-
-// ── Sites, each a plan rectangle {x, y, w, d} ────────────────────────────────
-export const SITES = {
-  nuclear: { x: 758, y: 24, w: 170, d: 168 },
-  gas: { x: 648, y: 44, w: 96, d: 80 },
-  geothermal: { x: 52, y: 668, w: 120, d: 72 },
-  solar: { x: 712, y: 628, w: 118, d: 118 },
-  battery: { x: 742, y: 560, w: 64, d: 46 },
-  converter: { x: 818, y: 588, w: 52, d: 40 },
-  substation: { x: 214, y: 360, w: 40, d: 30 },
-  town: { x: 226, y: 420, w: 220, d: 210 },
-  village: { x: 70, y: 62, w: 140, d: 112 },
-};
-
-// ── Where people live: the town's and the village's built-up ground ─────────
-export const URBAN = {
-  town: [[140, 490], [214, 468], [206, 340], [244, 326], [272, 418], [332, 440], [424, 456], [456, 494], [452, 646], [382, 662], [300, 646], [246, 606], [204, 562], [140, 556]],
-  village: [[66, 72], [196, 58], [214, 176], [126, 204], [58, 170]],
+  return y < line[0][1] ? line[0][0] : line[line.length - 1][0];
 };
 export function inside(poly, x, y) {
   let hit = false;
@@ -116,21 +46,106 @@ export function inside(poly, x, y) {
   }
   return hit;
 }
+export const lineGap = (line, x, y) => {
+  let best = Infinity;
+  for (let i = 0; i < line.length - 1; i++) {
+    const [ax, ay] = line[i], [bx, by] = line[i + 1], dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2));
+    best = Math.min(best, Math.hypot(x - ax - t * dx, y - ay - t * dy));
+  }
+  return best;
+};
 
-// ── Wind: onshore on the ridge, offshore in rows in the sea ──────────────────
+// ── The coast: land to the west, sea to the east ────────────────────────────
+// Its y only increases, so coastX(y) is a function. From the back: the power
+// stations' cliffed headland, the bay the river runs into, the port's straight
+// quay, a cliffed point, then a beach out through the front face.
+export const COAST_POINTS = [[742, 0], [768, 60], [752, 140], [776, 206], [736, 262], [668, 296], [662, 340], [700, 392], [712, 406], [714, 470], [712, 528], [700, 560], [726, 610], [748, 650], [796, 720], [846, 820]];
+export const COAST = smoothLine(COAST_POINTS, 5);
+export const coastX = (y) => along(COAST, y);
+export const onLand = (x, y) => x < coastX(y);
+// what kind of shore each stretch is
+export const SHORE = (y) => (y < 262 ? "cliff" : y < 392 ? "beach" : y < 540 ? "quay" : y < 660 ? "cliff" : "beach");
+
+// ── The river: down from the hills, through the city into the bay ──────────
+export const RIVER_POINTS = [[318, 0], [336, 70], [384, 146], [452, 214], [532, 266], [604, 300], [672, 318]];
+export const RIVER = smoothLine(RIVER_POINTS, 5);
+export const riverWidth = (t) => 18 + 22 * t * t;
+export function fromRiver(x, y) {
+  let best = Infinity;
+  for (let i = 0; i < RIVER.length - 1; i++) {
+    const [ax, ay] = RIVER[i], [bx, by] = RIVER[i + 1], dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2));
+    best = Math.min(best, Math.hypot(x - ax - t * dx, y - ay - t * dy) - riverWidth((i + t) / (RIVER.length - 1)) / 2);
+  }
+  return best;
+}
+
+// ── Relief: wooded hills behind the city, the power stations' plateau ───────
+export const HILLS = [
+  { x: 150, y: 150, r: 210, h: 66 },  // the ridge the onshore wind stands on
+  { x: 360, y: 30, r: 130, h: 34 },
+  { x: 90, y: 660, r: 130, h: 16 },   // a soft rise behind the village
+];
+export const PLATEAU = { poly: [[470, 20], [760, 20], [770, 220], [700, 252], [480, 240]], z: 18 };
+export const heightAt = (x, y) => HILLS.reduce((z, h) => {
+  const q = Math.hypot(x - h.x, y - h.y) / h.r;
+  return q >= 1 ? z : z + h.h * (1 - q * q) ** 2;
+}, 0);
+
+// ── The city ────────────────────────────────────────────────────────────────
+// A grid of blocks south of the river, a smaller quarter north of it, the
+// tallest towers on the waterfront. Heights fall away from the core.
+export const CITY = {
+  core: [566, 420],
+  south: { x0: 250, x1: 700, y0: 318, y1: 652 },
+  north: { x0: 400, x1: 600, y0: 214, y1: 262 },
+  block: 44, street: 12,
+  park: { x: 392, y: 470, w: 56, d: 56 },
+  stadium: { x: 352, y: 590, r: 34 },
+  port: { x: 640, y: 410, w: 70, d: 120 },
+};
+
+// ── Sites ───────────────────────────────────────────────────────────────────
+export const SITES = {
+  nuclear: { x: 560, y: 28, w: 196, d: 150 },
+  gas: { x: 482, y: 120, w: 80, d: 90 },
+  solar: { x: 440, y: 688, w: 230, d: 104 },
+  battery: { x: 690, y: 664, w: 50, d: 40 },
+  converter: { x: 600, y: 580, w: 56, d: 44 },
+  substation: { x: 252, y: 300, w: 40, d: 30 },
+  geothermal: { x: 40, y: 724, w: 120, d: 70 },
+  village: { x: 170, y: 680, w: 150, d: 100 },
+};
+
+// ── Roads, as centre lines ───────────────────────────────────────────────────
+export const ROADS = {
+  // the motorway in from the west, round the back of the city, over the river
+  // and up to the power stations
+  ring: [[0, 410], [120, 400], [230, 380], [280, 320], [380, 270], [470, 252], [520, 248], [560, 236], [640, 212], [700, 190]],
+  // the front road: from the village past the solar farm to the beach
+  front: [[0, 650], [110, 640], [200, 664], [330, 660], [430, 668], [560, 676], [690, 652], [760, 640]],
+  // up from the front road into the city
+  link: [[330, 660], [330, 600], [306, 520], [300, 420], [280, 320]],
+  // the geothermal plant's lane
+  lane: [[110, 640], [100, 700], [96, 740]],
+};
+export const ROAD_WIDTH = { ring: 12, front: 8, link: 9, lane: 6 };
+
+// ── Wind: onshore along the ridge, offshore in rows well out to sea ────────
 // Every rotor faces south-south-west, into the prevailing wind.
 export const WIND_FROM = (() => { const a = (200 * Math.PI) / 180; return [Math.sin(a), -Math.cos(a), 0]; })();
-export const ONSHORE = [[652, 330], [714, 300], [770, 344], [690, 410], [752, 436], [818, 470]];
+export const ONSHORE = [[60, 120], [140, 70], [226, 104], [110, 196], [196, 220], [272, 170]];
 export const OFFSHORE = (() => {
   const out = [];
-  for (let row = 0; row < 5; row++) for (let col = 0; col < 2; col++) {
-    const x = 1000 + col * 58 + (row % 2) * 26, y = 74 + row * 128;
-    if (x < 1080) out.push([x, y]);
+  for (let row = 0; row < 5; row++) for (let col = 0; col < 3; col++) {
+    const x = 880 + col * 92 + (row % 2) * 40, y = 70 + row * 140;
+    if (x < 1050 && y < 690) out.push([x, y]);
   }
   return out;
 })();
 
-// ── The grid: the 400 kV line from the power stations to the town ────────────
-export const PYLONS = [[750, 222], [690, 236], [560, 214], [436, 196], [330, 232], [246, 300], [234, 352]];
-// the interconnector: from the converter station under the sea, out through the east face
-export const INTERCONNECTOR = [[862, 612], [920, 618], [990, 626], [1060, 632], [1100, 634]];
+// ── The grid: the 400 kV line from the power stations to the city ────────────
+export const PYLONS = [[540, 232], [454, 236], [372, 248], [300, 262], [270, 296]];
+// the interconnector: from the converter station out under the sea
+export const INTERCONNECTOR = [[656, 600], [720, 598], [820, 590], [960, 584], [1100, 580]];

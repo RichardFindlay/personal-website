@@ -62,7 +62,7 @@ rmSync(work, { recursive: true, force: true });
 const meta = {
   camera: CAMERA, tile: S.tile, depth: S.depth, seaLevel: S.seaLevel,
   instances: S.instances.map((i) => ({ proto: i.proto, at: i.at.map((v) => Math.round(v * 100) / 100), rot: Math.round(i.rot * 1000) / 1000, scale: Math.round(i.scale * 1000) / 1000 })),
-  rotors: S.rotors, cars: S.cars, roads: S.roads, roadWidth: S.roadWidth, steam: S.steam,
+  rotors: S.rotors, cars: S.cars, roads: S.roads, roadWidth: S.roadWidth, steam: S.steam, tall: S.tall, bore: S.bore,
 };
 writeFileSync(join(OUT, "island.json"), JSON.stringify(meta));
 
