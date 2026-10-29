@@ -40,7 +40,7 @@ export async function mountIsland(stage, { still = false } = {}) {
     const { azimuth, elevation, frame, pad, headroom } = meta.camera;
     const { tile, depth } = meta;
     const toward = new THREE.Vector3(Math.cos(elevation * RAD) * Math.cos(azimuth * RAD), Math.sin(elevation * RAD), Math.cos(elevation * RAD) * Math.sin(azimuth * RAD));
-    const target = V([tile.w / 2, tile.d / 2, -depth / 2]);
+    const target = V([(tile.x || 0) + tile.w / 2, (tile.y || 0) + tile.d / 2, -depth / 2]);
     const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 6000);
     camera.position.copy(target).addScaledVector(toward, 2500);
     camera.up.set(0, 1, 0);
@@ -50,7 +50,7 @@ export async function mountIsland(stage, { still = false } = {}) {
     const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
     const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
     const extremes = [];
-    for (const x of [0, tile.w]) for (const y of [0, tile.d]) for (const z of [-depth, 0]) extremes.push(V([x, y, z]));
+    for (const x of [tile.x || 0, (tile.x || 0) + tile.w]) for (const y of [tile.y || 0, (tile.y || 0) + tile.d]) for (const z of [-depth, 0]) extremes.push(V([x, y, z]));
     for (const p of meta.tall || []) extremes.push(V(p));
     let minR = Infinity, maxR = -Infinity, minU = Infinity, maxU = -Infinity;
     for (const p of extremes) {
@@ -87,7 +87,7 @@ export async function mountIsland(stage, { still = false } = {}) {
     sun.castShadow = true;
     const small = Math.min(innerWidth, innerHeight) < 700;
     sun.shadow.mapSize.set(small ? 1024 : 2048, small ? 1024 : 2048);
-    Object.assign(sun.shadow.camera, { left: -720, right: 720, top: 720, bottom: -720, near: 500, far: 2600 });
+    Object.assign(sun.shadow.camera, { left: -460, right: 460, top: 460, bottom: -460, near: 900, far: 2200 });
     sun.shadow.bias = -0.0006;
     sun.shadow.normalBias = 0.6;
     sun.shadow.radius = 3;
@@ -101,6 +101,7 @@ export async function mountIsland(stage, { still = false } = {}) {
         water: new THREE.MeshStandardMaterial({ color: 0x3bbcd8, roughness: 0.12, metalness: 0, transparent: true, opacity: 0.86 }),
         lights_window: lamp(0xffcf7a), lights_glow: lamp(0xffb45a), lights_beacon: lamp(0xff4b3a, 0.6),
         lights_led: lamp(0x3ee07f, 0.8), lights_head: lamp(0xfff2c4), lights_lamp: lamp(0xfff0b0, 0.3),
+        lights_trace: lamp(0x46e0e6, 1.6),
     };
     const lights = {};
     for (const [name, m] of Object.entries(MATERIALS)) if (name.startsWith('lights_')) lights[name.slice(7)] = m;
@@ -233,18 +234,82 @@ export async function mountIsland(stage, { still = false } = {}) {
         return new THREE.CanvasTexture(c);
     })();
     const puffs = [];
-    for (const vent of meta.steam) for (let n = 0; n < 9; n++) {
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, transparent: true, depthWrite: false, color: 0xffffff, toneMapped: false }));
+    const vents = [...meta.steam.map((v) => ({ v, smoke: false })), ...(meta.smoke || []).map((v) => ({ v, smoke: true }))];
+    for (const { v: vent, smoke } of vents) for (let n = 0; n < (smoke ? 6 : 9); n++) {
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, transparent: true, depthWrite: false, color: smoke ? 0xc9c4bd : 0xffffff, toneMapped: false }));
         scene.add(sprite);
-        puffs.push({ sprite, vent: V(vent), age: n / 9 });
+        puffs.push({ sprite, vent: V(vent), age: n / (smoke ? 6 : 9), size: smoke ? 0.45 : 1 });
     }
     function placeSteam(dt) {
         for (const p of puffs) {
             p.age = (p.age + dt / 11) % 1;
             const a = p.age;
-            p.sprite.position.copy(p.vent).add(new THREE.Vector3(18 * a + 4 * Math.sin(a * 9 + p.vent.x), 6 + 55 * a, -10 * a));
-            p.sprite.scale.setScalar(16 + 40 * a);
+            p.sprite.position.copy(p.vent).add(new THREE.Vector3((18 * a + 4 * Math.sin(a * 9 + p.vent.x)) * p.size, (6 + 55 * a) * p.size, -10 * a * p.size));
+            p.sprite.scale.setScalar((16 + 40 * a) * p.size);
             p.sprite.material.opacity = 0.7 * Math.sin(Math.PI * Math.min(1, a * 1.15));
+        }
+    }
+
+    // ── Clouds: puffs of the prototype, drifting slowly over the island ────
+    const cloudParts = [];
+    if (protos.cloud && meta.clouds) {
+        protos.cloud.updateMatrixWorld(true);
+        protos.cloud.traverse((o) => {
+            if (!o.isMesh) return;
+            const mesh = new THREE.InstancedMesh(o.geometry, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, vertexColors: true }), meta.clouds.length);
+            mesh.castShadow = true;
+            cloudParts.push({ mesh, local: o.matrixWorld.clone() });
+            scene.add(mesh);
+        });
+    }
+    function placeClouds(t) {
+        meta.clouds.forEach((c, i) => {
+            const at = [c.at[0] + 14 * Math.sin(t / 23 + i * 1.7), c.at[1] + 8 * Math.cos(t / 31 + i), c.at[2] + 2.5 * Math.sin(t / 7 + i * 2.3)];
+            q.setFromAxisAngle(yAxis, -c.rot);
+            m4.compose(V(at), q, s.setScalar(c.scale));
+            for (const { mesh, local } of cloudParts) mesh.setMatrixAt(i, m4.clone().multiply(local));
+        });
+        for (const { mesh } of cloudParts) mesh.instanceMatrix.needsUpdate = true;
+    }
+
+    // ── Energy pulses running along the circuit traces to the city ─────────
+    const pulseGeo = new THREE.SphereGeometry(2.6, 12, 8);
+    const pulseMat = new THREE.MeshBasicMaterial({ color: 0xb8fbff, toneMapped: false });
+    const traces = (meta.traces || []).map((pts) => {
+        const lens = [0];
+        for (let i = 1; i < pts.length; i++) lens.push(lens[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+        const dots = [0, 1, 2].map(() => { const m = new THREE.Mesh(pulseGeo, pulseMat); scene.add(m); return m; });
+        return { pts, lens, total: lens[lens.length - 1], dots };
+    });
+    const pointOn = (t, d) => {
+        let k = 1;
+        while (k < t.lens.length - 1 && t.lens[k] < d) k++;
+        const a = t.pts[k - 1], b = t.pts[k], f = (d - t.lens[k - 1]) / ((t.lens[k] - t.lens[k - 1]) || 1);
+        return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+    };
+    function placePulses(t) {
+        traces.forEach((tr, i) => tr.dots.forEach((dot, n) => {
+            const d = ((t * 42 + n * tr.total / 3 + i * 17) % tr.total);
+            dot.position.copy(V(pointOn(tr, d)));
+        }));
+    }
+
+    // ── Data rising from the data centre: little coloured pixels ───────────
+    const pixelGeo = new THREE.BoxGeometry(2.6, 2.6, 2.6);
+    const PIXEL_COLOURS = [0xf2a83b, 0x46e0e6, 0xf26b4f, 0xf5d547, 0x7bd389];
+    const pixels = [];
+    for (const src of meta.pixels || []) for (let n = 0; n < 26; n++) {
+        const m = new THREE.Mesh(pixelGeo, new THREE.MeshBasicMaterial({ color: PIXEL_COLOURS[n % PIXEL_COLOURS.length], transparent: true, toneMapped: false }));
+        scene.add(m);
+        pixels.push({ m, src, age: n / 26, dx: (Math.random() - 0.5) * 30, dy: (Math.random() - 0.5) * 22 });
+    }
+    function placePixels(dt) {
+        for (const p of pixels) {
+            p.age = (p.age + dt / 7) % 1;
+            const a = p.age;
+            p.m.position.copy(V([p.src[0] + p.dx * a, p.src[1] + p.dy * a, p.src[2] + 4 + 70 * a]));
+            p.m.material.opacity = Math.min(1, a * 6) * (1 - a);
+            p.m.rotation.set(a * 3, a * 2, 0);
         }
     }
 
@@ -260,6 +325,9 @@ export async function mountIsland(stage, { still = false } = {}) {
         clock += dt;
         placeCars(dt);
         placeSteam(dt);
+        placeClouds(clock);
+        placePulses(clock);
+        placePixels(dt);
         draw();
         raf = visible && !frozen && !document.hidden ? requestAnimationFrame(tick) : 0;
     }
@@ -267,6 +335,9 @@ export async function mountIsland(stage, { still = false } = {}) {
     frameCamera();
     placeCars(0);
     placeSteam(0.0);
+    placeClouds(0);
+    placePulses(0.4);
+    placePixels(0.5);
     draw();
     new ResizeObserver(() => { frameCamera(); draw(); }).observe(stage);
     new IntersectionObserver((entries) => { visible = entries[entries.length - 1].isIntersecting; if (visible) start(); }).observe(stage);

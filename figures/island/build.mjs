@@ -23,10 +23,8 @@ const OUT = join(ROOT, "staticfiles/image/island");
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
 
-// ── The camera the page uses: the kit's 60° parallel view, 30° up ───────────
-// It looks along the same axis as the earlier drawing, so the long south face
-// and its cross-section face the viewer and the sea's east face turns away.
-export const CAMERA = { azimuth: 60, elevation: 30, frame: [1440, 900], pad: 70, headroom: 150 };
+// ── The camera the page uses: a game's classic parallel view, 45° round and 30° up
+export const CAMERA = { azimuth: 45, elevation: 30, frame: [1440, 900], pad: 80, headroom: 120 };
 
 const run = (cmd, argv, what) => {
   const r = spawnSync(cmd, argv, { stdio: ["ignore", "pipe", "pipe"], encoding: "utf8", shell: false });
@@ -62,7 +60,7 @@ rmSync(work, { recursive: true, force: true });
 const meta = {
   camera: CAMERA, tile: S.tile, depth: S.depth, seaLevel: S.seaLevel,
   instances: S.instances.map((i) => ({ proto: i.proto, at: i.at.map((v) => Math.round(v * 100) / 100), rot: Math.round(i.rot * 1000) / 1000, scale: Math.round(i.scale * 1000) / 1000 })),
-  rotors: S.rotors, cars: S.cars, roads: S.roads, roadWidth: S.roadWidth, steam: S.steam, tall: S.tall, bore: S.bore,
+  rotors: S.rotors, cars: S.cars, roads: S.roads, roadWidth: S.roadWidth, steam: S.steam, smoke: S.smoke, pixels: S.pixels, clouds: S.clouds, traces: S.traces, tall: S.tall, bore: S.bore,
 };
 writeFileSync(join(OUT, "island.json"), JSON.stringify(meta));
 

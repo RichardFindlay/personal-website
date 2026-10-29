@@ -8,6 +8,7 @@ All the geometry is decided in scene.mjs; nothing here places anything. The
 scene's plan has y running south, so a point (x, y, z) goes to Blender's
 (x, -y, z), and the glTF exporter turns that into the page's (x, z, y).
 """
+import bmesh
 import bpy
 import json
 import math
@@ -42,6 +43,7 @@ class Builder:
 
     def __init__(self, name):
         self.name, self.verts, self.faces, self.colours, self.smooth = name, [], [], [], []
+        self.vcols = {}  # per-vertex colours, for surfaces whose colours blend
 
     def vert(self, p):
         self.verts.append(tuple(p))
@@ -69,10 +71,12 @@ class Builder:
         mesh.polygons.foreach_set("use_smooth", self.smooth)
         col = mesh.color_attributes.new("col", "BYTE_COLOR", "CORNER")
         values = []
+        loops = mesh.loops
         for poly, c in zip(mesh.polygons, self.colours):
             c = c or (1.0, 1.0, 1.0)
-            for _ in poly.loop_indices:
-                values.extend((c[0], c[1], c[2], 1.0))
+            for li in poly.loop_indices:
+                v = self.vcols.get(loops[li].vertex_index, c)
+                values.extend((v[0], v[1], v[2], 1.0))
         col.data.foreach_set("color", values)
         mesh.materials.append(material)
         mesh.validate()
@@ -103,6 +107,13 @@ def mat(name):
     return MATERIALS[name]
 
 
+def material_for(group):
+    """A group's material: lights get their own; plain and painted parts share one."""
+    if group == "static" or group.startswith("paint"):
+        return "solid"
+    return group.replace(":", "_")
+
+
 # ── Primitive builders, each in the plan frame then turned into Blender's ───
 def place(local, at, rot):
     v = Vector(local)
@@ -118,6 +129,21 @@ def box(B, at, size, colour, rot=None):
     centre = place((0, 0, sz / 2), at, rot)
     for f in [(0, 1, 2, 3), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]:
         B.face([vs[i] for i in f], colour, ("point", centre))
+
+
+def rbox(B, at, size, colour, rot=None, r=0.8, seg=2):
+    """A box with chamfered edges, the toy look: its faces flat, its edges catching light."""
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    for v in bm.verts:
+        v.co = Vector((v.co.x * size[0], v.co.y * size[1], (v.co.z + 0.5) * size[2]))
+    r = min(r, size[0] * 0.45, size[1] * 0.45, size[2] * 0.45)
+    bmesh.ops.bevel(bm, geom=list(bm.edges), offset=r, segments=seg, affect="EDGES", profile=0.5)
+    idx = {v: B.vert(place(v.co, at, rot)) for v in bm.verts}
+    centre = place((0, 0, size[2] / 2), at, rot)
+    for f in bm.faces:
+        B.face([idx[v] for v in f.verts], colour, ("point", centre))
+    bm.free()
 
 
 def gable(B, at, size, colour, rot=None):
@@ -202,6 +228,24 @@ def prim(B, p, colour_override=None):
     k = p["kind"]
     if k == "box":
         box(B, p["at"], p["size"], c, p.get("rot"))
+    elif k == "rbox":
+        rbox(B, p["at"], p["size"], c, p.get("rot"), p.get("r", 0.8), p.get("seg", 2))
+    elif k == "mesh":
+        # an explicit surface from the scene: vertices, faces (wound in the plan's
+        # frame, so reversed here for Blender's), a colour per vertex
+        base = len(B.verts)
+        for v in p["verts"]:
+            B.vert(b(v))
+        if "vcolours" in p:
+            vc = p["vcolours"]
+            for i in range(len(p["verts"])):
+                B.vcols[base + i] = tuple(linear(vc[3 * i + j] / 255) for j in range(3))
+        fcs = p.get("fcolours")
+        for n, f in enumerate(p["faces"]):
+            col = hex_rgb(fcs[n]) if fcs else c
+            B.faces.append([base + i for i in reversed(f)])
+            B.colours.append(col)
+            B.smooth.append(p.get("smooth", True))
     elif k == "gable":
         gable(B, p["at"], p["size"], c, p.get("rot"))
     elif k == "cyl":
@@ -237,59 +281,64 @@ def prim(B, p, colour_override=None):
             tube(B, [a, z], p["r"], c, 4)
 
 
-# ── Terrain ─────────────────────────────────────────────────────────────────
-T = data["terrain"]
-nx, ny, step = T["nx"], T["ny"], T["step"]
-terrain = Builder("terrain")
-for j in range(ny):
-    for i in range(nx):
-        terrain.vert(b((i * step, j * step, T["heights"][j * nx + i])))
-tcol = [tuple(linear(T["colours"][3 * n + k] / 255) for k in range(3)) for n in range(nx * ny)]
-for j in range(ny - 1):
-    for i in range(nx - 1):
-        a, b2, c, d = j * nx + i, j * nx + i + 1, (j + 1) * nx + i + 1, (j + 1) * nx + i
-        terrain.faces.append([a, d, c, b2])  # +z normal in Blender's frame (y flipped)
-        terrain.colours.append(None)
-        terrain.smooth.append(True)
-terrain_obj = terrain.build(mat("ground"))
-# vertex colours rather than face colours, so the fields blend softly
-col = terrain_obj.data.color_attributes["col"]
-loops = terrain_obj.data.loops
-values = []
-for loop in loops:
-    c = tcol[loop.vertex_index]
-    values.extend((c[0], c[1], c[2], 1.0))
-col.data.foreach_set("color", values)
+def grid_ground():
+    """The square tile's ground, cut faces and sea, from the grid form of the scene."""
+    T = data["terrain"]
+    # ── Terrain: the grid form, for a tile-shaped island ───────────────────────
+    nx, ny, step = T["nx"], T["ny"], T["step"]
+    terrain = Builder("terrain")
+    for j in range(ny):
+        for i in range(nx):
+            terrain.vert(b((i * step, j * step, T["heights"][j * nx + i])))
+    tcol = [tuple(linear(T["colours"][3 * n + k] / 255) for k in range(3)) for n in range(nx * ny)]
+    for j in range(ny - 1):
+        for i in range(nx - 1):
+            a, b2, c, d = j * nx + i, j * nx + i + 1, (j + 1) * nx + i + 1, (j + 1) * nx + i
+            terrain.faces.append([a, d, c, b2])  # +z normal in Blender's frame (y flipped)
+            terrain.colours.append(None)
+            terrain.smooth.append(True)
+    terrain_obj = terrain.build(mat("ground"))
+    # vertex colours rather than face colours, so the fields blend softly
+    col = terrain_obj.data.color_attributes["col"]
+    loops = terrain_obj.data.loops
+    values = []
+    for loop in loops:
+        c = tcol[loop.vertex_index]
+        values.extend((c[0], c[1], c[2], 1.0))
+    col.data.foreach_set("color", values)
 
-# ── The cut faces ───────────────────────────────────────────────────────────
-S = data["sides"]
-sides = Builder("sides")
-layer_cols = [hex_rgb(c) for c in S["colours"]]
-mid = Vector((TILE["w"] / 2, -TILE["d"] / 2, 0))
-for edge in S["edges"]:
-    for i in range(len(edge) - 1):
-        p, q = edge[i], edge[i + 1]
-        for l in range(len(layer_cols)):
-            if p["z"][l] - p["z"][l + 1] < 0.02 and q["z"][l] - q["z"][l + 1] < 0.02:
-                continue
-            pts = [b((p["x"], p["y"], p["z"][l])), b((q["x"], q["y"], q["z"][l])), b((q["x"], q["y"], q["z"][l + 1])), b((p["x"], p["y"], p["z"][l + 1]))]
-            colour = layer_cols[l]
-            centre = sum(pts, Vector()) / 4
-            sides.face([sides.vert(v) for v in pts], colour, ("dir", Vector((centre.x - mid.x, centre.y - mid.y, 0))))
-bottom = [b((0, 0, -data["depth"])), b((TILE["w"], 0, -data["depth"])), b((TILE["w"], TILE["d"], -data["depth"])), b((0, TILE["d"], -data["depth"]))]
-sides.face([sides.vert(v) for v in bottom], layer_cols[-1], ("dir", Vector((0, 0, -1))))
-sides.build(mat("rock"))
+    # ── The cut faces ───────────────────────────────────────────────────────────
+    S = data["sides"]
+    sides = Builder("sides")
+    layer_cols = [hex_rgb(c) for c in S["colours"]]
+    mid = Vector((TILE["w"] / 2, -TILE["d"] / 2, 0))
+    for edge in S["edges"]:
+        for i in range(len(edge) - 1):
+            p, q = edge[i], edge[i + 1]
+            for l in range(len(layer_cols)):
+                if p["z"][l] - p["z"][l + 1] < 0.02 and q["z"][l] - q["z"][l + 1] < 0.02:
+                    continue
+                pts = [b((p["x"], p["y"], p["z"][l])), b((q["x"], q["y"], q["z"][l])), b((q["x"], q["y"], q["z"][l + 1])), b((p["x"], p["y"], p["z"][l + 1]))]
+                colour = layer_cols[l]
+                centre = sum(pts, Vector()) / 4
+                sides.face([sides.vert(v) for v in pts], colour, ("dir", Vector((centre.x - mid.x, centre.y - mid.y, 0))))
+    bottom = [b((0, 0, -data["depth"])), b((TILE["w"], 0, -data["depth"])), b((TILE["w"], TILE["d"], -data["depth"])), b((0, TILE["d"], -data["depth"]))]
+    sides.face([sides.vert(v) for v in bottom], layer_cols[-1], ("dir", Vector((0, 0, -1))))
+    sides_obj = sides.build(mat("rock"))
 
-# ── The sea's surface, over the whole tile; the land rises through it ──────
-sea = Builder("sea")
-corners = [b((0, 0, SEA)), b((TILE["w"], 0, SEA)), b((TILE["w"], TILE["d"], SEA)), b((0, TILE["d"], SEA))]
-sea.face([sea.vert(v) for v in corners], hex_rgb("#2fb3d1"), ("dir", Vector((0, 0, 1))))
-sea.build(mat("water"))
+    # ── The sea's surface, over the whole tile; the land rises through it ──────
+    sea = Builder("sea")
+    corners = [b((0, 0, SEA)), b((TILE["w"], 0, SEA)), b((TILE["w"], TILE["d"], SEA)), b((0, TILE["d"], SEA))]
+    sea.face([sea.vert(v) for v in corners], hex_rgb("#2fb3d1"), ("dir", Vector((0, 0, 1))))
+    sea.build(mat("water"))
 
-def material_for(group):
-    """A group's material: lights get their own; plain and painted parts share one."""
-    return "solid" if group == "static" or group.startswith("paint") else group.replace(":", "_")
 
+
+
+    return [terrain_obj, sides_obj]
+
+
+base_objs = grid_ground() if "terrain" in data else []
 
 # ── Static primitives, one mesh per material group ─────────────────────────
 groups = {}
@@ -361,7 +410,7 @@ def bake(objs):
     bpy.ops.object.bake(type="AO")
 
 
-world_objs = [terrain_obj, bpy.data.objects["sides"], *static_objs]
+world_objs = [*base_objs, *static_objs]
 bake(world_objs)
 
 # the prototypes alone, each on a patch of ground far from the island
@@ -402,7 +451,7 @@ def combine(o, strength=0.85):
 
 for o in list(bpy.context.scene.objects):
     if o.type == "MESH" and "col" in o.data.color_attributes:
-        combine(o, 0.0 if o.name == "sea" else 0.85)
+        combine(o, 0.0 if o.name in ("sea", "water") else 0.85)
 
 # prototypes hang under empties so the page finds each by name
 for name, objs in proto_objs.items():
