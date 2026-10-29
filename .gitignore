@@ -2,6 +2,7 @@ venv/
 bin/
 include/
 lib/
+!figures/lib/
 share/
 media/
 static/
