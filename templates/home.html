@@ -25,11 +25,18 @@
 <body class="home">
 
     <header class="masthead">
-        <h1 class="masthead-name">
-            <a href="#about" class="iridescent" aria-label="Richard Findlay: about me">RICHARD FINDLAY</a>
-        </h1>
-        <p class="masthead-tagline">Energy | Climate Change | Artificial Intelligence</p>
-        <button class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false">
+        <!-- A floating pill of liquid glass with a thin-film sheen: the name, which
+             leads to AB0UT ME, and the theme toggle. -->
+        <nav class="glass-nav" aria-label="Site">
+            <span class="glass-layer glass-distort" aria-hidden="true"></span>
+            <span class="glass-layer glass-tint" aria-hidden="true"></span>
+            <span class="glass-layer glass-film" aria-hidden="true"></span>
+            <span class="glass-layer glass-edge" aria-hidden="true"></span>
+            <h1 class="masthead-name">
+                <a href="#about" aria-label="Richard Findlay: about me">RICHARD FINDLAY</a>
+            </h1>
+            <span class="glass-divider" aria-hidden="true"></span>
+            <button class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false">
             <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="4.2"/>
                 <path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/>
@@ -37,8 +44,28 @@
             <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M19.5 14.6A8 8 0 0 1 9.4 4.5a8 8 0 1 0 10.1 10.1Z"/>
             </svg>
-        </button>
+            </button>
+        </nav>
+        <p class="masthead-tagline">Energy | Climate Change | Artificial Intelligence</p>
     </header>
+
+    <!-- The glass's distortion: a soft noise field that bends what shows through it. -->
+    <svg class="glass-filter" aria-hidden="true" focusable="false">
+        <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
+            <feTurbulence type="fractalNoise" baseFrequency="0.001 0.005" numOctaves="1" seed="17" result="turbulence"/>
+            <feComponentTransfer in="turbulence" result="mapped">
+                <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5"/>
+                <feFuncG type="gamma" amplitude="0" exponent="1" offset="0"/>
+                <feFuncB type="gamma" amplitude="0" exponent="1" offset="0.5"/>
+            </feComponentTransfer>
+            <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap"/>
+            <feSpecularLighting in="softMap" surfaceScale="5" specularConstant="1" specularExponent="100" lighting-color="white" result="specLight">
+                <fePointLight x="-200" y="-200" z="300"/>
+            </feSpecularLighting>
+            <feComposite in="specLight" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litImage"/>
+            <feDisplacementMap in="SourceGraphic" in2="softMap" scale="200" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+    </svg>
 
     <main>
         <!-- The island arrives at M1; until then the hero holds its place. -->

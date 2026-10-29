@@ -29,7 +29,11 @@
     --glass-line: rgba(17, 20, 24, 0.08);
     --glass-highlight: rgba(255, 255, 255, 0.85);
     --glass-shadow: 0 10px 40px rgba(17, 20, 24, 0.08);
-    /* thin-film colours for the name, deep enough to read on white */
+    --name: #000000;
+    --glass-tint: rgba(255, 255, 255, 0.25);
+    --glass-edge: rgba(255, 255, 255, 0.5);
+    --film-opacity: 0.22;
+    /* thin-film colours for the glass's sheen */
     --film-1: #1d5a89;
     --film-2: #2c7f86;
     --film-3: #a8801f;
@@ -46,6 +50,10 @@
     --glass-line: rgba(238, 242, 245, 0.12);
     --glass-highlight: rgba(255, 255, 255, 0.10);
     --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    --name: #ffffff;
+    --glass-tint: rgba(0, 0, 0, 0.25);
+    --glass-edge: rgba(255, 255, 255, 0.18);
+    --film-opacity: 0.3;
     --film-1: #a9c8e1;
     --film-2: #86cbc4;
     --film-3: #ecbf4f;
@@ -64,6 +72,10 @@
         --glass-line: rgba(238, 242, 245, 0.12);
         --glass-highlight: rgba(255, 255, 255, 0.10);
         --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        --name: #ffffff;
+        --glass-tint: rgba(0, 0, 0, 0.25);
+        --glass-edge: rgba(255, 255, 255, 0.18);
+        --film-opacity: 0.3;
         --film-1: #a9c8e1;
         --film-2: #86cbc4;
         --film-3: #ecbf4f;
@@ -102,50 +114,79 @@ a { color: inherit; }
     backdrop-filter: blur(16px) saturate(1.3);
 }
 
-/* ── Fixed masthead ──────────────────────────────────────────────────────── */
+/* ── Fixed masthead: a floating pill of liquid glass ─────────────────────── */
 .masthead {
     position: fixed;
     inset: 0 0 auto 0;
     z-index: 20;
     display: grid;
     justify-items: center;
-    padding: 22px var(--gutter) 28px;
+    gap: 8px;
+    padding: 18px var(--gutter) 0;
     pointer-events: none;
-    /* a soft veil of the page colour keeps the name legible over the island */
-    background: linear-gradient(to bottom, var(--page) 0%, color-mix(in srgb, var(--page) 70%, transparent) 55%, transparent 100%);
 }
 .masthead > * { pointer-events: auto; }
 
-.masthead-name {
-    margin: 0;
-    font-size: clamp(22px, 3vw, 40px);
-    font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: 0.2em;
-    /* the letter spacing trails the last letter; pull it back so the name centres */
-    margin-right: -0.2em;
+/* The glass: a distorted blur of whatever is behind, a tint of the page, a
+   slow thin-film sheen, and a bright inner edge. */
+.glass-nav {
+    --glass-spring: cubic-bezier(0.175, 0.885, 0.32, 2.2);
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 9px 10px 9px 24px;
+    border-radius: 999px;
+    overflow: hidden;
+    isolation: isolate;
+    box-shadow: 0 6px 6px rgba(0, 0, 0, 0.2), 0 0 20px rgba(0, 0, 0, 0.1);
+    transition: padding 0.7s var(--glass-spring), box-shadow 0.7s var(--ease-out);
 }
-.masthead-name a { text-decoration: none; }
-
-/* Oil on water: a slow drift of thin-film colours through the letters. */
-.iridescent {
+.glass-nav:hover { padding: 11px 12px 11px 26px; }
+.glass-layer { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
+.glass-distort {
+    z-index: 0;
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    filter: url(#glass-distortion);
+    isolation: isolate;
+}
+.glass-tint { z-index: 1; background: var(--glass-tint); }
+.glass-film {
+    z-index: 2;
     background-image: linear-gradient(105deg,
         var(--film-1) 0%, var(--film-2) 18%, var(--film-3) 34%, var(--film-4) 50%,
         var(--film-5) 66%, var(--film-2) 82%, var(--film-1) 100%);
     background-size: 300% 100%;
-    background-position: 0% 50%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    opacity: var(--film-opacity);
     animation: film 16s ease-in-out infinite alternate;
 }
+.glass-edge {
+    z-index: 3;
+    box-shadow: inset 2px 2px 1px 0 var(--glass-edge), inset -1px -1px 1px 1px var(--glass-edge);
+}
+.glass-nav > :not(.glass-layer) { position: relative; z-index: 4; }
+
+/* the film drifts like oil on water, over 16 s and back */
 @keyframes film {
     0%   { background-position: 0% 50%; }
     100% { background-position: 100% 50%; }
 }
 
+.masthead-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: 0.24em;
+    color: var(--name);
+}
+.masthead-name a { color: inherit; text-decoration: none; }
+
+.glass-divider { width: 1px; height: 18px; background: var(--glass-line); }
+
 .masthead-tagline {
-    margin: 6px 0 0;
+    margin: 0;
     font-size: 11px;
     letter-spacing: 0.12em;
     color: var(--muted);
@@ -153,30 +194,27 @@ a { color: inherit; }
 }
 
 .theme-toggle {
-    position: absolute;
-    top: 20px;
-    right: var(--gutter);
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     display: grid;
     place-items: center;
     padding: 0;
-    color: var(--ink);
+    color: var(--name);
     cursor: pointer;
-    background: var(--glass);
-    border: 1px solid var(--glass-line);
+    background: none;
+    border: 0;
     border-radius: 50%;
-    box-shadow: inset 0 1px 0 var(--glass-highlight);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
-    transition: transform 0.5s var(--ease-out), background-color 0.6s var(--ease-out);
+    transition: transform 0.5s var(--ease-out);
 }
 .theme-toggle:hover { transform: rotate(-12deg); }
-.theme-icon { grid-area: 1 / 1; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; transition: opacity 0.5s var(--ease-out), transform 0.6s var(--ease-out); }
+.theme-icon { grid-area: 1 / 1; width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; transition: opacity 0.5s var(--ease-out), transform 0.6s var(--ease-out); }
 .theme-icon-moon { fill: currentColor; stroke: none; }
 /* show what the button switches to: the moon in light mode, the sun in dark */
 :root[data-theme="light"] .theme-icon-sun,
 :root[data-theme="dark"] .theme-icon-moon { opacity: 0; transform: rotate(-60deg) scale(0.6); }
+
+/* the filter's own SVG takes no room */
+.glass-filter { position: absolute; width: 0; height: 0; overflow: hidden; }
 
 /* ── Hero ────────────────────────────────────────────────────────────────── */
 .hero {
@@ -253,16 +291,17 @@ a { color: inherit; }
 .socials a:hover { color: var(--ink); }
 .socials svg { width: 18px; height: 18px; fill: currentColor; }
 
-/* ── Small screens: the masthead is just the name and the toggle ────────── */
+/* ── Small screens: the pill is just the name and the toggle ────────────── */
 @media (max-width: 600px) {
-    .masthead { justify-items: start; padding-top: 18px; }
-    .masthead-name { font-size: 18px; letter-spacing: 0.16em; margin-right: 0; padding-right: 56px; }
+    .masthead { padding-top: 12px; }
+    .glass-nav { gap: 10px; padding: 7px 8px 7px 18px; }
+    .glass-nav:hover { padding: 7px 8px 7px 18px; }
+    .masthead-name { font-size: 12px; letter-spacing: 0.2em; }
     .masthead-tagline { display: none; }
-    .theme-toggle { top: 12px; }
 }
 
 /* ── Reduced motion: nothing drifts ──────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-    .iridescent, .scroll-cue::after { animation: none; }
-    body.home, .theme-toggle, .theme-icon { transition: none; }
+    .glass-film, .scroll-cue::after { animation: none; }
+    body.home, .theme-toggle, .theme-icon, .glass-nav { transition: none; }
 }
