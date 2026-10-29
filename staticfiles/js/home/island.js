@@ -114,6 +114,7 @@ export async function mountIsland(stage, { still = false } = {}) {
         if (!o.isMesh) return;
         const name = o.material?.name || '';
         if (name === 'lights_heat') { o.visible = false; return; }
+        if (name === 'leaves') { o.material = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }); o.castShadow = true; o.receiveShadow = false; return; }
         o.material = MATERIALS[name] || solid;
         o.castShadow = name !== 'water' && name !== 'foam' && !name.startsWith('lights_');
         o.receiveShadow = name !== 'water';
@@ -139,6 +140,7 @@ export async function mountIsland(stage, { still = false } = {}) {
                 mesh.setMatrixAt(i, m4);
             });
             mesh.castShadow = !o.material.name?.startsWith?.('lights') && o.material !== MATERIALS.lights_window;
+            if (o.material.colorWrite === false) mesh.receiveShadow = false;
             mesh.receiveShadow = true;
             scene.add(mesh);
         });
@@ -315,6 +317,148 @@ export async function mountIsland(stage, { still = false } = {}) {
         }
     }
 
+    // ── Grass: swaying blades over every green patch, after Bruno Simon's ──
+    // A grid from the build (heights, where grass grows, the ground's colour);
+    // each blade is one triangle, coloured from the ground beneath it, darker at
+    // the root, bending in the wind.
+    const wind = { uTime: { value: 0 }, uWind: { value: new THREE.Vector2(0.8, 0.6) } };
+    const toLinear = (c) => Math.pow(c / 255, 2.2);
+    if (meta.grass) {
+        const G = meta.grass, n = G.nx * G.ny;
+        const buf = await fetch(stage.dataset.glb.replace('island.glb', 'island-grass.bin')).then((r) => r.arrayBuffer());
+        const heights = new Int16Array(buf, 0, n), mask = new Uint8Array(buf, 2 * n, n), colour = new Uint8Array(buf, 3 * n, 3 * n);
+        const hAt = (fx, fy) => {
+            const i = Math.min(G.nx - 2, Math.max(0, Math.floor(fx))), j = Math.min(G.ny - 2, Math.max(0, Math.floor(fy))), u = fx - i, v = fy - j;
+            const h = (a, b) => heights[b * G.nx + a] / 10;
+            return (h(i, j) * (1 - u) + h(i + 1, j) * u) * (1 - v) + (h(i, j + 1) * (1 - u) + h(i + 1, j + 1) * u) * v;
+        };
+        const perCell = Math.min(innerWidth, innerHeight) < 700 ? 3 : 6;
+        const pos = [], params = [], tint = [];
+        let seed = 7;
+        const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+        for (let j = 0; j < G.ny - 1; j++) for (let i = 0; i < G.nx - 1; i++) {
+            const c = j * G.nx + i;
+            if (!mask[c]) continue;
+            for (let k = 0; k < perCell; k++) {
+                const fx = i + rnd(), fy = j + rnd();
+                if (!mask[Math.round(fy) * G.nx + Math.round(fx)]) continue;
+                const x = G.x0 + fx * G.step, y = G.y0 + fy * G.step;
+                pos.push(x, hAt(fx, fy) - 0.2, y);
+                params.push(2.4 + rnd() * 2.2, 0.9 + rnd() * 0.5, rnd() * Math.PI * 2, rnd());
+                tint.push(toLinear(colour[c * 3]), toLinear(colour[c * 3 + 1]), toLinear(colour[c * 3 + 2]));
+            }
+        }
+        const blade = new THREE.InstancedBufferGeometry();
+        blade.setAttribute('position', new THREE.Float32BufferAttribute([-0.5, 0, 0, 0.5, 0, 0, 0, 1, 0], 3));
+        blade.setAttribute('iPos', new THREE.InstancedBufferAttribute(new Float32Array(pos), 3));
+        blade.setAttribute('iParams', new THREE.InstancedBufferAttribute(new Float32Array(params), 4));
+        blade.setAttribute('iTint', new THREE.InstancedBufferAttribute(new Float32Array(tint), 3));
+        blade.instanceCount = pos.length / 3;
+        const grass = new THREE.Mesh(blade, new THREE.ShaderMaterial({
+            uniforms: wind,
+            side: THREE.DoubleSide,
+            vertexShader: `
+                attribute vec3 iPos; attribute vec4 iParams; attribute vec3 iTint;
+                uniform float uTime; uniform vec2 uWind;
+                varying float vUp; varying vec3 vTint; varying float vShade;
+                void main() {
+                    float h = iParams.x, w = iParams.y, r = iParams.z;
+                    vec3 p = vec3(cos(r) * position.x * w, position.y * h, sin(r) * position.x * w);
+                    float gust = sin(uTime * 1.6 + iPos.x * 0.045 + iPos.z * 0.06) + 0.5 * sin(uTime * 2.9 + iPos.x * 0.11 - iPos.z * 0.07);
+                    float bend = (0.25 + 0.3 * gust) * h * position.y * position.y;
+                    p.x += bend * uWind.x; p.z += bend * uWind.y; p.y -= abs(bend) * 0.2 * position.y;
+                    vUp = position.y; vTint = iTint; vShade = iParams.w;
+                    gl_Position = projectionMatrix * viewMatrix * vec4(iPos + p, 1.0);
+                }`,
+            fragmentShader: `
+                varying float vUp; varying vec3 vTint; varying float vShade;
+                void main() {
+                    vec3 base = vTint * 0.5, tip = vTint * 1.35 + vec3(0.03, 0.05, 0.0);
+                    vec3 c = mix(base, tip, smoothstep(0.0, 1.0, vUp)) * (0.88 + 0.24 * vShade);
+                    gl_FragColor = vec4(c, 1.0);
+                    #include <tonemapping_fragment>
+                    #include <colorspace_fragment>
+                }`,
+        }));
+        grass.frustumCulled = false;
+        scene.add(grass);
+    }
+
+    // ── Trees: soft clusters of leaf cards, lit for volume, swaying ────────
+    // The solid leaf shapes from the model stay as invisible shadow casters.
+    {
+        const c = document.createElement('canvas');
+        c.width = c.height = 128;
+        const g = c.getContext('2d');
+        g.fillStyle = '#fff';
+        let sd = 3;
+        const r2 = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+        for (let n = 0; n < 14; n++) {
+            const a = r2() * Math.PI * 2, d = r2() * 34;
+            g.beginPath();
+            g.ellipse(64 + Math.cos(a) * d, 64 + Math.sin(a) * d, 14 + r2() * 12, 9 + r2() * 8, r2() * Math.PI, 0, Math.PI * 2);
+            g.fill();
+        }
+        const leafTex = new THREE.CanvasTexture(c);
+        const shapes = { tree_round: { centre: [0, 0, 11], r: 6.6, cards: 30, size: 6.6, tall: 1 }, tree_tall: { centre: [0, 0, 9], r: 4.6, cards: 22, size: 5.4, tall: 1.9 } };
+        const sun = new THREE.Vector3(-0.72, 1.0, 0.58).normalize();
+        // shadowed, middle and sunlit leaf greens (#3f8a2a, #5aa837, #8ccc4f), in linear light
+        const LEAF = ['#3f8a2a', '#5aa837', '#8ccc4f'].map((h) => [1, 3, 5].map((i) => toLinear(parseInt(h.slice(i, i + 2), 16))));
+        const centres = [], sizes = [], shades = [], phases = [];
+        let sd2 = 11;
+        const r3 = () => ((sd2 = (sd2 * 16807) % 2147483647) / 2147483647);
+        for (const inst of meta.instances) {
+            const S = shapes[inst.proto];
+            if (!S) continue;
+            const k = inst.scale;
+            for (let n = 0; n < S.cards; n++) {
+                // a point in the crown, its offset from the middle deciding how lit it is
+                let ox, oy, oz;
+                do { ox = r3() * 2 - 1; oy = r3() * 2 - 1; oz = r3() * 2 - 1; } while (ox * ox + oy * oy + oz * oz > 1);
+                const off = new THREE.Vector3(ox * S.r, oz * S.r * S.tall, oy * S.r).multiplyScalar(k * 0.8);
+                const p = V([inst.at[0] + S.centre[0] * k, inst.at[1] + S.centre[1] * k, inst.at[2] + S.centre[2] * k]).add(off);
+                const lit = Math.max(0, Math.min(1, 0.5 + 0.5 * off.clone().normalize().dot(sun) + 0.15 * oz));
+                const col = lit < 0.5 ? LEAF[0].map((v, i) => v + (LEAF[1][i] - v) * lit * 2) : LEAF[1].map((v, i) => v + (LEAF[2][i] - v) * (lit - 0.5) * 2);
+                centres.push(p.x, p.y, p.z); sizes.push(S.size * k * (0.75 + r3() * 0.5)); shades.push(...col); phases.push(r3() * 6.28);
+            }
+        }
+        const card = new THREE.InstancedBufferGeometry();
+        card.setAttribute('position', new THREE.Float32BufferAttribute([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0], 3));
+        card.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
+        card.setIndex([0, 1, 2, 0, 2, 3]);
+        card.setAttribute('iCentre', new THREE.InstancedBufferAttribute(new Float32Array(centres), 3));
+        card.setAttribute('iSize', new THREE.InstancedBufferAttribute(new Float32Array(sizes), 1));
+        card.setAttribute('iShade', new THREE.InstancedBufferAttribute(new Float32Array(shades), 3));
+        card.setAttribute('iPhase', new THREE.InstancedBufferAttribute(new Float32Array(phases), 1));
+        card.instanceCount = sizes.length;
+        const foliage = new THREE.Mesh(card, new THREE.ShaderMaterial({
+            uniforms: { ...wind, uLeaf: { value: leafTex } },
+            vertexShader: `
+                attribute vec3 iCentre; attribute float iSize; attribute vec3 iShade; attribute float iPhase;
+                uniform float uTime; uniform vec2 uWind;
+                varying vec2 vUv; varying vec3 vShade;
+                void main() {
+                    vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
+                    vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+                    float sway = sin(uTime * 1.3 + iPhase + iCentre.x * 0.03) * 0.5;
+                    vec3 p = iCentre + (right * position.x + up * position.y) * iSize + vec3(uWind.x, 0.0, uWind.y) * sway;
+                    vUv = uv; vShade = iShade;
+                    gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
+                }`,
+            fragmentShader: `
+                uniform sampler2D uLeaf;
+                varying vec2 vUv; varying vec3 vShade;
+                void main() {
+                    if (texture2D(uLeaf, vUv).a < 0.5) discard;
+                    gl_FragColor = vec4(vShade * (0.92 + 0.16 * vUv.y), 1.0);
+                    #include <tonemapping_fragment>
+                    #include <colorspace_fragment>
+                }`,
+        }));
+        foliage.frustumCulled = false;
+        scene.add(foliage);
+    }
+
     // ── Running ─────────────────────────────────────────────────────────────
     let progress = 0, clock = 0, last = 0, visible = true, raf = 0;
     function draw() {
@@ -325,6 +469,7 @@ export async function mountIsland(stage, { still = false } = {}) {
         const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
         last = now;
         clock += dt;
+        wind.uTime.value = clock;
         placeCars(dt);
         placeSteam(dt);
         placeClouds(clock);

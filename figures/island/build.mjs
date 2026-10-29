@@ -36,11 +36,12 @@ const run = (cmd, argv, what) => {
 };
 
 const S = scene();
+const sceneOut = { ...S, grass: undefined };
 if (flag("quick")) S.bakeSamples = 8;
 const work = join(tmpdir(), `island-${process.pid}`);
 mkdirSync(work, { recursive: true });
 const sceneFile = join(work, "scene.json"), raw = join(work, "island-raw.glb");
-writeFileSync(sceneFile, JSON.stringify(S));
+writeFileSync(sceneFile, JSON.stringify(sceneOut));
 
 const t0 = Date.now();
 const blender = process.env.BLENDER || "blender";
@@ -62,6 +63,10 @@ const meta = {
   instances: S.instances.map((i) => ({ proto: i.proto, at: i.at.map((v) => Math.round(v * 100) / 100), rot: Math.round(i.rot * 1000) / 1000, scale: Math.round(i.scale * 1000) / 1000 })),
   rotors: S.rotors, cars: S.cars, roads: S.roads, roadWidth: S.roadWidth, steam: S.steam, smoke: S.smoke, pixels: S.pixels, spray: S.spray, lines: S.lines, tall: S.tall, bore: S.bore,
 };
+// the grass grid as one small binary: heights (decimetres, int16), mask, colour
+const G = S.grass;
+meta.grass = { x0: G.x0, y0: G.y0, step: G.step, nx: G.nx, ny: G.ny };
+writeFileSync(join(OUT, "island-grass.bin"), Buffer.concat([Buffer.from(G.heights.buffer), Buffer.from(G.mask.buffer), Buffer.from(G.colour.buffer)]));
 writeFileSync(join(OUT, "island.json"), JSON.stringify(meta));
 
 // ── Preview: the island alone, as the hero shows it ─────────────────────────

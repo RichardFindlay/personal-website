@@ -201,7 +201,7 @@ const R = W.seeded(91);
 const pick = (list) => list[Math.floor(R() * list.length)];
 const taken = [];
 const free = (x, y, r) => taken.every((p) => Math.hypot(p.x - x, p.y - y) > p.r + r);
-const claim = (x, y, r) => taken.push({ x, y, r });
+const claim = (x, y, r, tree = false) => taken.push({ x, y, r, tree });
 const tall = [];
 
 // ── Roads, with a bridge wherever one crosses the river ─────────────────────
@@ -239,11 +239,11 @@ for (const line of Object.values(ROADS)) {
 // ── Prototypes, instanced by the page ───────────────────────────────────────
 protos.tree_round = [
   { kind: "cyl", at: [0, 0, 0], r: 0.9, r2: 0.7, h: 6, seg: 8, colour: PALETTE.trunk },
-  { kind: "sphere", at: [0, 0, 11], r: 6.4, sub: 2, colour: PALETTE.leaf[1] },
+  { kind: "sphere", at: [0, 0, 11], r: 6.4, sub: 2, colour: PALETTE.leaf[1], group: "leaves" },
 ];
 protos.tree_tall = [
   { kind: "cyl", at: [0, 0, 0], r: 0.8, r2: 0.6, h: 4, seg: 8, colour: PALETTE.trunk },
-  { kind: "lathe", at: [0, 0, 3], profile: [[0, 5.5], [5, 4.6], [10, 2.8], [14, 0]], seg: 10, colour: PALETTE.leaf[2] },
+  { kind: "lathe", at: [0, 0, 3], profile: [[0, 5.5], [5, 4.6], [10, 2.8], [14, 0]], seg: 10, colour: PALETTE.leaf[2], group: "leaves" },
 ];
 // little houses with pitched roofs, four paints
 PALETTE.walls.forEach((wall, n) => {
@@ -258,7 +258,7 @@ PALETTE.walls.forEach((wall, n) => {
   ];
 });
 function tree(x, y, s = 0.8 + R() * 0.45) {
-  claim(x, y, 6 * s);
+  claim(x, y, 6 * s, true);
   instances.push({ proto: R() < 0.2 ? "tree_tall" : "tree_round", at: [x, y, on(x, y)], rot: R() * 6.28, scale: s });
 }
 function house(x, y, rot) {
@@ -546,6 +546,31 @@ protos.car = [
   { kind: "box", at: [2.82, -0.75, 1.0], size: [0.06, 0.6, 0.35], colour: "#fff6cf", group: "lights:head" },
 ];
 
+// ── Where grass grows: a grid of the ground's height, a mask and its colour ─
+// The page scatters swaying blades over it. No grass on water, sand, rock,
+// paving, roads or under anything built; trees stand in it.
+const GRASS_STEP = 3;
+function grassGrid() {
+  const { x: x0, y: y0, w, d } = W.BOUNDS, nx = Math.ceil(w / GRASS_STEP) + 1, ny = Math.ceil(d / GRASS_STEP) + 1;
+  const heights = new Int16Array(nx * ny), mask = new Uint8Array(nx * ny), colour = new Uint8Array(nx * ny * 3);
+  const built = taken.filter((t) => !t.tree);
+  const nearRoad = (x, y) => Object.values(ROADS).some((line) => line.some(([px, py]) => Math.hypot(px - x, py - y) < W.ROAD_WIDTH / 2 + 2));
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const x = x0 + i * GRASS_STEP, y = y0 + j * GRASS_STEP, n = j * nx + i;
+    const f = W.reach(x, y);
+    if (f > 0.985) continue;
+    const z = groundZ(x, y, f);
+    heights[n] = Math.round(z * 10);
+    const slope = Math.hypot(groundZ(x + 2, y) - groundZ(x - 2, y), groundZ(x, y + 2) - groundZ(x, y - 2)) / 4;
+    const c = groundColour(x, y, z, slope);
+    colour.set(c.map((v) => Math.round(v * 255)), n * 3);
+    const grassy = W.seaShare(x, y) === 0 && reservoir(x, y) > 1.1 && river(x, y).d > 3 && slope < 0.6 && !onPlinth(x, y, 2) && !nearRoad(x, y) &&
+      built.every((t) => Math.hypot(t.x - x, t.y - y) > t.r * 0.85);
+    mask[n] = grassy ? 255 : 0;
+  }
+  return { x0, y0, step: GRASS_STEP, nx, ny, heights, mask, colour };
+}
+
 export function scene() {
   const r1 = (p) => p.map((v) => Math.round(v * 100) / 100);
   return {
@@ -554,5 +579,6 @@ export function scene() {
     roads: Object.fromEntries(Object.entries(ROADS).map(([n, l]) => [n, l.map(([x, y]) => r1([x, y, roadZ(x, y) + 0.4]))])),
     roadWidth: Object.fromEntries(Object.keys(ROADS).map((n) => [n, W.ROAD_WIDTH])),
     tall, bore,
+    grass: grassGrid(),
   };
 }
