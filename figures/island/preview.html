@@ -1,0 +1,13 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Island</title>
+<style>html,body{margin:0;height:100%;background:#fff}body.dark{background:#000}.island-scene{position:fixed;inset:0}.island-scene svg{display:block;width:100%;height:100%}</style>
+</head><body><div class="island-scene"></div>
+<script type="module">
+const q = new URLSearchParams(location.search);
+if (q.has("dark")) document.body.classList.add("dark");
+const scene = document.querySelector(".island-scene");
+scene.insertAdjacentHTML("beforeend", await (await fetch("../../staticfiles/image/island/island.svg")).text());
+const { mount } = await import("../../staticfiles/image/island/island.js");
+mount(scene);
+window.ready = true;
+</script></body></html>
