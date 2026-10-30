@@ -78,8 +78,8 @@ function river(x, y) {
   }
   return { ...best, level: W.riverLevel(best.t) };
 }
-const reservoir = (x, y) => ((x - W.RESERVOIR.x) / W.RESERVOIR.rx) ** 2 + ((y - W.RESERVOIR.y) / W.RESERVOIR.ry) ** 2;
-const pondGap = (x, y) => Math.min(...W.PONDS.map((p) => Math.hypot(x - p.x, y - p.y) - p.r));
+const reservoir = (x, y) => { const R0 = W.RESERVOIR, a = Math.atan2((y - R0.y) / R0.ry, (x - R0.x) / R0.rx); return (((x - R0.x) / R0.rx) ** 2 + ((y - R0.y) / R0.ry) ** 2) / W.lobed(a, R0.k) ** 2; };
+const pondGap = (x, y) => Math.min(...W.PONDS.map((p) => Math.hypot(x - p.x, y - p.y) - p.r * W.lobed(Math.atan2(y - p.y, x - p.x), p.k)));
 const inRect = (cx, cy, w, d, x, y, gap = 0) => Math.abs(x - cx) < w / 2 + gap && Math.abs(y - cy) < d / 2 + gap;
 const floorOf = (C) => [C.cols * C.pitch + 14, C.rows * C.pitch + 14];
 const onFloor = (x, y, gap = 0) => [W.CITY_A, W.CITY_B].some((C) => inRect(C.x, C.y, ...floorOf(C), x, y, gap));
@@ -89,8 +89,16 @@ const pathGap = (x, y) => Math.min(...Object.values(PATHS).map((line) => gapTo(l
 function groundZ(x, y, f = W.reach(x, y)) {
   const H = W.HIGHLAND, q = Math.hypot(x - H.x, y - H.y) / H.r;
   const highland = q < 1 ? H.h * (1 - q * q) ** 2 : 0;
+  // mountains: steep cones softened at the top, their sides broken by noise
+  let mountain = 0;
+  for (const m of W.MOUNTAINS) {
+    const d = Math.hypot(x - m.x, y - m.y) / m.r;
+    if (d >= 1) continue;
+    const ridge = 1 + 0.35 * fbm(x / 22, y / 22, 12) * (1 - d);
+    mountain += m.h * Math.pow(1 - d, 1.45) * ridge;
+  }
   const flat = onFloor(x, y, 10) ? 0 : 1;
-  let z = TOP + highland * flat + flat * 1.1 * fbm(x / 46, y / 46, 1);
+  let z = TOP + (highland + mountain) * flat + flat * 1.1 * fbm(x / 46, y / 46, 1);
   const e = reservoir(x, y);
   if (e < 1.5) z = lerp(z, W.RESERVOIR.level - 7 * Math.max(0, 1 - e), smooth(1.5, 1.0, e));
   const pg = pondGap(x, y);
@@ -106,7 +114,8 @@ function groundColour(x, y, z, slope) {
   const r = river(x, y);
   if (r.d < 0.5) return hex(PALETTE.dirt);
   if (r.d < 3.5 || W.seaShare(x, y) > 0.02 || pondGap(x, y) < 3) return hex(PALETTE.sand);
-  if (slope > 0.75) return mix(hex(PALETTE.stone), hex(PALETTE.mauve), 0.4 + 0.4 * fbm(x / 9, y / 9, 6));
+  const rockiness = Math.max(smooth(0.55, 0.9, slope), smooth(TOP + W.ROCK_LINE - 8, TOP + W.ROCK_LINE + 6, z + 5 * fbm(x / 18, y / 18, 13)));
+  if (rockiness > 0.5) return mix(mix(hex(PALETTE.stone), hex(PALETTE.mauve), 0.35 + 0.4 * fbm(x / 9, y / 9, 6)), hex("#e8e3dc"), smooth(TOP + 60, TOP + 85, z));
   if (onFloor(x, y, 2) || pathGap(x, y) < W.PATH_WIDTH / 2 + 1.5) return hex(PALETTE.sand);
   const g = mix(hex(PALETTE.grass), hex(PALETTE.grassLight), 0.5 + 0.5 * fbm(x / 30, y / 30, 3));
   return mix(g, hex(PALETTE.grassDark), smooth(TOP + 10, TOP + 30, z) * 0.6);
@@ -158,14 +167,14 @@ function waters() {
     faces.push([n, n + 3, n + 2, n + 1]);
     s += l;
   }
-  const disc = (cx, cy, rx, ry, level) => {
+  const disc = (cx, cy, rx, ry, level, k) => {
     const c = verts.length;
     verts.push([cx, cy, level]);
-    for (let i = 0; i <= 48; i++) { const a = (i / 48) * Math.PI * 2; verts.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, level]); }
-    for (let i = 0; i < 48; i++) faces.push([c, c + 1 + i, c + 2 + i]);
+    for (let i = 0; i <= 64; i++) { const a = (i / 64) * Math.PI * 2, l = W.lobed(a, k); verts.push([cx + Math.cos(a) * rx * l, cy + Math.sin(a) * ry * l, level]); }
+    for (let i = 0; i < 64; i++) faces.push([c, c + 1 + i, c + 2 + i]);
   };
-  disc(W.RESERVOIR.x, W.RESERVOIR.y, W.RESERVOIR.rx * 1.08, W.RESERVOIR.ry * 1.08, W.RESERVOIR.level);
-  for (const p of W.PONDS) disc(p.x, p.y, p.r + 1.5, p.r + 1.5, TOP - 0.9);
+  disc(W.RESERVOIR.x, W.RESERVOIR.y, W.RESERVOIR.rx * 1.06, W.RESERVOIR.ry * 1.06, W.RESERVOIR.level, W.RESERVOIR.k);
+  for (const p of W.PONDS) disc(p.x, p.y, p.r * 1.06, p.r * 1.06, TOP - 0.9, p.k);
   return { kind: "mesh", group: "water", verts, faces, colour: PALETTE.water, smooth: false };
 }
 // foam: pale rings a little way out from every shore
@@ -192,9 +201,14 @@ function foam() {
     const [x, y, z, nx, ny] = shore[i], [x2, y2, z2, nx2, ny2] = shore[i + 1];
     quads.push([[x + nx * off, y + ny * off, z], [x2 + nx2 * off, y2 + ny2 * off, z2], [x2 + nx2 * (off + w), y2 + ny2 * (off + w), z2], [x + nx * (off + w), y + ny * (off + w), z]]);
   }
-  const circle = (cx, cy, rx, ry, level, n = 56) => Array.from({ length: n }, (_, i) => { const a = (i / n) * Math.PI * 2, nx = -Math.cos(a) * ry, ny = -Math.sin(a) * rx, l = Math.hypot(nx, ny); return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, level + 0.06, nx / l, ny / l]; });
-  ring(circle(W.RESERVOIR.x, W.RESERVOIR.y, W.RESERVOIR.rx * 1.02, W.RESERVOIR.ry * 1.02, W.RESERVOIR.level), [[1.6, 0.7], [4.6, 0.5]]);
-  for (const p of W.PONDS) ring(circle(p.x, p.y, p.r, p.r, TOP - 0.9, 36), [[1.4, 0.6], [3.6, 0.45]]);
+  const circle = (cx, cy, rx, ry, level, k, n = 72) => Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2, l = W.lobed(a, k), a2 = a + 0.01, l2 = W.lobed(a2, k);
+    const x = cx + Math.cos(a) * rx * l, y = cy + Math.sin(a) * ry * l, x2 = cx + Math.cos(a2) * rx * l2, y2 = cy + Math.sin(a2) * ry * l2;
+    const dx = x2 - x, dy = y2 - y, m = Math.hypot(dx, dy) || 1;
+    return [x, y, level + 0.06, dy / m, -dx / m];   // the normal points inward, into the water
+  });
+  ring(circle(W.RESERVOIR.x, W.RESERVOIR.y, W.RESERVOIR.rx, W.RESERVOIR.ry, W.RESERVOIR.level, W.RESERVOIR.k), [[1.6, 0.7], [4.6, 0.5]]);
+  for (const p of W.PONDS) ring(circle(p.x, p.y, p.r, p.r, TOP - 0.9, p.k, 48), [[1.4, 0.6], [3.6, 0.45]]);
   return { kind: "quads", group: "foam", colour: "#ffffff", quads };
 }
 
@@ -203,14 +217,16 @@ const LAYERS = ["water", "grass", "topsoil", "subsoil", "sediment", "sandstone",
 function column(t) {
   const [x, y] = W.edgeAt(t), sea = W.seaShare(x * 0.999, y * 0.999), top = groundZ(x, y, 1);
   const wet = sea > 0.5, land = wet ? 0 : 1;
-  const th = [wet ? WATER - top : 0, 2.6 * land, 4 * land, 7 * land, wet ? 4 : 0];
+  const s = t * 300, n = (len, ph) => fbm(s / len, ph, 17);
+  const th = [wet ? WATER - top : 0, (2.6 + 1.2 * n(40, 1)) * land, (4 + 2.5 * n(60, 2)) * land, (7 + 4 * n(90, 3)) * land, wet ? 4 + 2 * n(50, 4) : 0];
   const z = [wet ? WATER : top];
-  for (const h of th) z.push(z[z.length - 1] - h);
-  const s = t * 300;
-  const wave = (base, amp, len, ph) => base + amp * Math.sin(s / len + ph) + amp * 0.45 * Math.sin(s / (len * 0.4) + ph * 2.1);
-  z.push(Math.min(z[z.length - 1] - 3, wave(-20, 3, 60, 0.4)));
-  z.push(wave(-36, 4, 80, 1.9));
-  z.push(wave(-50, 3, 50, 3.1));
+  for (const h of th) z.push(z[z.length - 1] - Math.max(0.3, h));
+  // the rock's beds heave and dip, and lift where a mountain stands above
+  const lift = Math.max(0, top - TOP - 6) * 0.35;
+  const wave = (base, amp, len, ph) => base + lift + amp * Math.sin(s / len + ph) + amp * 0.6 * Math.sin(s / (len * 0.37) + ph * 2.1) + amp * 0.8 * fbm(s / 45, ph, 19);
+  z.push(Math.min(z[z.length - 1] - 3, wave(-20, 4, 60, 0.4)));
+  z.push(Math.min(z[z.length - 1] - 2, wave(-36, 5, 80, 1.9)));
+  z.push(Math.min(z[z.length - 1] - 2, wave(-50, 4, 50, 3.1)));
   z.push(-DEPTH);
   return { x, y, z };
 }
@@ -224,7 +240,8 @@ function walls() {
       const n = verts.length;
       verts.push([a.x, a.y, a.z[l]], [a.x, a.y, a.z[l + 1]], [b.x, b.y, b.z[l + 1]], [b.x, b.y, b.z[l]]);
       faces.push([n, n + 1, n + 2, n + 3]);
-      fcolours.push(PALETTE.layers[name]);
+      const v = 0.08 * fbm(i / 6, l * 3, 23);
+      fcolours.push(toHex(hex(PALETTE.layers[name]).map((c) => c * (1 + v))));
     });
   }
   const c = verts.length;
@@ -604,7 +621,8 @@ for (const pts of Object.values(W.LINES)) {
 }
 
 // ── Trees, bushes and flowers: woods on the highland, the rest scattered ────
-const open = (x, y, gap) => W.seaShare(x, y) === 0 && reservoir(x, y) > 1.25 && river(x, y).d > 5 && pondGap(x, y) > 4 && !onFloor(x, y, 3) && pathGap(x, y) > W.PATH_WIDTH / 2 + gap && W.reach(x, y) < 0.95;
+const rocky = (x, y) => on(x, y) > TOP + W.ROCK_LINE - 4 || Math.hypot(on(x + 2, y) - on(x - 2, y), on(x, y + 2) - on(x, y - 2)) / 4 > 0.55;
+const open = (x, y, gap) => !rocky(x, y) && W.seaShare(x, y) === 0 && reservoir(x, y) > 1.25 && river(x, y).d > 5 && pondGap(x, y) > 4 && !onFloor(x, y, 3) && pathGap(x, y) > W.PATH_WIDTH / 2 + gap && W.reach(x, y) < 0.95;
 for (let n = 0, tries = 0; n < 70 && tries < 4000; tries++) {
   const a = R() * Math.PI * 2, d = Math.sqrt(R()) * 150, x = W.HIGHLAND.x + Math.cos(a) * d, y = W.HIGHLAND.y + Math.sin(a) * d;
   if (!open(x, y, 3) || !free(x, y, 4)) continue;
@@ -642,6 +660,23 @@ for (let n = 0, tries = 0; n < 220 && tries < 8000; tries++) {
 // benches by the ponds
 for (const p of W.PONDS) for (const a of [0.8, 2.4]) { const x = p.x + Math.cos(a) * (p.r + 5), y = p.y + Math.sin(a) * (p.r + 5); if (free(x, y, 2)) place("bench", x, y, a + Math.PI / 2, 1); }
 
+// ── Rocks: on the mountains, at the shore, and a few in the fields ─────────
+protos.rock = [{ kind: "sphere", at: [0, 0, 0.3], r: 1, sub: 2, colour: PALETTE.stone, jitter: 0.3 }, { kind: "sphere", at: [0.9, 0.5, 0.1], r: 0.6, sub: 1, colour: PALETTE.mauve, jitter: 0.3 }];
+for (let n = 0, tries = 0; n < 160 && tries < 9000; tries++) {
+  const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.96, [x, y] = W.edgeAt(t, f);
+  const z = on(x, y), slope = Math.hypot(on(x + 2, y) - on(x - 2, y), on(x, y + 2) - on(x, y - 2)) / 4;
+  const rocky = z > TOP + W.ROCK_LINE - 6 || slope > 0.5, shore = W.seaShare(x, y) > 0 && z > WATER - 1.5 && z < WATER + 1.5;
+  if (!(rocky || shore) || !free(x, y, 2) || onFloor(x, y, 2) || pathGap(x, y) < 7) continue;
+  claim(x, y, 2.5, true);
+  place("rock", x, y, R() * 6.28, (shore ? 1.4 : 2.2) + R() * (shore ? 2.4 : 4.5), z - 0.6); n++;
+}
+for (let n = 0, tries = 0; n < 24 && tries < 4000; tries++) {
+  const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.9, [x, y] = W.edgeAt(t, f);
+  if (!open(x, y, 2) || !free(x, y, 3)) continue;
+  claim(x, y, 3, true);
+  place("rock", x, y, R() * 6.28, 1.6 + R() * 2.2, on(x, y) - 0.5); n++;
+}
+
 // ── Cars on the paths: the page drives them ─────────────────────────────────
 const cars = [];
 for (const [name, line] of Object.entries(PATHS)) {
@@ -670,7 +705,7 @@ function grassGrid() {
     heights[n] = Math.round(z * 10);
     const slope = Math.hypot(groundZ(x + 2, y) - groundZ(x - 2, y), groundZ(x, y + 2) - groundZ(x, y - 2)) / 4;
     colour.set(groundColour(x, y, z, slope).map((v) => Math.round(v * 255)), n * 3);
-    const grassy = W.seaShare(x, y) === 0 && reservoir(x, y) > 1.1 && river(x, y).d > 3.5 && pondGap(x, y) > 3 && slope < 0.6 && !onFloor(x, y, 2) &&
+    const grassy = W.seaShare(x, y) === 0 && reservoir(x, y) > 1.1 && river(x, y).d > 3.5 && pondGap(x, y) > 3 && slope < 0.55 && z < TOP + W.ROCK_LINE - 2 && !onFloor(x, y, 2) &&
       pathGap(x, y) > W.PATH_WIDTH / 2 + 1.5 && built.every((t) => Math.hypot(t.x - x, t.y - y) > t.r * 0.85);
     mask[n] = grassy ? 255 : 0;
   }

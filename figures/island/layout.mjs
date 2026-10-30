@@ -39,19 +39,31 @@ export const bearing = (x, y) => Math.atan2(y, x);
 export const reach = (x, y) => Math.hypot(x, y) / radius(bearing(x, y));
 export const BOUNDS = { x: -HALF - 16, y: -HALF - 16, w: 2 * HALF + 32, d: 2 * HALF + 32 };
 
-// ── The bay on the east: water across the outer part of a sector ───────────
-const SEA = { from: -0.36, to: 0.74, start: 0.6 };
+// ── The bay on the east: water across the outer part of a sector, its shore
+// wandering in coves and spits rather than a clean curve ───────────────────
+const SEA = { from: -0.36, to: 0.74 };
+const wobble = (t, k) => 0.5 * Math.sin(3.1 * t + 0.4 + k) + 0.3 * Math.sin(7.3 * t + 1.9 + k) + 0.2 * Math.sin(13.7 * t + 0.2 + k);
+export const shoreStart = (t) => 0.6 + 0.07 * wobble(t, 0) - 0.05 * Math.max(0, Math.cos(5 * t + 0.9)) ** 3;   // a deep cove or two
 export function seaShare(x, y) {
   const t = bearing(x, y), r = reach(x, y);
-  const across = Math.min(t - SEA.from, SEA.to - t);
+  const across = Math.min(t - (SEA.from + 0.03 * wobble(r * 4, 2)), (SEA.to + 0.03 * wobble(r * 4, 5)) - t);
   if (across <= 0) return 0;
-  return Math.max(0, Math.min(1, (r - SEA.start) / 0.07)) * Math.min(1, across / 0.12);
+  return Math.max(0, Math.min(1, (r - shoreStart(t)) / 0.05)) * Math.min(1, across / 0.1);
 }
-export const PONDS = [{ x: -232, y: 44, r: 20 }, { x: 60, y: 236, r: 16 }];
+// ponds and the reservoir: lobed outlines, a radius for each angle round the centre
+export const lobed = (a, k) => 1 + 0.22 * Math.sin(3 * a + k) + 0.12 * Math.sin(5 * a + 2 * k) + 0.06 * Math.sin(9 * a + k);
+export const PONDS = [{ x: -232, y: 44, r: 20, k: 0.7 }, { x: 60, y: 236, r: 16, k: 2.1 }];
 
 // ── Highlands, the reservoir and the dam ────────────────────────────────────
 export const HIGHLAND = { x: -196, y: -176, r: 150, h: 34 };
-export const RESERVOIR = { x: -206, y: -196, rx: 56, ry: 38, level: 42 };
+// rocky mountains: peaks with steep sides, grey rock above the grass line
+export const MOUNTAINS = [
+  { x: -262, y: -262, r: 92, h: 74 }, { x: -186, y: -282, r: 70, h: 56 }, { x: -292, y: -176, r: 62, h: 46 },
+  { x: 262, y: -262, r: 80, h: 56 }, { x: 196, y: -288, r: 56, h: 40 },
+  { x: -270, y: 250, r: 54, h: 30 }, { x: 236, y: -104, r: 34, h: 18 },
+];
+export const ROCK_LINE = 38;   // above this height the ground is bare rock
+export const RESERVOIR = { x: -206, y: -196, rx: 56, ry: 38, level: 42, k: 1.3 };
 export const DAM = { x: -152, y: -142, length: 46, top: 46 };
 
 // ── The river: from the foot of the dam, across the middle to the bay ───────
