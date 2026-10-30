@@ -269,7 +269,12 @@ const taken = [];
 const free = (x, y, r) => taken.every((p) => Math.hypot(p.x - x, p.y - y) > p.r + r);
 const claim = (x, y, r, soft = false) => taken.push({ x, y, r, soft });
 const tall = [];
-const place = (proto, x, y, rot = 0, scale = 1, z = on(x, y)) => instances.push({ proto, at: [x, y, z], rot, scale });
+// everything on the land is drawn well over life size, for a chunky, toy-like
+// look: each prototype grows by its own factor when placed
+const GROW = { pylon: 1.4, rock: 1.4, fence: 1.6, crate: 1.6, lantern: 1.8, bench: 1.8 };
+const grow = (proto) => GROW[proto] ?? 2;
+const place = (proto, x, y, rot = 0, scale = 1, z = on(x, y)) => instances.push({ proto, at: [x, y, z], rot, scale: scale * grow(proto) });
+const CAR = 1.8;   // the page draws the cars at this size
 
 // ── Paths: sand, raised a touch, with a bridge over the river ───────────────
 const pathZ = (x, y) => { const r = river(x, y); return r.d < 6 ? Math.max(on(x, y), r.level + 4.2) : on(x, y); };
@@ -287,19 +292,19 @@ function ribbon(line, width, lift, colour, group = "static", zOf = on) {
   prims.push({ kind: "quads", quads, colour, group });
 }
 // wooden things along a path: fence modules on one side, lanterns on both, alternating
-function dress(line, { fence = true, lanterns = true, every = 44 } = {}) {
+function dress(line, { fence = true, lanterns = true, every = 70 } = {}) {
   let s = 0, nextLantern = every / 2, nextFence = 0, side = 1;
   for (let i = 0; i < line.length - 1; i++) {
     const a = line[i], b = line[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, rot = Math.atan2(dy, dx);
-    const nx = -dy / l, ny = dx / l, off = W.PATH_WIDTH / 2 + 1.6;
+    const nx = -dy / l, ny = dx / l, off = W.PATH_WIDTH / 2 + 2.6;
     while (nextFence <= s + l) {
       const t = (nextFence - s) / l, x = a[0] + dx * t + nx * off, y = a[1] + dy * t + ny * off;
       if (fence && river(x, y).d > 6 && !onFloor(x, y, 2) && W.reach(x, y) < 0.95) place("fence", x, y, rot, 1);
-      nextFence += 4;
+      nextFence += 4 * grow("fence");
     }
     while (nextLantern <= s + l) {
       const t = (nextLantern - s) / l, x = a[0] + dx * t - nx * off * side * 1.15, y = a[1] + dy * t - ny * off * side * 1.15;
-      if (lanterns && river(x, y).d > 6) { place("lantern", x, y, rot, 1); claim(x, y, 2); }
+      if (lanterns && river(x, y).d > 6) { place("lantern", x, y, rot, 1); claim(x, y, 3.5); }
       nextLantern += every; side = -side;
     }
     s += l;
@@ -315,11 +320,11 @@ for (const [name, line] of Object.entries(PATHS)) {
     const a = over[0], b = over[over.length - 1], ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]) + 8, cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2, z = pathZ(cx, cy);
     P("rbox", { at: [cx, cy, z - 1.2], size: [len, W.PATH_WIDTH + 1, 1.3], rot: [0, 0, ang], r: 0.3, colour: PALETTE.wood });
-    for (let u = -len / 2 + 1; u < len / 2; u += 2.2) P("box", { at: [cx + Math.cos(ang) * u, cy + Math.sin(ang) * u, z + 0.1], size: [1.4, W.PATH_WIDTH + 1.2, 0.25], rot: [0, 0, ang], colour: u % 4.4 < 2.2 ? PALETTE.wood : "#a58d6f" });
+    for (let u = -len / 2 + 1, n = 0; u < len / 2; u += 3.6, n++) P("box", { at: [cx + Math.cos(ang) * u, cy + Math.sin(ang) * u, z + 0.1], size: [2.6, W.PATH_WIDTH + 1.2, 0.4], rot: [0, 0, ang], colour: n % 2 ? PALETTE.wood : "#a58d6f" });
     for (const sgn of [-1, 1]) {
       const ox = -Math.sin(ang) * sgn * (W.PATH_WIDTH / 2 + 0.8), oy = Math.cos(ang) * sgn * (W.PATH_WIDTH / 2 + 0.8);
-      P("box", { at: [cx + ox, cy + oy, z + 1.4], size: [len, 0.35, 0.35], rot: [0, 0, ang], colour: PALETTE.woodDark });
-      for (let u = -len / 2 + 1; u <= len / 2; u += 5) P("box", { at: [cx + Math.cos(ang) * u + ox, cy + Math.sin(ang) * u + oy, z], size: [0.5, 0.5, 1.7], rot: [0, 0, ang], colour: PALETTE.woodDark });
+      P("box", { at: [cx + ox, cy + oy, z + 2.6], size: [len, 0.7, 0.7], rot: [0, 0, ang], colour: PALETTE.woodDark });
+      for (let u = -len / 2 + 1; u <= len / 2; u += 6) P("box", { at: [cx + Math.cos(ang) * u + ox, cy + Math.sin(ang) * u + oy, z], size: [0.9, 0.9, 3.1], rot: [0, 0, ang], colour: PALETTE.woodDark });
     }
     for (const f of [0.3, 0.7]) P("box", { at: [lerp(a[0], b[0], f), lerp(a[1], b[1], f), river(cx, cy).level - 3], size: [1.2, W.PATH_WIDTH - 1, z - river(cx, cy).level + 1.5], rot: [0, 0, ang], colour: PALETTE.woodDark });
   }
@@ -375,57 +380,56 @@ PALETTE.buildings.slice(0, 4).forEach((wall, n) => {
 });
 const TREES = ["oak", "oak", "birch", "cherry"];
 function tree(x, y, kind = pick(TREES), s = 0.8 + R() * 0.45) {
-  claim(x, y, 5.5 * s, true);
+  claim(x, y, 5.5 * s * grow(kind), true);
   place(kind, x, y, R() * 6.28, s);
 }
 function house(x, y, rot) {
-  claim(x, y, 8);
+  claim(x, y, 15);
   place(`house_${Math.floor(R() * 4)}`, x, y, rot, 0.9 + R() * 0.2);
 }
 
 // ── The cities: flat-coloured blocks on sandy ground, tiled streets ─────────
-function windows(x, y, w, d, z0, z1, colour, floor = 5.5) {
-  const quads = [];
-  for (let zz = z0 + 4; zz + 3.6 < z1 - 1.2; zz += floor) {
-    for (let u = -w / 2 + 2.6; u + 2.2 < w / 2 - 1.6; u += 4.2) quads.push([[x + u, y + d / 2 + 0.06, zz], [x + u + 2.3, y + d / 2 + 0.06, zz], [x + u + 2.3, y + d / 2 + 0.06, zz + 3], [x + u, y + d / 2 + 0.06, zz + 3]]);
-    for (let u = -d / 2 + 2.6; u + 2.2 < d / 2 - 1.6; u += 4.2) quads.push([[x + w / 2 + 0.06, y + u + 2.3, zz], [x + w / 2 + 0.06, y + u, zz], [x + w / 2 + 0.06, y + u, zz + 3], [x + w / 2 + 0.06, y + u + 2.3, zz + 3]]);
+function windows(x, y, w, d, z0, z1, colour, floor = 9) {
+  const quads = [], ww = 4, wh = 5, pitch = 7.5;
+  for (let zz = z0 + 5; zz + wh < z1 - 2; zz += floor) {
+    for (let u = -w / 2 + 3.5; u + ww < w / 2 - 2.5; u += pitch) quads.push([[x + u, y + d / 2 + 0.06, zz], [x + u + ww, y + d / 2 + 0.06, zz], [x + u + ww, y + d / 2 + 0.06, zz + wh], [x + u, y + d / 2 + 0.06, zz + wh]]);
+    for (let u = -d / 2 + 3.5; u + ww < d / 2 - 2.5; u += pitch) quads.push([[x + w / 2 + 0.06, y + u + ww, zz], [x + w / 2 + 0.06, y + u, zz], [x + w / 2 + 0.06, y + u, zz + wh], [x + w / 2 + 0.06, y + u + ww, zz + wh]]);
   }
   prims.push({ kind: "quads", quads, colour: toHex(mix(hex(colour), hex(PALETTE.slate), 0.7)), group: "lights:window", ref: [x, y, (z0 + z1) / 2] });
 }
 function block(x, y, w, d, h, colour, roof = PALETTE.woodDark) {
   const z = TOP;
-  P("rbox", { at: [x, y, z], size: [w, d, h], r: 1.0, colour });
-  P("rbox", { at: [x, y, z + h], size: [w + 0.8, d + 0.8, 1.0], r: 0.3, colour: roof });
-  if (h > 30) P("rbox", { at: [x + w * 0.12, y - d * 0.1, z + h + 1], size: [w * 0.4, d * 0.35, 2.6], r: 0.4, colour: PALETTE.stone });
+  P("rbox", { at: [x, y, z], size: [w, d, h], r: 2.0, colour });
+  P("rbox", { at: [x, y, z + h], size: [w + 1.6, d + 1.6, 2.0], r: 0.7, colour: roof });
+  if (h > 30) P("rbox", { at: [x + w * 0.12, y - d * 0.1, z + h + 2], size: [w * 0.4, d * 0.35, 4.5], r: 0.8, colour: PALETTE.stone });
   windows(x, y, w, d, z, z + h, colour);
   tall.push([x, y, z + h + 4]);
 }
 function city(C, heightAt) {
   const [fw, fd] = floorOf(C);
-  for (let i = 0; i <= C.cols; i++) P("box", { at: [C.x + (i - C.cols / 2) * C.pitch, C.y, TOP + 0.12], size: [6, fd - 8, 0.1], colour: PALETTE.stone });
-  for (let j = 0; j <= C.rows; j++) P("box", { at: [C.x, C.y + (j - C.rows / 2) * C.pitch, TOP + 0.12], size: [fw - 8, 6, 0.1], colour: PALETTE.stone });
+  for (let i = 0; i <= C.cols; i++) P("box", { at: [C.x + (i - C.cols / 2) * C.pitch, C.y, TOP + 0.12], size: [10, fd - 8, 0.1], colour: PALETTE.stone });
+  for (let j = 0; j <= C.rows; j++) P("box", { at: [C.x, C.y + (j - C.rows / 2) * C.pitch, TOP + 0.12], size: [fw - 8, 10, 0.1], colour: PALETTE.stone });
   for (let i = 0; i <= C.cols; i++) for (let j = 0; j <= C.rows; j++) {
-    const x = C.x + (i - C.cols / 2) * C.pitch + 5.5, y = C.y + (j - C.rows / 2) * C.pitch + 5.5;
+    const x = C.x + (i - C.cols / 2) * C.pitch + 8.5, y = C.y + (j - C.rows / 2) * C.pitch + 8.5;
     if (hash(i, j, 21) < 0.5) place("lantern", x, y, 0, 0.9, TOP + 0.2);
-    else place(hash(i, j, 22) < 0.5 ? "cherry" : "birch", x, y, R() * 6.28, 0.5 + R() * 0.12, TOP + 0.2);
+    else place(hash(i, j, 22) < 0.5 ? "cherry" : "birch", x, y, R() * 6.28, 0.42 + R() * 0.1, TOP + 0.2);
   }
   for (let j = 0; j < C.rows; j++) for (let i = 0; i < C.cols; i++) {
     const x = C.x + (i - (C.cols - 1) / 2) * C.pitch, y = C.y + (j - (C.rows - 1) / 2) * C.pitch;
     if (C.park && C.park[0] === i && C.park[1] === j) {
       P("rbox", { at: [x, y, TOP + 0.05], size: [C.pitch - 12, C.pitch - 12, 0.3], r: 0.6, colour: PALETTE.grassLight });
-      P("cyl", { at: [x + 4, y + 3, TOP + 0.3], r: 5.5, h: 0.2, seg: 24, colour: PALETTE.water });
-      for (const [dx, dy, k] of [[-9, -9, "cherry"], [9, -10, "oak"], [-10, 8, "cherry"], [-1, -12, "birch"]]) place(k, x + dx, y + dy, R() * 6.28, 0.55 + R() * 0.15, TOP + 0.35);
-      for (const [dx, dy, rot] of [[8, 8, 0], [-8, 11, Math.PI / 2]]) place("bench", x + dx, y + dy, rot, 1, TOP + 0.35);
+      P("cyl", { at: [x + 6, y + 5, TOP + 0.3], r: 9, h: 0.2, seg: 28, colour: PALETTE.water });
+      for (const [dx, dy, k] of [[-14, -14, "cherry"], [14, -15, "oak"], [-15, 12, "cherry"]]) place(k, x + dx, y + dy, R() * 6.28, 0.42 + R() * 0.1, TOP + 0.35);
+      for (const [dx, dy, rot] of [[13, 15, 0], [-4, 17, 0]]) place("bench", x + dx, y + dy, rot, 1, TOP + 0.35);
       continue;
     }
     const [h, kind] = heightAt(i, j);
     const colour = PALETTE.buildings[(i * 3 + j * 5) % PALETTE.buildings.length];
     const roof = PALETTE.roofs[(i + j) % PALETTE.roofs.length];
-    const bw = C.pitch - 20 - hash(i, j, 4) * 5, bd = C.pitch - 20 - hash(i, j, 6) * 5;
+    const bw = C.pitch - 24 - hash(i, j, 4) * 6, bd = C.pitch - 24 - hash(i, j, 6) * 6;
     if (kind === "tower") block(x, y, bw, bd, h, colour, roof);
-    else { block(x - 4, y - 4, bw * 0.62, bd * 0.7, h, colour, roof); block(x + bw * 0.3, y + bd * 0.3, bw * 0.36, bd * 0.36, h * 0.55, PALETTE.buildings[(i + j + 3) % PALETTE.buildings.length], roof); }
+    else { block(x - 5, y - 5, bw * 0.62, bd * 0.7, h, colour, roof); block(x + bw * 0.3, y + bd * 0.3, bw * 0.38, bd * 0.38, h * 0.55, PALETTE.buildings[(i + j + 3) % PALETTE.buildings.length], roof); }
   }
-  claim(C.x, C.y, Math.hypot(fw, fd) / 2 + 2);
 }
 city(W.CITY_A, (i, j) => {
   const back = W.CITY_A.rows - 1 - j, middle = 1 - Math.abs(i - (W.CITY_A.cols - 1) / 2) / 2;
@@ -433,19 +437,19 @@ city(W.CITY_A, (i, j) => {
 });
 city(W.CITY_B, (i, j) => [Math.round(14 + hash(i, j, 8) * 14 + (i === 1 && j === 1 ? 18 : 0)), i === 1 && j === 1 ? "tower" : "mid"]);
 for (const S of W.SUBURBS) {
-  for (let y = S.y - S.d / 2 + 6; y <= S.y + S.d / 2; y += 16) for (let x = S.x - S.w / 2 + 6; x <= S.x + S.w / 2; x += 17) {
-    const hx = x + (R() - 0.5) * 3, hy = y + (R() - 0.5) * 3;
-    if (W.reach(hx, hy) > 0.9 || river(hx, hy).d < 6 || reservoir(hx, hy) < 1.4 || pondGap(hx, hy) < 6 || !free(hx, hy, 7)) continue;
+  for (let y = S.y - S.d / 2 + 10; y <= S.y + S.d / 2; y += 30) for (let x = S.x - S.w / 2 + 10; x <= S.x + S.w / 2; x += 32) {
+    const hx = x + (R() - 0.5) * 4, hy = y + (R() - 0.5) * 4;
+    if (W.reach(hx, hy) > 0.9 || river(hx, hy).d < 12 || reservoir(hx, hy) < 1.4 || pondGap(hx, hy) < 12 || onFloor(hx, hy, 12) || pathGap(hx, hy) < W.PATH_WIDTH / 2 + 12 || !free(hx, hy, 13)) continue;
     if (R() < 0.8) house(hx, hy, R() < 0.5 ? 0 : Math.PI / 2);
-    else tree(hx, hy, "cherry", 0.6 + R() * 0.3);
+    else tree(hx, hy, "cherry", 0.55 + R() * 0.25);
   }
 }
 {
   const { x, y, w, d, h } = W.DATA_CENTRE, z = on(x, y);
   P("rbox", { at: [x, y, z], size: [w, d, h], r: 0.8, colour: PALETTE.cream });
-  P("box", { at: [x, y + d / 2 + 0.05, z + h * 0.45], size: [w - 4, 0.1, 1.8], colour: PALETTE.water, group: "lights:led" });
-  for (let i = 0; i < 3; i++) P("cyl", { at: [x - w / 2 + 7 + i * 11, y, z + h], r: 3, h: 1, seg: 16, colour: PALETTE.slate });
-  claim(x, y, 24);
+  P("box", { at: [x, y + d / 2 + 0.05, z + h * 0.45], size: [w - 6, 0.1, 2.8], colour: PALETTE.water, group: "lights:led" });
+  for (let i = 0; i < 3; i++) P("cyl", { at: [x - w / 2 + 10 + i * 15, y, z + h], r: 4.6, h: 1.6, seg: 18, colour: PALETTE.slate });
+  claim(x, y, 32);
 }
 
 // ── Hydro: the dam across the valley, its spillway, the powerhouse below ───
@@ -465,10 +469,10 @@ const spray = [];
     spray.push([low[0], low[1], low[2] + 1]);
   }
   const px = D.x + c * 18 + s * 24, py = D.y + s * 18 - c * 24, pz = on(px, py);
-  P("rbox", { at: [px, py, pz], size: [20, 14, 10], rot: [0, 0, ang], r: 1, colour: PALETTE.peach });
-  P("gable", { at: [px, py, pz + 10], size: [14, 20, 3], rot: [0, 0, ang + Math.PI / 2], colour: PALETTE.woodDark });
+  P("rbox", { at: [px, py, pz], size: [28, 20, 14], rot: [0, 0, ang], r: 1.6, colour: PALETTE.peach });
+  P("gable", { at: [px, py, pz + 14], size: [21, 29, 5], rot: [0, 0, ang + Math.PI / 2], colour: PALETTE.woodDark });
   for (const k of [-3, 3]) P("tube", { points: [[D.x + s * (22 + k * 0.3), D.y - c * (22 + k * 0.3), D.top - 6], [px - c * 9 + s * k, py - s * 9 - c * k, pz + 6]], r: 1.4, colour: PALETTE.slate });
-  claim(D.x, D.y, 30); claim(px, py, 14);
+  claim(D.x, D.y, 30); claim(px, py, 20);
   tall.push([D.x, D.y, D.top + 10]);
 }
 
@@ -476,28 +480,28 @@ const spray = [];
 const AX = (() => { const l = Math.hypot(0.42, 0.91); return [0.42 / l, 0.91 / l, 0]; })();
 const yaw = Math.atan2(AX[1], AX[0]);
 const rotors = [];
-function turbine(x, y, { base = on(x, y), hub = 80, R: rad = 40, offshore = false } = {}) {
+function turbine(x, y, { base = on(x, y), hub = 96, R: rad = 46, offshore = false } = {}) {
   if (offshore) {
     const bed = on(x, y) - 2;
-    P("cyl", { at: [x, y, bed], r: 3.6, h: WATER + 4 - bed, seg: 16, colour: PALETTE.yellow });
-    P("cyl", { at: [x, y, WATER + 3], r: 6.5, h: 1.2, seg: 18, colour: PALETTE.yellow });
+    P("cyl", { at: [x, y, bed], r: 4.8, h: WATER + 4 - bed, seg: 16, colour: PALETTE.yellow });
+    P("cyl", { at: [x, y, WATER + 3], r: 8.5, h: 1.6, seg: 18, colour: PALETTE.yellow });
     base = WATER + 4.2;
   }
-  P("cyl", { at: [x, y, base], r: 3.4, r2: 2.0, h: hub - 2, seg: 16, colour: PALETTE.cream });
-  P("rbox", { at: [x - AX[0] * 2, y - AX[1] * 2, base + hub - 2.4], size: [12, 4.6, 4.6], rot: [0, 0, yaw], r: 1.4, colour: PALETTE.cream });
-  rotors.push({ at: [x + AX[0] * 5, y + AX[1] * 5, base + hub], axis: AX, R: rad, phase: R() * Math.PI * 2, rpm: 10 + R() * 3 });
-  P("sphere", { at: [x - AX[0] * 7, y - AX[1] * 7, base + hub + 2.6], r: 0.9, sub: 1, colour: PALETTE.red, group: "lights:beacon" });
+  P("cyl", { at: [x, y, base], r: 4.6, r2: 2.8, h: hub - 3, seg: 16, colour: PALETTE.cream });
+  P("rbox", { at: [x - AX[0] * 3, y - AX[1] * 3, base + hub - 3.4], size: [16, 6.4, 6.4], rot: [0, 0, yaw], r: 2, colour: PALETTE.cream });
+  rotors.push({ at: [x + AX[0] * 7, y + AX[1] * 7, base + hub], axis: AX, R: rad, phase: R() * Math.PI * 2, rpm: 10 + R() * 3 });
+  P("sphere", { at: [x - AX[0] * 9, y - AX[1] * 9, base + hub + 3.6], r: 1.3, sub: 1, colour: PALETTE.red, group: "lights:beacon" });
   claim(x, y, 14);
   tall.push([x, y, base + hub + rad]);
 }
 for (const [x, y] of W.WIND) turbine(x, y);
-for (const [x, y] of W.OFFSHORE) turbine(x, y, { hub: 66, R: 34, offshore: true });
+for (const [x, y] of W.OFFSHORE) turbine(x, y, { hub: 76, R: 38, offshore: true });
 
 // ── The nuclear station ─────────────────────────────────────────────────────
 const steam = [];
 {
   for (const [x, y] of W.NUCLEAR.towers) {
-    const z = on(x, y), rt = 15, st = 46, c = 34, H = 62;
+    const z = on(x, y), rt = 17, st = 52, c = 38, H = 72;
     const profile = Array.from({ length: 13 }, (_, i) => { const t = (H * i) / 12; return [t, rt * Math.sqrt(1 + ((t - st) / c) ** 2)]; });
     P("lathe", { at: [x, y, z], profile, seg: 40, colour: PALETTE.stone, open: true, wall: 0.9 });
     P("cyl", { at: [x, y, z], r: profile[0][1] + 0.5, h: 2.6, seg: 40, colour: PALETTE.mauve });
@@ -506,69 +510,69 @@ const steam = [];
     tall.push([x, y, z + H + 30]);
   }
   const [rx, ry] = W.NUCLEAR.reactor, rz = on(rx, ry);
-  P("cyl", { at: [rx, ry, rz], r: 13, h: 17, seg: 32, colour: PALETTE.stone });
-  P("sphere", { at: [rx, ry, rz + 17], r: 13, sub: 3, colour: PALETTE.cream, hemi: true });
-  claim(rx, ry, 17);
+  P("cyl", { at: [rx, ry, rz], r: 16, h: 20, seg: 32, colour: PALETTE.stone });
+  P("sphere", { at: [rx, ry, rz + 20], r: 16, sub: 3, colour: PALETTE.cream, hemi: true });
+  claim(rx, ry, 20);
   const hall = W.NUCLEAR.hall, hz = on(hall.x, hall.y);
-  P("rbox", { at: [hall.x, hall.y, hz], size: [hall.w, hall.d, 17], r: 1.2, colour: PALETTE.peach });
-  P("gable", { at: [hall.x, hall.y, hz + 17], size: [hall.w, hall.d, 3], colour: PALETTE.woodDark });
-  prims.push({ kind: "quads", group: "lights:glow", colour: "#ffcf7a", ref: [hall.x, hall.y, hz + 8], quads: [-0.25, 0.25].map((f) => [[hall.x + hall.w * f - 3.5, hall.y + hall.d / 2 + 0.06, hz], [hall.x + hall.w * f + 3.5, hall.y + hall.d / 2 + 0.06, hz], [hall.x + hall.w * f + 3.5, hall.y + hall.d / 2 + 0.06, hz + 8], [hall.x + hall.w * f - 3.5, hall.y + hall.d / 2 + 0.06, hz + 8]]) });
+  P("rbox", { at: [hall.x, hall.y, hz], size: [hall.w, hall.d, 20], r: 2, colour: PALETTE.peach });
+  P("gable", { at: [hall.x, hall.y, hz + 20], size: [hall.w + 1.5, hall.d + 1.5, 4.5], colour: PALETTE.woodDark });
+  prims.push({ kind: "quads", group: "lights:glow", colour: "#ffcf7a", ref: [hall.x, hall.y, hz + 8], quads: [-0.25, 0.25].map((f) => [[hall.x + hall.w * f - 5, hall.y + hall.d / 2 + 0.06, hz], [hall.x + hall.w * f + 5, hall.y + hall.d / 2 + 0.06, hz], [hall.x + hall.w * f + 5, hall.y + hall.d / 2 + 0.06, hz + 11], [hall.x + hall.w * f - 5, hall.y + hall.d / 2 + 0.06, hz + 11]]) });
   claim(hall.x, hall.y, 28);
 }
 
 // ── Solar, the battery and the gas works along the front ────────────────────
 {
-  const S = W.SOLAR, tilt = 0.42;
+  const S = W.SOLAR, tilt = 0.42, lift = 5.5;
   for (let r = 0; r < S.rows; r++) for (let c = 0; c < S.cols; c++) {
     const x = S.x + c * (S.w + S.gap), y = S.y + r * (S.d + S.gap * 1.6), z = on(x, y);
-    P("rbox", { at: [x, y, z + 3.2], size: [S.w, S.d, 0.8], rot: [-tilt, 0, 0], r: 0.35, colour: PALETTE.slate });
+    P("rbox", { at: [x, y, z + lift], size: [S.w, S.d, 1.6], rot: [-tilt, 0, 0], r: 0.7, colour: PALETTE.slate });
     const quads = [], ct = Math.cos(tilt), st = Math.sin(tilt);
-    const onPanel = (u, v) => [x + u, y + v * ct, z + 3.2 + 0.85 - v * st];
-    for (let u = -S.w / 2 + 3.4; u < S.w / 2 - 1; u += 3.4) quads.push([onPanel(u - 0.15, -S.d / 2 + 0.6), onPanel(u + 0.15, -S.d / 2 + 0.6), onPanel(u + 0.15, S.d / 2 - 0.6), onPanel(u - 0.15, S.d / 2 - 0.6)]);
-    for (let v = -S.d / 2 + 3.8; v < S.d / 2 - 1; v += 3.8) quads.push([onPanel(-S.w / 2 + 0.6, v - 0.15), onPanel(S.w / 2 - 0.6, v - 0.15), onPanel(S.w / 2 - 0.6, v + 0.15), onPanel(-S.w / 2 + 0.6, v + 0.15)]);
+    const onPanel = (u, v) => [x + u, y + v * ct, z + lift + 1.65 - v * st];
+    for (let u = -S.w / 2 + 6.3; u < S.w / 2 - 2; u += 6.3) quads.push([onPanel(u - 0.35, -S.d / 2 + 1.2), onPanel(u + 0.35, -S.d / 2 + 1.2), onPanel(u + 0.35, S.d / 2 - 1.2), onPanel(u - 0.35, S.d / 2 - 1.2)]);
+    for (let v = -S.d / 2 + 6; v < S.d / 2 - 2; v += 6) quads.push([onPanel(-S.w / 2 + 1.2, v - 0.35), onPanel(S.w / 2 - 1.2, v - 0.35), onPanel(S.w / 2 - 1.2, v + 0.35), onPanel(-S.w / 2 + 1.2, v + 0.35)]);
     prims.push({ kind: "quads", quads, colour: PALETTE.water, group: "static", ref: [x, y, z - 20] });
-    for (const lx of [-S.w / 2 + 2, S.w / 2 - 2]) P("cyl", { at: [x + lx, y, z], r: 0.6, h: 3.4, seg: 8, colour: PALETTE.wood });
-    claim(x, y, 17);
+    for (const lx of [-S.w / 2 + 3.5, 0, S.w / 2 - 3.5]) P("rbox", { at: [x + lx, y, z], size: [1.6, 1.6, lift + 0.4], r: 0.3, colour: PALETTE.wood });
+    claim(x, y, 24);
   }
 }
 {
   const B = W.BATTERY;
   for (let n = 0; n < B.n; n++) {
-    const x = B.x + n * 13, y = B.y, z = on(x, y);
-    P("rbox", { at: [x, y, z], size: [10, 18, 9], r: 1.2, colour: PALETTE.cream });
-    P("rbox", { at: [x, y + 9.05, z + 2], size: [7, 0.2, 2], r: 0.3, colour: PALETTE.grass });
-    P("box", { at: [x, y + 9.1, z + 6.4], size: [2.4, 0.1, 0.9], colour: "#3ee07f", group: "lights:led" });
-    claim(x, y, 12);
+    const x = B.x + n * 22, y = B.y, z = on(x, y);
+    P("rbox", { at: [x, y, z], size: [17, 28, 15], r: 2.2, colour: PALETTE.cream });
+    P("rbox", { at: [x, y + 14.05, z + 3], size: [11, 0.4, 3.6], r: 0.5, colour: PALETTE.grass });
+    P("box", { at: [x, y + 14.1, z + 10.5], size: [4.4, 0.1, 1.8], colour: "#3ee07f", group: "lights:led" });
+    claim(x, y, 18);
   }
 }
 const smoke = [];
 {
   const { x, y } = W.FACTORY, z = on(x, y);
-  P("rbox", { at: [x, y, z], size: [30, 22, 13], r: 1, colour: PALETTE.tan });
-  for (let i = 0; i < 3; i++) P("gable", { at: [x - 10 + i * 10, y, z + 13], size: [10, 22, 4.2], colour: PALETTE.woodDark });
-  P("cyl", { at: [x - 11, y - 7, z], r: 3.2, r2: 2.6, h: 42, seg: 18, colour: PALETTE.cream });
-  for (const b of [28, 36]) P("cyl", { at: [x - 11, y - 7, z + b], r: 2.85, h: 3, seg: 18, colour: PALETTE.red });
-  P("cyl", { at: [x - 11, y - 7, z + 42], r: 2.2, h: 0.3, seg: 18, colour: "#ffb35c", group: "lights:glow" });
-  for (const [dx, dy] of [[20, 8], [23, 5], [20, 4.5]]) place("crate", x + dx, y + dy, R(), 1);
-  smoke.push([x - 11, y - 7, z + 43]);
-  claim(x, y, 28);
-  tall.push([x - 11, y - 7, z + 68]);
+  P("rbox", { at: [x, y, z], size: [45, 32, 19], r: 2, colour: PALETTE.tan });
+  for (let i = 0; i < 3; i++) P("gable", { at: [x - 15 + i * 15, y, z + 19], size: [15, 32, 6.5], colour: PALETTE.woodDark });
+  P("cyl", { at: [x - 16, y - 10, z], r: 5, r2: 4, h: 56, seg: 18, colour: PALETTE.cream });
+  for (const b of [38, 48]) P("cyl", { at: [x - 16, y - 10, z + b], r: 4.45, h: 4, seg: 18, colour: PALETTE.red });
+  P("cyl", { at: [x - 16, y - 10, z + 56], r: 3.4, h: 0.3, seg: 18, colour: "#ffb35c", group: "lights:glow" });
+  for (const [dx, dy] of [[29, 10], [34, 4], [29, 3]]) place("crate", x + dx, y + dy, R(), 1);
+  smoke.push([x - 16, y - 10, z + 57]);
+  claim(x, y, 36);
+  tall.push([x - 16, y - 10, z + 84]);
 }
 
 // ── The jetty into the bay, crates and boats ────────────────────────────────
 {
   const J = W.JETTY, z = WATER + 1.6;
-  for (let u = 0; u < J.length; u += 2.2) P("box", { at: [J.x + u, J.y, z], size: [2, 7, 0.3], colour: u % 4.4 < 2.2 ? PALETTE.wood : "#a58d6f" });
-  for (let u = 2; u < J.length; u += 8) for (const sgn of [-1, 1]) { const bed = on(J.x + u, J.y + sgn * 3.2) - 1; P("cyl", { at: [J.x + u, J.y + sgn * 3.2, bed], r: 0.45, h: z - bed + 1.4, seg: 8, colour: PALETTE.woodDark }); }
-  for (const [dx, dy] of [[6, 1.6], [8.6, 1.4], [6, -1.4]]) place("crate", J.x + dx, J.y + dy, R(), 0.9, z + 0.3);
-  place("lantern", J.x + J.length - 2, J.y + 2.4, 0, 0.9, z + 0.3);
+  for (let u = 0, n = 0; u < J.length; u += 3.4, n++) P("box", { at: [J.x + u, J.y, z], size: [3.1, 12, 0.5], colour: n % 2 ? PALETTE.wood : "#a58d6f" });
+  for (let u = 3; u < J.length; u += 10) for (const sgn of [-1, 1]) { const bed = on(J.x + u, J.y + sgn * 5.4) - 1; P("cyl", { at: [J.x + u, J.y + sgn * 5.4, bed], r: 0.8, h: z - bed + 2.2, seg: 8, colour: PALETTE.woodDark }); }
+  for (const [dx, dy] of [[8, 2.6], [12.4, 2.4], [8, -2.4]]) place("crate", J.x + dx, J.y + dy, R(), 0.9, z + 0.3);
+  place("lantern", J.x + J.length - 3, J.y + 4, 0, 0.9, z + 0.3);
   const boat = (x, y, ang, len, sail) => {
-    P("rbox", { at: [x, y, WATER - 0.8], size: [len, len * 0.38, 2.4], rot: [0, 0, ang], r: 0.8, colour: sail ? PALETTE.cream : PALETTE.red });
-    if (sail) P("cyl", { at: [x, y, WATER + 1.6], r: 3.4, r2: 0.05, h: 14, seg: 3, rot: [0, 0, ang], colour: PALETTE.cream });
-    else P("rbox", { at: [x - Math.cos(ang) * 2.5, y - Math.sin(ang) * 2.5, WATER + 1.6], size: [5, 4, 3], rot: [0, 0, ang], r: 0.6, colour: PALETTE.cream });
+    P("rbox", { at: [x, y, WATER - 1.2], size: [len, len * 0.38, 3.8], rot: [0, 0, ang], r: 1.3, colour: sail ? PALETTE.cream : PALETTE.red });
+    if (sail) P("cyl", { at: [x, y, WATER + 2.6], r: 5.6, r2: 0.05, h: 23, seg: 3, rot: [0, 0, ang], colour: PALETTE.cream });
+    else P("rbox", { at: [x - Math.cos(ang) * 4, y - Math.sin(ang) * 4, WATER + 2.6], size: [8, 6.4, 5], rot: [0, 0, ang], r: 1, colour: PALETTE.cream });
   };
-  boat(J.x + J.length + 6, J.y + 7, 0.1, 12, false);
-  boat(250, 76, 0.7, 11, true);
+  boat(J.x + J.length + 10, J.y + 12, 0.1, 20, false);
+  boat(246, 80, 0.7, 18, true);
 }
 
 // ── Geothermal at the front edge, its bore down the wall ───────────────────
@@ -576,25 +580,25 @@ let bore;
 {
   const t = W.GEOTHERMAL, [ex, ey] = W.edgeAt(t), [px, py] = W.edgeAt(t, 0.86);
   const z = on(px, py);
-  P("rbox", { at: [px, py, z], size: [22, 16, 9], r: 1, colour: PALETTE.cream });
-  P("rbox", { at: [px - 4, py - 3, z + 9], size: [10, 8, 4], r: 0.6, colour: PALETTE.slate });
+  P("rbox", { at: [px, py, z], size: [32, 22, 13], r: 1.8, colour: PALETTE.cream });
+  P("rbox", { at: [px - 6, py - 4, z + 13], size: [14, 11, 6], r: 1, colour: PALETTE.slate });
   const [wx, wy] = W.edgeAt(t, 0.97);
-  P("rbox", { at: [wx, wy, on(wx, wy)], size: [6, 6, 1.2], r: 0.4, colour: PALETTE.yellow });
-  P("cyl", { at: [wx, wy, on(wx, wy) + 1.2], r: 1.4, h: 5, seg: 12, colour: PALETTE.slate });
-  P("tube", { points: [[wx, wy, on(wx, wy) + 5], [px + 6, py + 6, z + 5]], r: 0.9, colour: PALETTE.stone });
+  P("rbox", { at: [wx, wy, on(wx, wy)], size: [10, 10, 2], r: 0.7, colour: PALETTE.yellow });
+  P("cyl", { at: [wx, wy, on(wx, wy) + 2], r: 2.4, h: 8, seg: 12, colour: PALETTE.slate });
+  P("tube", { points: [[wx, wy, on(wx, wy) + 8], [px + 8, py + 8, z + 8]], r: 1.5, colour: PALETTE.stone });
   const out = [Math.cos(t) * 0.6, Math.sin(t) * 0.6];
   P("tube", { points: [[ex + out[0], ey + out[1], TOP - 2.2], [ex + out[0], ey + out[1], -54]], r: 1.1, colour: PALETTE.coal });
   bore = [ex + out[0] * 1.4, ey + out[1] * 1.4, -56];
-  claim(px, py, 18);
+  claim(px, py, 24);
 }
 
 // ── Substations, where each line comes down at a city ──────────────────────
 for (const [x, y] of Object.values(W.SUBSTATIONS)) {
   const z = on(x, y);
-  P("rbox", { at: [x, y, z - 0.6], size: [18, 14, 1.2], r: 0.4, colour: PALETTE.sand });
-  for (const dx of [-4, 4]) P("rbox", { at: [x + dx, y, z + 0.6], size: [5, 6, 5], r: 0.6, colour: PALETTE.slate });
-  for (let k = -1.5; k <= 1.5; k++) place("fence", x + k * 4.4, y - 8, 0, 1);
-  claim(x, y, 12);
+  P("rbox", { at: [x, y, z - 0.6], size: [28, 22, 1.4], r: 0.6, colour: PALETTE.sand });
+  for (const dx of [-6.5, 6.5]) P("rbox", { at: [x + dx, y, z + 0.8], size: [8, 9, 8], r: 1, colour: PALETTE.slate });
+  for (let k = -1.5; k <= 1.5; k++) place("fence", x + k * 4.4 * grow("fence"), y - 12, 0, 1);
+  claim(x, y, 18);
 }
 
 // ── Pylons: one lattice prototype, the lines from source to city ────────────
@@ -616,14 +620,15 @@ for (const pts of Object.values(W.LINES)) {
     const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
     const rot = Math.atan2(b[1] - a[1], b[0] - a[0]), z0 = on(x, y), c = Math.cos(rot), s = Math.sin(rot);
     place("pylon", x, y, rot, 1, z0);
-    claim(x, y, 7);
-    return ARMS.flatMap((arm) => [-1, 1].map((side) => [x - s * side * arm.w, y + c * side * arm.w, z0 + arm.z - 2.6]));
+    claim(x, y, 9);
+    const k = grow("pylon");
+    return ARMS.flatMap((arm) => [-1, 1].map((side) => [x - s * side * arm.w * k, y + c * side * arm.w * k, z0 + (arm.z - 2.6) * k]));
   });
   const wire0 = [];
   for (let i = 0; i < tips.length - 1; i++) for (let c = 0; c < tips[i].length; c++) {
     const a = tips[i][c], b = tips[i + 1][c], sag = Math.hypot(b[0] - a[0], b[1] - a[1]) * 0.05;
     const wire = Array.from({ length: 9 }, (_, n) => { const t = n / 8; return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t) - sag * 4 * t * (1 - t)]; });
-    P("tube", { points: wire, r: 0.22, colour: PALETTE.coal, seg: 4 });
+    P("tube", { points: wire, r: 0.32, colour: PALETTE.coal, seg: 4 });
     if (c === 2) wire0.push(...(i ? wire.slice(1) : wire));
   }
   lines.push(wire0.map((p) => p.map((v) => Math.round(v * 100) / 100)));
@@ -632,64 +637,65 @@ for (const pts of Object.values(W.LINES)) {
 // ── Trees, bushes and flowers: woods on the highland, the rest scattered ────
 const rocky = (x, y) => on(x, y) > TOP + W.ROCK_LINE - 4 || Math.hypot(on(x + 2, y) - on(x - 2, y), on(x, y + 2) - on(x, y - 2)) / 4 > 0.55;
 const open = (x, y, gap) => !rocky(x, y) && W.seaShare(x, y) === 0 && reservoir(x, y) > 1.25 && river(x, y).d > 5 && pondGap(x, y) > 4 && !onFloor(x, y, 3) && pathGap(x, y) > W.PATH_WIDTH / 2 + gap && W.reach(x, y) < 0.95;
-for (let n = 0, tries = 0; n < 70 && tries < 4000; tries++) {
+for (let n = 0, tries = 0; n < 30 && tries < 4000; tries++) {
   const a = R() * Math.PI * 2, d = Math.sqrt(R()) * 150, x = W.HIGHLAND.x + Math.cos(a) * d, y = W.HIGHLAND.y + Math.sin(a) * d;
-  if (!open(x, y, 3) || !free(x, y, 4)) continue;
+  if (!open(x, y, 6) || !free(x, y, 8)) continue;
   tree(x, y, R() < 0.35 ? "birch" : "oak"); n++;
 }
 // birches along the river, cherries along the main path
-for (let i = 2; i < RIVER.length - 2; i += 3) {
+for (let i = 3; i < RIVER.length - 3; i += 6) {
   const [x, y] = RIVER[i], [x2, y2] = RIVER[i + 1], dx = x2 - x, dy = y2 - y, l = Math.hypot(dx, dy) || 1;
   for (const side of [-1, 1]) {
     if (R() < 0.45) continue;
-    const off = 14 + R() * 6, tx = x - (dy / l) * off * side, ty = y + (dx / l) * off * side;
-    if (open(tx, ty, 2) && free(tx, ty, 3)) tree(tx, ty, "birch", 0.8 + R() * 0.4);
+    const off = 24 + R() * 8, tx = x - (dy / l) * off * side, ty = y + (dx / l) * off * side;
+    if (open(tx, ty, 6) && free(tx, ty, 8)) tree(tx, ty, "birch", 0.75 + R() * 0.3);
   }
 }
-for (const [x, y] of PATHS.main.filter((_, i) => i % 5 === 2)) {
-  const tx = x + 9, ty = y + 9;
-  if (open(tx, ty, 1) && free(tx, ty, 3)) tree(tx, ty, "cherry", 0.75 + R() * 0.3);
+for (const [x, y] of PATHS.main.filter((_, i) => i % 9 === 4)) {
+  const tx = x + 18, ty = y + 14;
+  if (open(tx, ty, 4) && free(tx, ty, 6)) tree(tx, ty, "cherry", 0.75 + R() * 0.25);
 }
-for (let n = 0, tries = 0; n < 130 && tries < 8000; tries++) {
-  const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.94, [x, y] = W.edgeAt(t, f);
-  if (!open(x, y, 2) || !free(x, y, 6)) continue;
+for (let n = 0, tries = 0; n < 55 && tries < 8000; tries++) {
+  const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.92, [x, y] = W.edgeAt(t, f);
+  if (!open(x, y, 6) || !free(x, y, 10)) continue;
   tree(x, y); n++;
 }
-for (let n = 0, tries = 0; n < 160 && tries < 8000; tries++) {
-  const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.94, [x, y] = W.edgeAt(t, f);
-  if (!open(x, y, 0.5) || !free(x, y, 2.5)) continue;
-  claim(x, y, 2.5, true);
-  place("bush", x, y, R() * 6.28, 0.7 + R() * 0.6); n++;
+for (let n = 0, tries = 0; n < 70 && tries < 8000; tries++) {
+  const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.93, [x, y] = W.edgeAt(t, f);
+  if (!open(x, y, 2) || !free(x, y, 5)) continue;
+  claim(x, y, 5, true);
+  place("bush", x, y, R() * 6.28, 0.7 + R() * 0.5); n++;
 }
-for (let n = 0, tries = 0; n < 220 && tries < 8000; tries++) {
-  const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.94, [x, y] = W.edgeAt(t, f);
-  if (!open(x, y, -3) || !free(x, y, 1.2)) continue;
+for (let n = 0, tries = 0; n < 90 && tries < 8000; tries++) {
+  const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.93, [x, y] = W.edgeAt(t, f);
+  if (!open(x, y, -2) || !free(x, y, 2.4)) continue;
+  claim(x, y, 2.4, true);
   place(pick(["flower_pink", "flower_orange", "flower_white", "flower_violet"]), x, y, R() * 6.28, 0.8 + R() * 0.5); n++;
 }
 // benches by the ponds
-for (const p of W.PONDS) for (const a of [0.8, 2.4]) { const x = p.x + Math.cos(a) * (p.r + 5), y = p.y + Math.sin(a) * (p.r + 5); if (free(x, y, 2)) place("bench", x, y, a + Math.PI / 2, 1); }
+for (const p of W.PONDS) for (const a of [0.8, 2.4]) { const x = p.x + Math.cos(a) * (p.r + 9), y = p.y + Math.sin(a) * (p.r + 9); if (free(x, y, 3)) place("bench", x, y, a + Math.PI / 2, 1); }
 
 // ── Rocks: on the mountains, at the shore, and a few in the fields ─────────
 protos.rock = [{ kind: "sphere", at: [0, 0, 0.3], r: 1, sub: 2, colour: PALETTE.stone, jitter: 0.3 }, { kind: "sphere", at: [0.9, 0.5, 0.1], r: 0.6, sub: 1, colour: PALETTE.mauve, jitter: 0.3 }];
-for (let n = 0, tries = 0; n < 160 && tries < 9000; tries++) {
+for (let n = 0, tries = 0; n < 110 && tries < 9000; tries++) {
   const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.96, [x, y] = W.edgeAt(t, f);
   const z = on(x, y), slope = Math.hypot(on(x + 2, y) - on(x - 2, y), on(x, y + 2) - on(x, y - 2)) / 4;
   const rocky = z > TOP + W.ROCK_LINE - 6 || slope > 0.5, shore = W.seaShare(x, y) > 0 && z > WATER - 1.5 && z < WATER + 1.5;
-  if (!(rocky || shore) || !free(x, y, 2) || onFloor(x, y, 2) || pathGap(x, y) < 7) continue;
-  claim(x, y, 2.5, true);
+  if (!(rocky || shore) || !free(x, y, 3) || onFloor(x, y, 2) || pathGap(x, y) < 12) continue;
+  claim(x, y, 4, true);
   place("rock", x, y, R() * 6.28, (shore ? 1.4 : 2.2) + R() * (shore ? 2.4 : 4.5), z - 0.6); n++;
 }
-for (let n = 0, tries = 0; n < 24 && tries < 4000; tries++) {
+for (let n = 0, tries = 0; n < 16 && tries < 4000; tries++) {
   const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.9, [x, y] = W.edgeAt(t, f);
-  if (!open(x, y, 2) || !free(x, y, 3)) continue;
-  claim(x, y, 3, true);
+  if (!open(x, y, 3) || !free(x, y, 5)) continue;
+  claim(x, y, 5, true);
   place("rock", x, y, R() * 6.28, 1.6 + R() * 2.2, on(x, y) - 0.5); n++;
 }
 
 // ── Cars on the paths: the page drives them ─────────────────────────────────
 const cars = [];
 for (const [name, line] of Object.entries(PATHS)) {
-  const n = Math.max(1, Math.round(line.length / 24));
+  const n = Math.max(1, Math.round(line.length / 40));
   for (let k = 0; k < n; k++) cars.push({ road: name, at: (k + R() * 0.5) / n, forward: R() < 0.5, speed: 11 + R() * 5, colour: PALETTE.cars[cars.length % PALETTE.cars.length] });
 }
 protos.car = [
@@ -728,7 +734,7 @@ export function scene() {
     prims, protos, instances, rotors, cars, steam, smoke, spray, lines,
     roads: Object.fromEntries(Object.entries(PATHS).map(([n, l]) => [n, l.map(([x, y]) => r1([x, y, pathZ(x, y) + 0.3]))])),
     roadWidth: Object.fromEntries(Object.keys(PATHS).map((n) => [n, W.PATH_WIDTH])),
-    tall, bore,
+    tall, bore, carScale: CAR,
     grass: grassGrid(),
   };
 }

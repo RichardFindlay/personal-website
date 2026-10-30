@@ -200,7 +200,7 @@ export async function mountIsland(stage, { still = false } = {}) {
             // keep left: the left of the direction of travel, with y running south
             const at = [a[0] + (b[0] - a[0]) * t + dy * lane, a[1] + (b[1] - a[1]) * t - dx * lane, a[2] + (b[2] - a[2]) * t];
             q.setFromAxisAngle(yAxis, -Math.atan2(dy, dx));
-            m4.compose(V(at), q, s.setScalar(1));
+            m4.compose(V(at), q, s.setScalar(meta.carScale || 1));
             for (const { mesh, local } of carMeshes) mesh.setMatrixAt(i, m4.clone().multiply(local));
         });
         for (const { mesh } of carMeshes) mesh.instanceMatrix.needsUpdate = true;
@@ -278,7 +278,7 @@ export async function mountIsland(stage, { still = false } = {}) {
     }
 
     // ── Energy pulses running along the pylon lines, source to city ────────
-    const pulseGeo = new THREE.SphereGeometry(1.5, 12, 8);
+    const pulseGeo = new THREE.SphereGeometry(2.2, 12, 8);
     const pulseMat = new THREE.MeshBasicMaterial({ color: 0xb8fbff, toneMapped: false });
     const traces = (meta.lines || meta.traces || []).map((pts) => {
         const lens = [0];

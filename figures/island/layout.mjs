@@ -61,7 +61,7 @@ export function basinDepth(x, y) {
 }
 // ponds and the reservoir: lobed outlines, a radius for each angle round the centre
 export const lobed = (a, k) => 1 + 0.22 * Math.sin(3 * a + k) + 0.12 * Math.sin(5 * a + 2 * k) + 0.06 * Math.sin(9 * a + k);
-export const PONDS = [{ x: -232, y: 44, r: 20, k: 0.7 }, { x: 60, y: 236, r: 16, k: 2.1 }];
+export const PONDS = [{ x: -232, y: 44, r: 22, k: 0.7 }, { x: -52, y: 238, r: 20, k: 2.1 }];
 
 // ── Highlands, the reservoir and the dam ────────────────────────────────────
 export const HIGHLAND = { x: -196, y: -176, r: 150, h: 34 };
@@ -81,26 +81,27 @@ export const riverWidth = (t) => 14 + 12 * t;
 export const riverLevel = (t) => 17 - 7 * Math.min(1, t * 1.08);
 
 // ── The cities ──────────────────────────────────────────────────────────────
-export const CITY_A = { x: 24, y: -122, cols: 4, rows: 3, pitch: 44, park: [0, 2] };
-export const CITY_B = { x: -170, y: 112, cols: 3, rows: 3, pitch: 40, park: [2, 0] };
+// few, chunky blocks: a wide pitch, so each block reads at a glance
+export const CITY_A = { x: 24, y: -122, cols: 3, rows: 2, pitch: 66, park: [0, 1] };
+export const CITY_B = { x: -170, y: 112, cols: 2, rows: 2, pitch: 62, park: [1, 0] };
 export const SUBURBS = [
   { x: -252, y: -24, w: 48, d: 90 },      // west, by the pond
-  { x: -140, y: 206, w: 130, d: 26 },     // south of the town
-  { x: 70, y: -34, w: 120, d: 22 },       // the city's riverside
+  { x: -160, y: 210, w: 110, d: 30 },     // south of the town
+  { x: 50, y: -26, w: 84, d: 20 },        // the city's riverside
 ];
 
 // ── Power ───────────────────────────────────────────────────────────────────
-export const NUCLEAR = { towers: [[186, -214], [238, -168]], reactor: [152, -158], hall: { x: 196, y: -120, w: 50, d: 22 } };
+export const NUCLEAR = { towers: [[186, -214], [238, -168]], reactor: [150, -178], hall: { x: 198, y: -118, w: 54, d: 24 } };
 export const WIND = [[-278, -92], [-236, -250], [-150, -266], [-282, -4]];
 export const OFFSHORE = [[262, -34], [288, 44], [258, 114]];
-export const SOLAR = { x: 8, y: 152, cols: 3, rows: 2, w: 26, d: 18, gap: 7 };
-export const BATTERY = { x: 128, y: 160, n: 3 };
-export const FACTORY = { x: 176, y: 112 };
-export const DATA_CENTRE = { x: 132, y: -68, w: 36, d: 22, h: 11 };
-export const JETTY = { x: 196, y: -22, length: 44 };
+export const SOLAR = { x: -8, y: 98, cols: 3, rows: 2, w: 38, d: 24, gap: 9 };
+export const BATTERY = { x: 36, y: 216, n: 3 };
+export const FACTORY = { x: 184, y: 104 };
+export const DATA_CENTRE = { x: 148, y: -30, w: 50, d: 30, h: 15 };
+export const JETTY = { x: 196, y: -22, length: 56 };
 export const GEOTHERMAL = Math.atan2(HALF, 112);   // the bearing of the front edge where the bore is cut
 
-export const SUBSTATIONS = { a: [-98, -204], aEast: [128, -142], b: [-248, 176], shore: [194, -56] };
+export const SUBSTATIONS = { a: [-98, -204], aEast: [150, -138], b: [-248, 176], shore: [216, -76] };
 
 // ── Paths: wide sandy tracks, each joining two places ───────────────────────
 export const PATHS = {
@@ -108,17 +109,17 @@ export const PATHS = {
   power: [[80, -176], [120, -192], [158, -198]],                                   // the city to the power station
   harbour: [[104, -96], [150, -82], [186, -54], [196, -32]],                       // the city to the jetty
   dam: [[-56, -150], [-98, -134], [-130, -124]],                                   // the city to the dam's powerhouse
-  works: [[-124, 150], [-40, 164], [44, 174], [112, 176], [150, 146], [172, 128]], // the town past the solar to the works
+  works: [[-124, 150], [-40, 164], [44, 174], [112, 176], [148, 148], [164, 130]], // the town past the solar to the works
   geo: [[112, 176], [116, 230], [112, 284]],                                       // on to the geothermal plant
   west: [[-150, 62], [-196, 30], [-236, 2], [-252, -36]],                          // the town out to the village
 };
-export const PATH_WIDTH = 10;
+export const PATH_WIDTH = 16;
 
 // ── The grid: each line runs from a source to a city, pylon to pylon ────────
 export const LINES = {
-  nuclear: [[176, -134], [152, -138], [128, -142]],
+  nuclear: [[176, -152], [150, -138]],
   hydro: [[-130, -154], [-114, -180], [-98, -204]],
   wind: [[-270, -56], [-264, 10], [-258, 70], [-252, 124], [-248, 176]],
-  offshore: [[194, -56], [166, -64], [140, -72]],
+  offshore: [[216, -76], [150, -60]],                 // ashore and straight to the data centre
   link: [[-60, -56], [-90, 2], [-122, 44], [-150, 62]],
 };
