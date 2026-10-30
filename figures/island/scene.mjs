@@ -438,15 +438,15 @@ function windows(x, y, w, d, z0, z1, glass, facade, ribbon, floor = 9) {
   prims.push({ kind: "quads", quads: fins, colour: facade, group: "static", ref: [x, y, (z0 + z1) / 2] });
 }
 const AWNINGS = [PALETTE.red, PALETTE.orange, PALETTE.yellow, PALETTE.water, PALETTE.grass];
-// modern blocks: charcoal to near-black towers with pale glass, the low blocks in lighter greys
-const TOWERS = ["#2b2f33", "#3b4045", "#1f2225", "#4a5056"], LOWS = ["#7d848a", "#a3a9ae", "#c9cdd0", "#646b71"];
+// modern blocks: white and light grey towers banded with blue-grey glass, the low blocks in pale greys
+const TOWERS = ["#f3f4f4", "#dfe2e4", "#ffffff", "#cdd2d5"], LOWS = ["#e6e8e9", "#c9cdd0", "#f6f6f5", "#b7bcc0"];
 function block(x, y, w, d, h, colour, roof = PALETTE.woodDark) {
   const ribbon = h > 40;
   const z = TOP;
   P("rbox", { at: [x, y, z], size: [w, d, h], r: 2.0, colour });
   P("rbox", { at: [x, y, z + h], size: [w + 1.6, d + 1.6, 2.0], r: 0.7, colour: roof });
   if (h > 30) P("rbox", { at: [x + w * 0.12, y - d * 0.1, z + h + 2], size: [w * 0.4, d * 0.35, 4.5], r: 0.8, colour: PALETTE.stone });
-  windows(x, y, w, d, z, z + h, ribbon ? "#a9c2d0" : "#3d4a54", colour, ribbon);
+  windows(x, y, w, d, z, z + h, ribbon ? "#5f7684" : "#4a5862", colour, ribbon);
   // a shopfront round the two faces the viewer sees: glass, an awning, a door
   const fy = y + d / 2 + 0.07, fx = x + w / 2 + 0.07, awning = AWNINGS[Math.floor(hash(Math.round(x), Math.round(y), 5) * AWNINGS.length)];
   prims.push({ kind: "quads", group: "lights:window", colour: "#3f4c55", ref: [x, y, z + 3], quads: [
@@ -492,10 +492,10 @@ function city(C, heightAt) {
     }
     const [h, kind] = heightAt(i, j);
     const tower = h > 40, colour = (tower ? TOWERS : LOWS)[(i * 3 + j * 5) % 4];
-    const roof = tower ? "#16181a" : "#3b4045";
+    const roof = tower ? "#9aa0a5" : "#878d92";
     const bw = C.pitch - 24 - hash(i, j, 4) * 6, bd = C.pitch - 24 - hash(i, j, 6) * 6;
     if (kind === "tower") block(x, y, bw, bd, h, colour, roof);
-    else { block(x - 5, y - 5, bw * 0.62, bd * 0.7, h, colour, roof); block(x + bw * 0.3, y + bd * 0.3, bw * 0.38, bd * 0.38, h * 0.55, LOWS[(i + j + 3) % 4], "#3b4045"); }
+    else { block(x - 5, y - 5, bw * 0.62, bd * 0.7, h, colour, roof); block(x + bw * 0.3, y + bd * 0.3, bw * 0.38, bd * 0.38, h * 0.55, LOWS[(i + j + 3) % 4], "#878d92"); }
   }
 }
 city(W.CITY_A, (i, j) => {
