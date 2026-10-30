@@ -1,11 +1,13 @@
-// The island as a scene description for Blender, in a playful, game-like
-// style after the current homepage hero: a floating island with a soft,
-// bayed outline and chunky strata on its walls; highlands with a reservoir and
-// a hydro dam; a river to the sea; two cities joined by a road and a pylon
-// line; every power station wired to them. Toy landmarks with bevelled edges,
-// lollipop trees. All the geometry is decided here from layout.mjs;
-// blender/island.py meshes it, bakes its soft shadows and exports. Metres from
-// the island's centre: x east, y south (toward the viewer), z up.
+// The island as a scene description for Blender, in the manner of Bruno
+// Simon's folio: a rounded square of grass with wide sandy paths winding
+// between the places, wooden fences and lanterns along them, birch, oak and
+// cherry trees, bushes and flowers, ponds and a bay with foam at the shore,
+// and simple flat-coloured buildings in his palette. Highlands with a
+// reservoir and a hydro dam; a river to the bay; two cities; every power
+// station wired to them by pylons. The slab's cut faces keep their strata. All
+// the geometry is decided here from layout.mjs; blender/island.py meshes it,
+// bakes its soft shadows and exports. Metres from the island's centre: x east,
+// y south (toward the viewer), z up.
 import * as W from "./layout.mjs";
 
 const { DEPTH, TOP, WATER, BED } = W;
@@ -39,23 +41,31 @@ function catmull(points, step = 4) {
   out.push(points[points.length - 1]);
   return out;
 }
-
-// ── Palette: the hero's colours, brighter, like a game ──────────────────────
-export const PALETTE = {
-  grass: ["#69b23c", "#74bd44", "#5fa836", "#7fc44c"], highland: "#5c9f37", sand: "#efdcaa", seabed: "#e2cf9a", seabedDeep: "#58b3c4",
-  rock: "#a3a9ad", pavement: "#e6e0d3", asphalt: "#5c6670", marking: "#f7f5ee",
-  layers: { water: "#35a9c8", grass: "#5fa836", topsoil: "#7a5638", subsoil: "#a67c50", sediment: "#dcc792", sandstone: "#d6ad70", mudstone: "#9a8f80", limestone: "#e6dcc4", granite: "#b29f92" },
-  towers: ["#5f84a8", "#f0e5cc", "#d27a4f", "#8fb08a", "#86c3dc", "#e9c46a", "#b9a3c9"],
-  white: "#f6f6f2", steel: "#a3acb4", concrete: "#e2ded5", dam: "#d8d4ca", dark: "#46505a", red: "#d9503f", safety: "#f0b530",
-  pv: "#2d4f80", pvLine: "#9fb9d6", brick: "#c8694a", leaf: ["#56ab35", "#63b93c", "#4b9a2e", "#76c64a"],
-  trunk: "#8a6444", roofs: ["#d0674a", "#5f6f80", "#b9573f", "#7d8a96"], walls: ["#f4ead6", "#e9d5b9", "#f6f1e7", "#dfc3a3"],
-  cars: ["#f4f4f2", "#e05544", "#3f7ac0", "#2ea38f", "#f2bf35", "#30373e"],
+const gapTo = (line, x, y) => {
+  let best = Infinity;
+  for (let i = 0; i < line.length - 1; i++) {
+    const [ax, ay] = line[i], [bx, by] = line[i + 1], dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2));
+    best = Math.min(best, Math.hypot(x - ax - t * dx, y - ay - t * dy));
+  }
+  return best;
 };
 
-// ── The river, the reservoir and the ground's height ────────────────────────
+// ── Palette: Bruno Simon's own, from his folio's palette texture ────────────
+export const PALETTE = {
+  grass: "#91ad78", grassLight: "#a4bb86", grassDark: "#7e9a66", lime: "#abae2b", sand: "#ead0a3", dirt: "#a49876",
+  wood: "#988165", woodDark: "#574e37", stone: "#c8c2c1", slate: "#575a5e", coal: "#4a413c", mauve: "#7c7691",
+  water: "#3dbbe7", cream: "#fff2e8", blush: "#fde6e1", peach: "#eec3af", apricot: "#e49a78", tan: "#b36d45",
+  orange: "#f8a658", ember: "#e46202", red: "#ec3f1c", pink: "#ed71a0", violet: "#c365ef", yellow: "#e4a90c", crimson: "#c30e3a",
+  layers: { water: "#3dbbe7", grass: "#7e9a66", topsoil: "#574e37", subsoil: "#988165", sediment: "#ead0a3", sandstone: "#e4b98a", mudstone: "#a49876", limestone: "#c8c2c1", granite: "#7c7691" },
+  buildings: ["#fff2e8", "#eec3af", "#e49a78", "#91ad78", "#c8c2c1", "#ead0a3", "#fde6e1", "#f8a658"],
+  roofs: ["#574e37", "#b36d45", "#575a5e", "#ec3f1c"],
+  cars: ["#ec3f1c", "#fff2e8", "#3dbbe7", "#e4a90c", "#c365ef", "#575a5e"],
+};
+
+// ── Water bodies and the ground ─────────────────────────────────────────────
 const RIVER = catmull(W.RIVER_POINTS, 3);
 const RIVER_LEN = (() => { let s = 0; for (let i = 1; i < RIVER.length; i++) s += Math.hypot(RIVER[i][0] - RIVER[i - 1][0], RIVER[i][1] - RIVER[i - 1][1]); return s; })();
-// the nearest point of the river: how far outside its banks, how far along it, its level there
 function river(x, y) {
   let best = { d: Infinity, t: 0 }, s = 0;
   for (let i = 0; i < RIVER.length - 1; i++) {
@@ -68,41 +78,43 @@ function river(x, y) {
   }
   return { ...best, level: W.riverLevel(best.t) };
 }
-const inRect = (cx, cy, w, d, x, y, gap = 0) => Math.abs(x - cx) < w / 2 + gap && Math.abs(y - cy) < d / 2 + gap;
-const plinthOf = (C) => [C.cols * C.pitch + 12, C.rows * C.pitch + 12];
-const onPlinth = (x, y, gap = 0) => [W.CITY_A, W.CITY_B].some((C) => inRect(C.x, C.y, ...plinthOf(C), x, y, gap));
 const reservoir = (x, y) => ((x - W.RESERVOIR.x) / W.RESERVOIR.rx) ** 2 + ((y - W.RESERVOIR.y) / W.RESERVOIR.ry) ** 2;
+const pondGap = (x, y) => Math.min(...W.PONDS.map((p) => Math.hypot(x - p.x, y - p.y) - p.r));
+const inRect = (cx, cy, w, d, x, y, gap = 0) => Math.abs(x - cx) < w / 2 + gap && Math.abs(y - cy) < d / 2 + gap;
+const floorOf = (C) => [C.cols * C.pitch + 14, C.rows * C.pitch + 14];
+const onFloor = (x, y, gap = 0) => [W.CITY_A, W.CITY_B].some((C) => inRect(C.x, C.y, ...floorOf(C), x, y, gap));
+const PATHS = Object.fromEntries(Object.entries(W.PATHS).map(([n, p]) => [n, catmull(p, 3)]));
+const pathGap = (x, y) => Math.min(...Object.values(PATHS).map((line) => gapTo(line, x, y)));
 
 function groundZ(x, y, f = W.reach(x, y)) {
   const H = W.HIGHLAND, q = Math.hypot(x - H.x, y - H.y) / H.r;
   const highland = q < 1 ? H.h * (1 - q * q) ** 2 : 0;
-  const flat = onPlinth(x, y, 8) ? 0 : 1;
-  let z = TOP + highland * flat + flat * 0.9 * fbm(x / 40, y / 40, 1);
-  // the reservoir's bowl in the highlands
+  const flat = onFloor(x, y, 10) ? 0 : 1;
+  let z = TOP + highland * flat + flat * 1.1 * fbm(x / 46, y / 46, 1);
   const e = reservoir(x, y);
   if (e < 1.5) z = lerp(z, W.RESERVOIR.level - 7 * Math.max(0, 1 - e), smooth(1.5, 1.0, e));
-  // the river's valley: a bed below its level, banks easing up to the land
+  const pg = pondGap(x, y);
+  if (pg < 8) z = lerp(TOP - 2.4, Math.max(z, TOP - 0.2), smooth(-2, 8, pg));
   const r = river(x, y);
   if (r.d < 14) z = r.d < 0 ? r.level - 3 + 1.2 * smooth(-6, 0, r.d) : lerp(r.level + 0.6, z, smooth(0, 14, r.d));
-  z -= 2.2 * smooth(0.965, 1, f);                       // the soft lip at the edge
+  z -= 2.2 * smooth(0.965, 1, f);
   return lerp(z, BED + 0.8 * fbm(x / 25, y / 25, 2), W.seaShare(x, y));
 }
 function groundColour(x, y, z, slope) {
-  if (W.seaShare(x, y) > 0.02 && z < WATER + 0.3) return mix(hex(PALETTE.seabed), hex(PALETTE.seabedDeep), smooth(WATER - 1, BED + 1, z));
-  if (reservoir(x, y) < 1.02) return mix(hex(PALETTE.seabed), hex(PALETTE.seabedDeep), 0.6);
+  if (W.seaShare(x, y) > 0.02 && z < WATER + 0.3) return mix(hex(PALETTE.sand), hex("#5fb3cf"), smooth(WATER - 1, BED + 1, z));
+  if (reservoir(x, y) < 1.02 || pondGap(x, y) < 0) return hex("#8fb7b0");
   const r = river(x, y);
-  if (r.d < 0.5) return hex(PALETTE.seabed);
-  if (r.d < 4 || W.seaShare(x, y) > 0.02) return hex(PALETTE.sand);
-  if (slope > 0.75) return mix(hex(PALETTE.rock), hex("#8c9398"), 0.5 + 0.5 * fbm(x / 9, y / 9, 6));
-  if (onPlinth(x, y, 2)) return hex(PALETTE.pavement);
-  const i = Math.floor((x + 24 * fbm(x / 80, y / 80, 9)) / 70), j = Math.floor((y + 20 * fbm(x / 80, y / 80, 7)) / 56);
-  const field = mix(hex(PALETTE.grass[Math.floor(hash(i, j, 5) * PALETTE.grass.length)]), hex("#4f9a2f"), 0.18 * (fbm(x / 14, y / 14, 3) + 0.5));
-  return mix(field, hex(PALETTE.highland), smooth(TOP + 8, TOP + 26, z));
+  if (r.d < 0.5) return hex(PALETTE.dirt);
+  if (r.d < 3.5 || W.seaShare(x, y) > 0.02 || pondGap(x, y) < 3) return hex(PALETTE.sand);
+  if (slope > 0.75) return mix(hex(PALETTE.stone), hex(PALETTE.mauve), 0.4 + 0.4 * fbm(x / 9, y / 9, 6));
+  if (onFloor(x, y, 2) || pathGap(x, y) < W.PATH_WIDTH / 2 + 1.5) return hex(PALETTE.sand);
+  const g = mix(hex(PALETTE.grass), hex(PALETTE.grassLight), 0.5 + 0.5 * fbm(x / 30, y / 30, 3));
+  return mix(g, hex(PALETTE.grassDark), smooth(TOP + 10, TOP + 30, z) * 0.6);
 }
 export const ground = (x, y) => groundZ(x, y);
 
 // ── The ground as one surface: rings out to the outline, so its edge is exact
-const NT = 300, NR = 50;
+const NT = 320, NR = 54;
 const ringF = (k) => 0.02 + 0.98 * (1 - Math.pow(1 - k / NR, 1.4));
 function surface() {
   const verts = [], vcolours = [], faces = [];
@@ -119,9 +131,8 @@ function surface() {
   verts.push([0, 0, groundZ(0, 0)]);
   vcolours.push(...groundColour(0, 0, groundZ(0, 0), 0).map((v) => Math.round(v * 255)));
   for (let i = 0; i < NT; i++) faces.push([c, at(0, i), at(0, i + 1)]);
-  return { kind: "mesh", group: "ground", verts, vcolours, faces, colour: PALETTE.grass[0] };
+  return { kind: "mesh", group: "ground", verts, vcolours, faces, colour: PALETTE.grass };
 }
-// the water: the inlet's sea, the river's ribbon falling to it, the reservoir
 function waters() {
   const verts = [], faces = [];
   const idx = new Map();
@@ -134,7 +145,6 @@ function waters() {
     const [x, y] = W.edgeAt(((i + 0.5) / NT) * Math.PI * 2, ringF(k + 0.5));
     if (W.seaShare(x, y) > 0) faces.push([vert(k, i), vert(k + 1, i), vert(k + 1, i + 1), vert(k, i + 1)]);
   }
-  // the river, a little wider than its bed so it meets the banks
   let s = 0;
   for (let i = 0; i < RIVER.length - 1; i++) {
     const a = RIVER[i], b = RIVER[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
@@ -142,34 +152,65 @@ function waters() {
       const w = W.riverWidth(t) / 2 + 1.6, dx = b[0] - a[0], dy = b[1] - a[1], n = Math.hypot(dx, dy) || 1;
       return [[p[0] + (dy / n) * w, p[1] - (dx / n) * w, W.riverLevel(t)], [p[0] - (dy / n) * w, p[1] + (dx / n) * w, W.riverLevel(t)]];
     };
-    const ta = s / RIVER_LEN, tb = (s + l) / RIVER_LEN;
-    const [a0, a1] = side(a, ta), [b0, b1] = side(b, tb);
+    const [a0, a1] = side(a, s / RIVER_LEN), [b0, b1] = side(b, (s + l) / RIVER_LEN);
     const n = verts.length;
     verts.push(a0, a1, b1, b0);
     faces.push([n, n + 3, n + 2, n + 1]);
     s += l;
   }
-  // the reservoir
-  const R0 = W.RESERVOIR, c = verts.length;
-  verts.push([R0.x, R0.y, R0.level]);
-  for (let i = 0; i <= 48; i++) { const a = (i / 48) * Math.PI * 2; verts.push([R0.x + Math.cos(a) * R0.rx * 1.08, R0.y + Math.sin(a) * R0.ry * 1.08, R0.level]); }
-  for (let i = 0; i < 48; i++) faces.push([c, c + 1 + i, c + 2 + i]);
-  return { kind: "mesh", group: "water", verts, faces, colour: "#35a9c8", smooth: false };
+  const disc = (cx, cy, rx, ry, level) => {
+    const c = verts.length;
+    verts.push([cx, cy, level]);
+    for (let i = 0; i <= 48; i++) { const a = (i / 48) * Math.PI * 2; verts.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, level]); }
+    for (let i = 0; i < 48; i++) faces.push([c, c + 1 + i, c + 2 + i]);
+  };
+  disc(W.RESERVOIR.x, W.RESERVOIR.y, W.RESERVOIR.rx * 1.08, W.RESERVOIR.ry * 1.08, W.RESERVOIR.level);
+  for (const p of W.PONDS) disc(p.x, p.y, p.r + 1.5, p.r + 1.5, TOP - 0.9);
+  return { kind: "mesh", group: "water", verts, faces, colour: PALETTE.water, smooth: false };
+}
+// foam: pale rings a little way out from every shore
+function foam() {
+  const quads = [];
+  const ring = (pts, offsets) => {
+    for (const [off, w] of offsets) for (let i = 0; i < pts.length; i++) {
+      const [x, y, z, nx, ny] = pts[i], [x2, y2, z2, nx2, ny2] = pts[(i + 1) % pts.length];
+      quads.push([[x + nx * off, y + ny * off, z], [x2 + nx2 * off, y2 + ny2 * off, z2], [x2 + nx2 * (off + w), y2 + ny2 * (off + w), z2], [x + nx * (off + w), y + ny * (off + w), z]]);
+    }
+  };
+  // the bay's shore: where the sea begins along each bearing, the normal pointing seaward
+  const shore = [];
+  for (let i = 0; i <= 140; i++) {
+    const t = -0.36 + (1.1 * i) / 140;
+    let lo = 0.4, hi = 0.98;
+    for (let n = 0; n < 30; n++) { const m = (lo + hi) / 2, [x, y] = W.edgeAt(t, m); if (W.seaShare(x, y) > 0.5) hi = m; else lo = m; }
+    const [x, y] = W.edgeAt(t, hi), [x2, y2] = W.edgeAt(t + 0.01, hi);
+    const dx = x2 - x, dy = y2 - y, l = Math.hypot(dx, dy) || 1;
+    shore.push([x, y, WATER + 0.06, dy / l, -dx / l]);
+  }
+  for (const [off, w] of [[2.2, 0.9], [6.5, 0.6]]) for (let i = 0; i < shore.length - 1; i++) {
+    if (i % 7 === 6) continue;   // broken, like ripples
+    const [x, y, z, nx, ny] = shore[i], [x2, y2, z2, nx2, ny2] = shore[i + 1];
+    quads.push([[x + nx * off, y + ny * off, z], [x2 + nx2 * off, y2 + ny2 * off, z2], [x2 + nx2 * (off + w), y2 + ny2 * (off + w), z2], [x + nx * (off + w), y + ny * (off + w), z]]);
+  }
+  const circle = (cx, cy, rx, ry, level, n = 56) => Array.from({ length: n }, (_, i) => { const a = (i / n) * Math.PI * 2, nx = -Math.cos(a) * ry, ny = -Math.sin(a) * rx, l = Math.hypot(nx, ny); return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, level + 0.06, nx / l, ny / l]; });
+  ring(circle(W.RESERVOIR.x, W.RESERVOIR.y, W.RESERVOIR.rx * 1.02, W.RESERVOIR.ry * 1.02, W.RESERVOIR.level), [[1.6, 0.7], [4.6, 0.5]]);
+  for (const p of W.PONDS) ring(circle(p.x, p.y, p.r, p.r, TOP - 0.9, 36), [[1.4, 0.6], [3.6, 0.45]]);
+  return { kind: "quads", group: "foam", colour: "#ffffff", quads };
 }
 
-// ── The walls: chunky strata round the whole outline ────────────────────────
+// ── The walls: strata round the whole outline ───────────────────────────────
 const LAYERS = ["water", "grass", "topsoil", "subsoil", "sediment", "sandstone", "mudstone", "limestone", "granite"];
 function column(t) {
   const [x, y] = W.edgeAt(t), sea = W.seaShare(x * 0.999, y * 0.999), top = groundZ(x, y, 1);
   const wet = sea > 0.5, land = wet ? 0 : 1;
-  const th = [wet ? WATER - top : 0, 2.5 * land, 5 * land, 8 * land, wet ? 5 : 0];
+  const th = [wet ? WATER - top : 0, 2.6 * land, 4 * land, 7 * land, wet ? 4 : 0];
   const z = [wet ? WATER : top];
   for (const h of th) z.push(z[z.length - 1] - h);
   const s = t * 300;
   const wave = (base, amp, len, ph) => base + amp * Math.sin(s / len + ph) + amp * 0.45 * Math.sin(s / (len * 0.4) + ph * 2.1);
-  z.push(Math.min(z[z.length - 1] - 3, wave(-24, 3, 60, 0.4)));
-  z.push(wave(-40, 4, 80, 1.9));
-  z.push(wave(-55, 3, 50, 3.1));
+  z.push(Math.min(z[z.length - 1] - 3, wave(-20, 3, 60, 0.4)));
+  z.push(wave(-36, 4, 80, 1.9));
+  z.push(wave(-50, 3, 50, 3.1));
   z.push(-DEPTH);
   return { x, y, z };
 }
@@ -194,20 +235,20 @@ function walls() {
 }
 
 // ── Primitives ──────────────────────────────────────────────────────────────
-const prims = [surface(), waters(), walls()], protos = {}, instances = [];
+const prims = [surface(), waters(), foam(), walls()], protos = {}, instances = [];
 const P = (kind, spec) => prims.push({ kind, group: "static", ...spec });
 const on = (x, y) => groundZ(x, y);
-const R = W.seeded(91);
+const R = W.seeded(1337);
 const pick = (list) => list[Math.floor(R() * list.length)];
 const taken = [];
 const free = (x, y, r) => taken.every((p) => Math.hypot(p.x - x, p.y - y) > p.r + r);
-const claim = (x, y, r, tree = false) => taken.push({ x, y, r, tree });
+const claim = (x, y, r, soft = false) => taken.push({ x, y, r, soft });
 const tall = [];
+const place = (proto, x, y, rot = 0, scale = 1, z = on(x, y)) => instances.push({ proto, at: [x, y, z], rot, scale });
 
-// ── Roads, with a bridge wherever one crosses the river ─────────────────────
-const ROADS = Object.fromEntries(Object.entries(W.ROADS).map(([n, p]) => [n, catmull(p, 3)]));
-const roadZ = (x, y) => { const r = river(x, y); return r.d < 5 ? Math.max(on(x, y), r.level + 4) : on(x, y); };
-function ribbon(line, width, lift, colour, group = "static", dash = 0, zOf = on) {
+// ── Paths: sand, raised a touch, with a bridge over the river ───────────────
+const pathZ = (x, y) => { const r = river(x, y); return r.d < 6 ? Math.max(on(x, y), r.level + 4.2) : on(x, y); };
+function ribbon(line, width, lift, colour, group = "static", zOf = on) {
   const quads = [];
   const side = line.map((p, i) => {
     const a = line[Math.max(0, i - 1)], b = line[Math.min(line.length - 1, i + 1)];
@@ -215,138 +256,171 @@ function ribbon(line, width, lift, colour, group = "static", dash = 0, zOf = on)
     return [[p[0] - (dy / l) * width / 2, p[1] + (dx / l) * width / 2], [p[0] + (dy / l) * width / 2, p[1] - (dx / l) * width / 2]];
   });
   for (let i = 0; i < line.length - 1; i++) {
-    if (dash && i % 2) continue;
     const zi = zOf(...line[i]) + lift, zj = zOf(...line[i + 1]) + lift;
     quads.push([[...side[i][0], zi], [...side[i][1], zi], [...side[i + 1][1], zj], [...side[i + 1][0], zj]]);
   }
   prims.push({ kind: "quads", quads, colour, group });
 }
-for (const line of Object.values(ROADS)) {
-  ribbon(line, W.ROAD_WIDTH, 0.35, PALETTE.asphalt, "static", 0, roadZ);
-  ribbon(line, 0.6, 0.45, PALETTE.marking, "static", 1, roadZ);
-  for (const [x, y] of line) claim(x, y, W.ROAD_WIDTH / 2 + 2);
-  // the bridge: a deck under the road and parapets either side, over the water
-  const over = line.filter(([x, y]) => river(x, y).d < 5);
+// wooden things along a path: fence modules on one side, lanterns on both, alternating
+function dress(line, { fence = true, lanterns = true, every = 44 } = {}) {
+  let s = 0, nextLantern = every / 2, nextFence = 0, side = 1;
+  for (let i = 0; i < line.length - 1; i++) {
+    const a = line[i], b = line[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, rot = Math.atan2(dy, dx);
+    const nx = -dy / l, ny = dx / l, off = W.PATH_WIDTH / 2 + 1.6;
+    while (nextFence <= s + l) {
+      const t = (nextFence - s) / l, x = a[0] + dx * t + nx * off, y = a[1] + dy * t + ny * off;
+      if (fence && river(x, y).d > 6 && !onFloor(x, y, 2) && W.reach(x, y) < 0.95) place("fence", x, y, rot, 1);
+      nextFence += 4;
+    }
+    while (nextLantern <= s + l) {
+      const t = (nextLantern - s) / l, x = a[0] + dx * t - nx * off * side * 1.15, y = a[1] + dy * t - ny * off * side * 1.15;
+      if (lanterns && river(x, y).d > 6) { place("lantern", x, y, rot, 1); claim(x, y, 2); }
+      nextLantern += every; side = -side;
+    }
+    s += l;
+  }
+}
+for (const [name, line] of Object.entries(PATHS)) {
+  ribbon(line, W.PATH_WIDTH, 0.22, PALETTE.sand, "static", pathZ);
+  for (const [x, y] of line) claim(x, y, W.PATH_WIDTH / 2 + 2);
+  dress(line, { fence: name === "main" || name === "west" || name === "works" });
+  const over = line.filter(([x, y]) => river(x, y).d < 6);
   if (over.length > 1) {
+    // a wooden bridge: planks, two beams, posts and a rail each side
     const a = over[0], b = over[over.length - 1], ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
-    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) + 6, cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2, z = roadZ(cx, cy);
-    P("rbox", { at: [cx, cy, z - 2.2], size: [len, W.ROAD_WIDTH + 2, 2.5], rot: [0, 0, ang], r: 0.5, colour: PALETTE.concrete });
-    for (const sgn of [-1, 1]) P("rbox", { at: [cx - Math.sin(ang) * sgn * (W.ROAD_WIDTH / 2 + 0.7), cy + Math.cos(ang) * sgn * (W.ROAD_WIDTH / 2 + 0.7), z + 0.3], size: [len, 0.8, 1.4], rot: [0, 0, ang], r: 0.3, colour: PALETTE.concrete });
-    for (const f of [0.3, 0.7]) P("rbox", { at: [lerp(a[0], b[0], f), lerp(a[1], b[1], f), river(cx, cy).level - 3], size: [3, W.ROAD_WIDTH, z - river(cx, cy).level + 1], rot: [0, 0, ang], r: 0.4, colour: PALETTE.concrete });
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) + 8, cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2, z = pathZ(cx, cy);
+    P("rbox", { at: [cx, cy, z - 1.2], size: [len, W.PATH_WIDTH + 1, 1.3], rot: [0, 0, ang], r: 0.3, colour: PALETTE.wood });
+    for (let u = -len / 2 + 1; u < len / 2; u += 2.2) P("box", { at: [cx + Math.cos(ang) * u, cy + Math.sin(ang) * u, z + 0.1], size: [1.4, W.PATH_WIDTH + 1.2, 0.25], rot: [0, 0, ang], colour: u % 4.4 < 2.2 ? PALETTE.wood : "#a58d6f" });
+    for (const sgn of [-1, 1]) {
+      const ox = -Math.sin(ang) * sgn * (W.PATH_WIDTH / 2 + 0.8), oy = Math.cos(ang) * sgn * (W.PATH_WIDTH / 2 + 0.8);
+      P("box", { at: [cx + ox, cy + oy, z + 1.4], size: [len, 0.35, 0.35], rot: [0, 0, ang], colour: PALETTE.woodDark });
+      for (let u = -len / 2 + 1; u <= len / 2; u += 5) P("box", { at: [cx + Math.cos(ang) * u + ox, cy + Math.sin(ang) * u + oy, z], size: [0.5, 0.5, 1.7], rot: [0, 0, ang], colour: PALETTE.woodDark });
+    }
+    for (const f of [0.3, 0.7]) P("box", { at: [lerp(a[0], b[0], f), lerp(a[1], b[1], f), river(cx, cy).level - 3], size: [1.2, W.PATH_WIDTH - 1, z - river(cx, cy).level + 1.5], rot: [0, 0, ang], colour: PALETTE.woodDark });
   }
 }
 
 // ── Prototypes, instanced by the page ───────────────────────────────────────
-protos.tree_round = [
-  { kind: "cyl", at: [0, 0, 0], r: 0.9, r2: 0.7, h: 6, seg: 8, colour: PALETTE.trunk },
-  { kind: "sphere", at: [0, 0, 11], r: 6.4, sub: 2, colour: PALETTE.leaf[1], group: "leaves" },
+// Trees: a trunk and a solid crown that only casts shadow; the page draws the
+// leaves as soft cards in each tree's own green or pink.
+protos.oak = [
+  { kind: "cyl", at: [0, 0, 0], r: 1.1, r2: 0.8, h: 6.5, seg: 8, colour: PALETTE.woodDark },
+  { kind: "sphere", at: [0, 0, 11.5], r: 6.6, sub: 2, colour: PALETTE.grass, group: "leaves" },
 ];
-protos.tree_tall = [
-  { kind: "cyl", at: [0, 0, 0], r: 0.8, r2: 0.6, h: 4, seg: 8, colour: PALETTE.trunk },
-  { kind: "lathe", at: [0, 0, 3], profile: [[0, 5.5], [5, 4.6], [10, 2.8], [14, 0]], seg: 10, colour: PALETTE.leaf[2], group: "leaves" },
+protos.birch = [
+  { kind: "cyl", at: [0, 0, 0], r: 0.7, r2: 0.45, h: 9, seg: 8, colour: PALETTE.cream },
+  { kind: "sphere", at: [0, 0, 13], r: 5, sub: 2, colour: PALETTE.lime, group: "leaves" },
 ];
-// little houses with pitched roofs, four paints
-PALETTE.walls.forEach((wall, n) => {
+protos.cherry = [
+  { kind: "cyl", at: [0, 0, 0], r: 0.9, r2: 0.6, h: 5.5, seg: 8, colour: PALETTE.woodDark },
+  { kind: "sphere", at: [0, 0, 9.5], r: 6, sub: 2, colour: PALETTE.pink, group: "leaves" },
+];
+protos.bush = [{ kind: "sphere", at: [0, 0, 1.6], r: 2.4, sub: 1, colour: PALETTE.grassDark, group: "leaves" }];
+for (const [name, colour] of [["flower_pink", PALETTE.pink], ["flower_orange", PALETTE.orange], ["flower_white", PALETTE.cream], ["flower_violet", PALETTE.violet]]) {
+  protos[name] = [0, 1, 2].map((n) => ({ kind: "sphere", at: [Math.cos(n * 2.1) * 1.1, Math.sin(n * 2.1) * 1.1, 1.2 + (n % 2) * 0.3], r: 0.55, sub: 1, colour }));
+}
+protos.fence = [
+  { kind: "box", at: [-2, 0, 0], size: [0.5, 0.5, 2.2], colour: PALETTE.wood },
+  { kind: "box", at: [2, 0, 0], size: [0.5, 0.5, 2.2], colour: PALETTE.wood },
+  { kind: "box", at: [0, 0, 1.7], size: [4.4, 0.25, 0.3], colour: PALETTE.woodDark },
+  { kind: "box", at: [0, 0, 0.8], size: [4.4, 0.25, 0.3], colour: PALETTE.woodDark },
+];
+protos.lantern = [
+  { kind: "cyl", at: [0, 0, 0], r: 0.32, h: 4.6, seg: 8, colour: PALETTE.woodDark },
+  { kind: "rbox", at: [0, 0, 4.6], size: [1.6, 1.6, 2.0], r: 0.3, colour: PALETTE.yellow, group: "lights:lantern" },
+  { kind: "cyl", at: [0, 0, 6.6], r: 1.25, r2: 0.2, h: 0.9, seg: 6, colour: PALETTE.woodDark },
+];
+protos.bench = [
+  { kind: "box", at: [0, 0, 0.9], size: [3.2, 1.0, 0.25], colour: PALETTE.wood },
+  { kind: "box", at: [0, -0.55, 1.15], size: [3.2, 0.2, 0.9], colour: PALETTE.wood },
+  { kind: "box", at: [-1.2, 0, 0], size: [0.3, 1.0, 0.9], colour: PALETTE.woodDark },
+  { kind: "box", at: [1.2, 0, 0], size: [0.3, 1.0, 0.9], colour: PALETTE.woodDark },
+];
+protos.crate = [{ kind: "rbox", at: [0, 0, 0], size: [2.4, 2.4, 2.4], r: 0.25, colour: PALETTE.tan }, { kind: "box", at: [0, 0, 2.4], size: [2.5, 0.4, 0.1], colour: PALETTE.woodDark }, { kind: "box", at: [0, 0, 2.4], size: [0.4, 2.5, 0.1], colour: PALETTE.woodDark }];
+PALETTE.buildings.slice(0, 4).forEach((wall, n) => {
   const roof = PALETTE.roofs[n], w = 12, d = 9, h = 7;
   protos[`house_${n}`] = [
-    { kind: "rbox", at: [0, 0, 0], size: [w, d, h], r: 0.6, colour: wall },
+    { kind: "rbox", at: [0, 0, 0], size: [w, d, h], r: 0.5, colour: wall },
     { kind: "gable", at: [0, 0, h], size: [w + 1, d + 1.4, 4.6], colour: roof },
-    { kind: "box", at: [w * 0.25, -d * 0.2, h + 1.4], size: [1.4, 1.4, 4], colour: PALETTE.brick },
-    { kind: "quad", pts: [[-2.2, d / 2 + 0.05, 2.6], [-0.4, d / 2 + 0.05, 2.6], [-0.4, d / 2 + 0.05, 4.8], [-2.2, d / 2 + 0.05, 4.8]], colour: "#4d6274", group: "lights:window" },
-    { kind: "quad", pts: [[1.6, d / 2 + 0.05, 2.6], [3.4, d / 2 + 0.05, 2.6], [3.4, d / 2 + 0.05, 4.8], [1.6, d / 2 + 0.05, 4.8]], colour: "#4d6274", group: "lights:window" },
-    { kind: "quad", pts: [[w / 2 + 0.05, -1, 2.6], [w / 2 + 0.05, 1, 2.6], [w / 2 + 0.05, 1, 4.8], [w / 2 + 0.05, -1, 4.8]], colour: "#4d6274", group: "lights:window" },
+    { kind: "box", at: [w * 0.25, -d * 0.2, h + 1.4], size: [1.4, 1.4, 4], colour: PALETTE.woodDark },
+    { kind: "quad", pts: [[-2.2, d / 2 + 0.05, 2.6], [-0.4, d / 2 + 0.05, 2.6], [-0.4, d / 2 + 0.05, 4.8], [-2.2, d / 2 + 0.05, 4.8]], colour: PALETTE.slate, group: "lights:window" },
+    { kind: "quad", pts: [[1.6, d / 2 + 0.05, 2.6], [3.4, d / 2 + 0.05, 2.6], [3.4, d / 2 + 0.05, 4.8], [1.6, d / 2 + 0.05, 4.8]], colour: PALETTE.slate, group: "lights:window" },
+    { kind: "quad", pts: [[w / 2 + 0.05, -1, 2.6], [w / 2 + 0.05, 1, 2.6], [w / 2 + 0.05, 1, 4.8], [w / 2 + 0.05, -1, 4.8]], colour: PALETTE.slate, group: "lights:window" },
   ];
 });
-function tree(x, y, s = 0.8 + R() * 0.45) {
-  claim(x, y, 6 * s, true);
-  instances.push({ proto: R() < 0.2 ? "tree_tall" : "tree_round", at: [x, y, on(x, y)], rot: R() * 6.28, scale: s });
+const TREES = ["oak", "oak", "birch", "cherry"];
+function tree(x, y, kind = pick(TREES), s = 0.8 + R() * 0.45) {
+  claim(x, y, 5.5 * s, true);
+  place(kind, x, y, R() * 6.28, s);
 }
 function house(x, y, rot) {
   claim(x, y, 8);
-  instances.push({ proto: `house_${Math.floor(R() * 4)}`, at: [x, y, on(x, y)], rot, scale: 0.9 + R() * 0.2 });
+  place(`house_${Math.floor(R() * 4)}`, x, y, rot, 0.9 + R() * 0.2);
 }
 
-// ── The cities: chunky blocks on plinths, streets between, windows in grids ─
-function windows(x, y, w, d, z0, z1, colour, floor = 6) {
+// ── The cities: flat-coloured blocks on sandy ground, tiled streets ─────────
+function windows(x, y, w, d, z0, z1, colour, floor = 5.5) {
   const quads = [];
-  for (let zz = z0 + 4.5; zz + 4 < z1 - 1.5; zz += floor) {
-    for (let u = -w / 2 + 3; u + 2.4 < w / 2 - 2; u += 4.6) quads.push([[x + u, y + d / 2 + 0.06, zz], [x + u + 2.5, y + d / 2 + 0.06, zz], [x + u + 2.5, y + d / 2 + 0.06, zz + 3.3], [x + u, y + d / 2 + 0.06, zz + 3.3]]);
-    for (let u = -d / 2 + 3; u + 2.4 < d / 2 - 2; u += 4.6) quads.push([[x + w / 2 + 0.06, y + u + 2.5, zz], [x + w / 2 + 0.06, y + u, zz], [x + w / 2 + 0.06, y + u, zz + 3.3], [x + w / 2 + 0.06, y + u + 2.5, zz + 3.3]]);
+  for (let zz = z0 + 4; zz + 3.6 < z1 - 1.2; zz += floor) {
+    for (let u = -w / 2 + 2.6; u + 2.2 < w / 2 - 1.6; u += 4.2) quads.push([[x + u, y + d / 2 + 0.06, zz], [x + u + 2.3, y + d / 2 + 0.06, zz], [x + u + 2.3, y + d / 2 + 0.06, zz + 3], [x + u, y + d / 2 + 0.06, zz + 3]]);
+    for (let u = -d / 2 + 2.6; u + 2.2 < d / 2 - 1.6; u += 4.2) quads.push([[x + w / 2 + 0.06, y + u + 2.3, zz], [x + w / 2 + 0.06, y + u, zz], [x + w / 2 + 0.06, y + u, zz + 3], [x + w / 2 + 0.06, y + u + 2.3, zz + 3]]);
   }
-  prims.push({ kind: "quads", quads, colour: toHex(mix(hex(colour), [0.12, 0.17, 0.24], 0.55)), group: "lights:window", ref: [x, y, (z0 + z1) / 2] });
+  prims.push({ kind: "quads", quads, colour: toHex(mix(hex(colour), hex(PALETTE.slate), 0.7)), group: "lights:window", ref: [x, y, (z0 + z1) / 2] });
 }
-function block(x, y, w, d, h, colour, crown = true) {
-  const z = TOP + 1.6;
-  P("rbox", { at: [x, y, z], size: [w, d, h], r: 1.3, colour });
-  if (crown) P("rbox", { at: [x + w * 0.1, y - d * 0.1, z + h], size: [w * 0.45, d * 0.4, 3], r: 0.5, colour: PALETTE.steel });
+function block(x, y, w, d, h, colour, roof = PALETTE.woodDark) {
+  const z = TOP;
+  P("rbox", { at: [x, y, z], size: [w, d, h], r: 1.0, colour });
+  P("rbox", { at: [x, y, z + h], size: [w + 0.8, d + 0.8, 1.0], r: 0.3, colour: roof });
+  if (h > 30) P("rbox", { at: [x + w * 0.12, y - d * 0.1, z + h + 1], size: [w * 0.4, d * 0.35, 2.6], r: 0.4, colour: PALETTE.stone });
   windows(x, y, w, d, z, z + h, colour);
   tall.push([x, y, z + h + 4]);
 }
 function city(C, heightAt) {
-  const [pw, pd] = plinthOf(C);
-  P("rbox", { at: [C.x, C.y, TOP - 1], size: [pw, pd, 2.6], r: 1.4, colour: PALETTE.pavement });
-  // the streets across the plinth, between the blocks
-  for (let i = 0; i <= C.cols; i++) P("box", { at: [C.x + (i - C.cols / 2) * C.pitch, C.y, TOP + 1.62], size: [8, pd - 6, 0.06], colour: PALETTE.asphalt });
-  for (let j = 0; j <= C.rows; j++) P("box", { at: [C.x, C.y + (j - C.rows / 2) * C.pitch, TOP + 1.62], size: [pw - 6, 8, 0.06], colour: PALETTE.asphalt });
-  // street trees at the junctions, small, on the plinth
+  const [fw, fd] = floorOf(C);
+  for (let i = 0; i <= C.cols; i++) P("box", { at: [C.x + (i - C.cols / 2) * C.pitch, C.y, TOP + 0.12], size: [6, fd - 8, 0.1], colour: PALETTE.stone });
+  for (let j = 0; j <= C.rows; j++) P("box", { at: [C.x, C.y + (j - C.rows / 2) * C.pitch, TOP + 0.12], size: [fw - 8, 6, 0.1], colour: PALETTE.stone });
   for (let i = 0; i <= C.cols; i++) for (let j = 0; j <= C.rows; j++) {
-    if (hash(i, j, 21) < 0.35) continue;
-    const x = C.x + (i - C.cols / 2) * C.pitch + 6.5, y = C.y + (j - C.rows / 2) * C.pitch + 6.5;
-    instances.push({ proto: "tree_round", at: [x, y, TOP + 1.6], rot: R() * 6.28, scale: 0.42 + R() * 0.1 });
+    const x = C.x + (i - C.cols / 2) * C.pitch + 5.5, y = C.y + (j - C.rows / 2) * C.pitch + 5.5;
+    if (hash(i, j, 21) < 0.5) place("lantern", x, y, 0, 0.9, TOP + 0.2);
+    else place(hash(i, j, 22) < 0.5 ? "cherry" : "birch", x, y, R() * 6.28, 0.5 + R() * 0.12, TOP + 0.2);
   }
   for (let j = 0; j < C.rows; j++) for (let i = 0; i < C.cols; i++) {
     const x = C.x + (i - (C.cols - 1) / 2) * C.pitch, y = C.y + (j - (C.rows - 1) / 2) * C.pitch;
     if (C.park && C.park[0] === i && C.park[1] === j) {
-      // the park: a lawn, a few trees, a pond
-      P("rbox", { at: [x, y, TOP + 1.5], size: [C.pitch - 12, C.pitch - 12, 0.4], r: 0.6, colour: PALETTE.grass[1] });
-      P("cyl", { at: [x + 5, y + 4, TOP + 1.9], r: 6, h: 0.2, seg: 24, colour: "#4cc0d6" });
-      for (const [dx, dy] of [[-10, -10], [10, -11], [-11, 9], [-2, -13]]) instances.push({ proto: "tree_round", at: [x + dx, y + dy, TOP + 1.9], rot: R() * 6.28, scale: 0.55 + R() * 0.15 });
+      P("rbox", { at: [x, y, TOP + 0.05], size: [C.pitch - 12, C.pitch - 12, 0.3], r: 0.6, colour: PALETTE.grassLight });
+      P("cyl", { at: [x + 4, y + 3, TOP + 0.3], r: 5.5, h: 0.2, seg: 24, colour: PALETTE.water });
+      for (const [dx, dy, k] of [[-9, -9, "cherry"], [9, -10, "oak"], [-10, 8, "cherry"], [-1, -12, "birch"]]) place(k, x + dx, y + dy, R() * 6.28, 0.55 + R() * 0.15, TOP + 0.35);
+      for (const [dx, dy, rot] of [[8, 8, 0], [-8, 11, Math.PI / 2]]) place("bench", x + dx, y + dy, rot, 1, TOP + 0.35);
       continue;
     }
     const [h, kind] = heightAt(i, j);
-    const colour = PALETTE.towers[(i * 3 + j * 5) % PALETTE.towers.length];
-    const fw = C.pitch - 22 - hash(i, j, 4) * 6, fd = C.pitch - 22 - hash(i, j, 6) * 6;
-    if (kind === "tower") {
-      block(x, y, fw, fd, h, colour);
-      if (h > 110) { P("cyl", { at: [x, y, TOP + 1.6 + h + 3], r: 0.8, r2: 0.25, h: 20, seg: 6, colour: PALETTE.steel }); P("sphere", { at: [x, y, TOP + 1.6 + h + 23.5], r: 1.1, sub: 1, colour: PALETTE.red, group: "lights:beacon" }); tall.push([x, y, TOP + h + 30]); }
-    } else {
-      // a mid-rise and a lower neighbour, a yard between them
-      block(x - 4, y - 4, fw * 0.62, fd * 0.7, h, colour);
-      block(x + fw * 0.32, y + fd * 0.3, fw * 0.36, fd * 0.36, h * 0.55, PALETTE.towers[(i + j + 2) % PALETTE.towers.length], false);
-    }
+    const colour = PALETTE.buildings[(i * 3 + j * 5) % PALETTE.buildings.length];
+    const roof = PALETTE.roofs[(i + j) % PALETTE.roofs.length];
+    const bw = C.pitch - 20 - hash(i, j, 4) * 5, bd = C.pitch - 20 - hash(i, j, 6) * 5;
+    if (kind === "tower") block(x, y, bw, bd, h, colour, roof);
+    else { block(x - 4, y - 4, bw * 0.62, bd * 0.7, h, colour, roof); block(x + bw * 0.3, y + bd * 0.3, bw * 0.36, bd * 0.36, h * 0.55, PALETTE.buildings[(i + j + 3) % PALETTE.buildings.length], roof); }
   }
-  claim(C.x, C.y, Math.hypot(pw, pd) / 2 + 2);
+  claim(C.x, C.y, Math.hypot(fw, fd) / 2 + 2);
 }
-// the main city: tallest at the back, stepping down toward the river, so no
-// row hides the one behind it
 city(W.CITY_A, (i, j) => {
   const back = W.CITY_A.rows - 1 - j, middle = 1 - Math.abs(i - (W.CITY_A.cols - 1) / 2) / 2;
-  const h = 52 + back * 34 + middle * 30 + (hash(i, j, 3) - 0.5) * 20;
-  return [Math.round(h), j === W.CITY_A.rows - 1 && hash(i, j, 9) < 0.6 ? "mid" : "tower"];
+  return [Math.round(30 + back * 24 + middle * 22 + (hash(i, j, 3) - 0.5) * 14), j === W.CITY_A.rows - 1 && hash(i, j, 9) < 0.6 ? "mid" : "tower"];
 });
-city(W.CITY_B, (i, j) => {
-  const d = Math.hypot(i - 1, j - 1);
-  return d < 0.5 ? [72, "tower"] : [Math.round(30 + hash(i, j, 8) * 22), d < 1.2 ? "tower" : "mid"];
-});
-// suburbs: houses along little lanes, gardens between
+city(W.CITY_B, (i, j) => [Math.round(14 + hash(i, j, 8) * 14 + (i === 1 && j === 1 ? 18 : 0)), i === 1 && j === 1 ? "tower" : "mid"]);
 for (const S of W.SUBURBS) {
   for (let y = S.y - S.d / 2 + 6; y <= S.y + S.d / 2; y += 16) for (let x = S.x - S.w / 2 + 6; x <= S.x + S.w / 2; x += 17) {
     const hx = x + (R() - 0.5) * 3, hy = y + (R() - 0.5) * 3;
-    if (W.reach(hx, hy) > 0.9 || river(hx, hy).d < 6 || reservoir(hx, hy) < 1.4 || !free(hx, hy, 7)) continue;
-    if (R() < 0.82) house(hx, hy, R() < 0.5 ? 0 : Math.PI / 2);
-    else tree(hx, hy, 0.6 + R() * 0.3);
+    if (W.reach(hx, hy) > 0.9 || river(hx, hy).d < 6 || reservoir(hx, hy) < 1.4 || pondGap(hx, hy) < 6 || !free(hx, hy, 7)) continue;
+    if (R() < 0.8) house(hx, hy, R() < 0.5 ? 0 : Math.PI / 2);
+    else tree(hx, hy, "cherry", 0.6 + R() * 0.3);
   }
 }
-
-// the data centre beside the main city, and the pixels it sends up
-const pixels = [];
 {
   const { x, y, w, d, h } = W.DATA_CENTRE, z = on(x, y);
-  P("rbox", { at: [x, y, z], size: [w, d, h], r: 1, colour: PALETTE.white });
-  P("box", { at: [x, y + d / 2 + 0.05, z + h * 0.45], size: [w - 4, 0.1, 2], colour: "#46e0e6", group: "lights:led" });
-  for (let i = 0; i < 3; i++) P("cyl", { at: [x - w / 2 + 8 + i * 12, y, z + h], r: 3.4, h: 1.2, seg: 16, colour: PALETTE.dark });
-  claim(x, y, 26);
-  pixels.push([x, y, z + h + 2]);
+  P("rbox", { at: [x, y, z], size: [w, d, h], r: 0.8, colour: PALETTE.cream });
+  P("box", { at: [x, y + d / 2 + 0.05, z + h * 0.45], size: [w - 4, 0.1, 1.8], colour: PALETTE.water, group: "lights:led" });
+  for (let i = 0; i < 3; i++) P("cyl", { at: [x - w / 2 + 7 + i * 11, y, z + h], r: 3, h: 1, seg: 16, colour: PALETTE.slate });
+  claim(x, y, 24);
 }
 
 // ── Hydro: the dam across the valley, its spillway, the powerhouse below ───
@@ -355,47 +429,43 @@ const spray = [];
   const D = W.DAM, [ax, ay] = W.RIVER_POINTS[0], [bx, by] = W.RIVER_POINTS[1];
   const ang = Math.atan2(by - ay, bx - ax), c = Math.cos(ang), s = Math.sin(ang);
   const foot = river(D.x, D.y).level - 3;
-  // the wall, thick at the foot, its crest a road
-  P("rbox", { at: [D.x, D.y, foot], size: [12, D.length, D.top - foot], rot: [0, 0, ang], r: 1, colour: PALETTE.dam });
-  P("rbox", { at: [D.x - c * 1.5, D.y - s * 1.5, D.top], size: [8, D.length + 4, 1.4], rot: [0, 0, ang], r: 0.4, colour: PALETTE.concrete });
-  // three spillway gates, white water pouring down the downstream face
+  P("rbox", { at: [D.x, D.y, foot], size: [12, D.length, D.top - foot], rot: [0, 0, ang], r: 1, colour: PALETTE.stone });
+  P("rbox", { at: [D.x - c * 1.5, D.y - s * 1.5, D.top], size: [8, D.length + 4, 1.4], rot: [0, 0, ang], r: 0.4, colour: PALETTE.cream });
   for (const k of [-1, 0, 1]) {
     const gx = D.x - s * k * 10, gy = D.y + c * k * 10;
-    P("rbox", { at: [gx + c * 2, gy + s * 2, D.top - 1], size: [3, 2, 5], rot: [0, 0, ang], r: 0.3, colour: PALETTE.steel });
+    P("rbox", { at: [gx + c * 2, gy + s * 2, D.top - 1], size: [3, 2, 5], rot: [0, 0, ang], r: 0.3, colour: PALETTE.slate });
     const top = [gx + c * 6, gy + s * 6, D.top - 3], low = [gx + c * 16, gy + s * 16, river(gx + c * 16, gy + s * 16).level + 0.2];
     const off = [-s * 3.2, c * 3.2];
     prims.push({ kind: "quads", group: "foam", colour: "#ffffff", quads: [[[top[0] - off[0], top[1] - off[1], top[2]], [top[0] + off[0], top[1] + off[1], top[2]], [low[0] + off[0], low[1] + off[1], low[2]], [low[0] - off[0], low[1] - off[1], low[2]]]] });
     spray.push([low[0], low[1], low[2] + 1]);
   }
-  // the powerhouse on the bank, two penstocks down to it
   const px = D.x + c * 18 + s * 24, py = D.y + s * 18 - c * 24, pz = on(px, py);
-  P("rbox", { at: [px, py, pz], size: [20, 14, 10], rot: [0, 0, ang], r: 1, colour: PALETTE.towers[0] });
-  P("gable", { at: [px, py, pz + 10], size: [14, 20, 3], rot: [0, 0, ang + Math.PI / 2], colour: "#d6dee6" });
-  for (const k of [-3, 3]) P("tube", { points: [[D.x + s * (22 + k * 0.3), D.y - c * (22 + k * 0.3), D.top - 6], [px - c * 9 + s * k, py - s * 9 - c * k, pz + 6]], r: 1.4, colour: PALETTE.steel });
+  P("rbox", { at: [px, py, pz], size: [20, 14, 10], rot: [0, 0, ang], r: 1, colour: PALETTE.peach });
+  P("gable", { at: [px, py, pz + 10], size: [14, 20, 3], rot: [0, 0, ang + Math.PI / 2], colour: PALETTE.woodDark });
+  for (const k of [-3, 3]) P("tube", { points: [[D.x + s * (22 + k * 0.3), D.y - c * (22 + k * 0.3), D.top - 6], [px - c * 9 + s * k, py - s * 9 - c * k, pz + 6]], r: 1.4, colour: PALETTE.slate });
   claim(D.x, D.y, 30); claim(px, py, 14);
   tall.push([D.x, D.y, D.top + 10]);
 }
 
-// ── Wind on the highland rim ────────────────────────────────────────────────
-// the rotors face south-south-east, toward the viewer, so the blades read as full discs
+// ── Wind on the highland rim, offshore in the bay ───────────────────────────
 const AX = (() => { const l = Math.hypot(0.42, 0.91); return [0.42 / l, 0.91 / l, 0]; })();
 const yaw = Math.atan2(AX[1], AX[0]);
 const rotors = [];
-function turbine(x, y, { base = on(x, y), hub = 82, R: rad = 40, offshore = false } = {}) {
+function turbine(x, y, { base = on(x, y), hub = 80, R: rad = 40, offshore = false } = {}) {
   if (offshore) {
-    P("cyl", { at: [x, y, BED - 1], r: 3.6, h: WATER + 4 - BED, seg: 16, colour: PALETTE.safety });
-    P("cyl", { at: [x, y, WATER + 3], r: 6.5, h: 1.2, seg: 18, colour: PALETTE.safety });
+    P("cyl", { at: [x, y, BED - 1], r: 3.6, h: WATER + 4 - BED, seg: 16, colour: PALETTE.yellow });
+    P("cyl", { at: [x, y, WATER + 3], r: 6.5, h: 1.2, seg: 18, colour: PALETTE.yellow });
     base = WATER + 4.2;
   }
-  P("cyl", { at: [x, y, base], r: 3.6, r2: 2.1, h: hub - 2, seg: 16, colour: PALETTE.white });
-  P("rbox", { at: [x - AX[0] * 2, y - AX[1] * 2, base + hub - 2.4], size: [12, 4.6, 4.6], rot: [0, 0, yaw], r: 1.4, colour: PALETTE.white });
+  P("cyl", { at: [x, y, base], r: 3.4, r2: 2.0, h: hub - 2, seg: 16, colour: PALETTE.cream });
+  P("rbox", { at: [x - AX[0] * 2, y - AX[1] * 2, base + hub - 2.4], size: [12, 4.6, 4.6], rot: [0, 0, yaw], r: 1.4, colour: PALETTE.cream });
   rotors.push({ at: [x + AX[0] * 5, y + AX[1] * 5, base + hub], axis: AX, R: rad, phase: R() * Math.PI * 2, rpm: 10 + R() * 3 });
   P("sphere", { at: [x - AX[0] * 7, y - AX[1] * 7, base + hub + 2.6], r: 0.9, sub: 1, colour: PALETTE.red, group: "lights:beacon" });
   claim(x, y, 14);
   tall.push([x, y, base + hub + rad]);
 }
 for (const [x, y] of W.WIND) turbine(x, y);
-for (const [x, y] of W.OFFSHORE) turbine(x, y, { hub: 68, R: 34, offshore: true });
+for (const [x, y] of W.OFFSHORE) turbine(x, y, { hub: 66, R: 34, offshore: true });
 
 // ── The nuclear station ─────────────────────────────────────────────────────
 const steam = [];
@@ -403,35 +473,35 @@ const steam = [];
   for (const [x, y] of W.NUCLEAR.towers) {
     const z = on(x, y), rt = 15, st = 46, c = 34, H = 62;
     const profile = Array.from({ length: 13 }, (_, i) => { const t = (H * i) / 12; return [t, rt * Math.sqrt(1 + ((t - st) / c) ** 2)]; });
-    P("lathe", { at: [x, y, z], profile, seg: 40, colour: PALETTE.concrete, open: true, wall: 0.9 });
-    P("cyl", { at: [x, y, z], r: profile[0][1] + 0.5, h: 2.6, seg: 40, colour: "#9a9d97" });
+    P("lathe", { at: [x, y, z], profile, seg: 40, colour: PALETTE.stone, open: true, wall: 0.9 });
+    P("cyl", { at: [x, y, z], r: profile[0][1] + 0.5, h: 2.6, seg: 40, colour: PALETTE.mauve });
     steam.push([x, y, z + H]);
     claim(x, y, 30);
     tall.push([x, y, z + H + 30]);
   }
   const [rx, ry] = W.NUCLEAR.reactor, rz = on(rx, ry);
-  P("cyl", { at: [rx, ry, rz], r: 13, h: 17, seg: 32, colour: PALETTE.concrete });
-  P("sphere", { at: [rx, ry, rz + 17], r: 13, sub: 3, colour: "#eeebe4", hemi: true });
+  P("cyl", { at: [rx, ry, rz], r: 13, h: 17, seg: 32, colour: PALETTE.stone });
+  P("sphere", { at: [rx, ry, rz + 17], r: 13, sub: 3, colour: PALETTE.cream, hemi: true });
   claim(rx, ry, 17);
   const hall = W.NUCLEAR.hall, hz = on(hall.x, hall.y);
-  P("rbox", { at: [hall.x, hall.y, hz], size: [hall.w, hall.d, 17], r: 1.2, colour: PALETTE.towers[0] });
-  P("gable", { at: [hall.x, hall.y, hz + 17], size: [hall.w, hall.d, 3], colour: "#d6dee6" });
+  P("rbox", { at: [hall.x, hall.y, hz], size: [hall.w, hall.d, 17], r: 1.2, colour: PALETTE.peach });
+  P("gable", { at: [hall.x, hall.y, hz + 17], size: [hall.w, hall.d, 3], colour: PALETTE.woodDark });
   prims.push({ kind: "quads", group: "lights:glow", colour: "#ffcf7a", ref: [hall.x, hall.y, hz + 8], quads: [-0.25, 0.25].map((f) => [[hall.x + hall.w * f - 3.5, hall.y + hall.d / 2 + 0.06, hz], [hall.x + hall.w * f + 3.5, hall.y + hall.d / 2 + 0.06, hz], [hall.x + hall.w * f + 3.5, hall.y + hall.d / 2 + 0.06, hz + 8], [hall.x + hall.w * f - 3.5, hall.y + hall.d / 2 + 0.06, hz + 8]]) });
   claim(hall.x, hall.y, 28);
 }
 
-// ── Solar, the battery and the gas station along the front ──────────────────
+// ── Solar, the battery and the gas works along the front ────────────────────
 {
   const S = W.SOLAR, tilt = 0.42;
   for (let r = 0; r < S.rows; r++) for (let c = 0; c < S.cols; c++) {
     const x = S.x + c * (S.w + S.gap), y = S.y + r * (S.d + S.gap * 1.6), z = on(x, y);
-    P("rbox", { at: [x, y, z + 3.2], size: [S.w, S.d, 0.8], rot: [-tilt, 0, 0], r: 0.35, colour: PALETTE.pv });
+    P("rbox", { at: [x, y, z + 3.2], size: [S.w, S.d, 0.8], rot: [-tilt, 0, 0], r: 0.35, colour: PALETTE.slate });
     const quads = [], ct = Math.cos(tilt), st = Math.sin(tilt);
     const onPanel = (u, v) => [x + u, y + v * ct, z + 3.2 + 0.85 - v * st];
     for (let u = -S.w / 2 + 3.4; u < S.w / 2 - 1; u += 3.4) quads.push([onPanel(u - 0.15, -S.d / 2 + 0.6), onPanel(u + 0.15, -S.d / 2 + 0.6), onPanel(u + 0.15, S.d / 2 - 0.6), onPanel(u - 0.15, S.d / 2 - 0.6)]);
     for (let v = -S.d / 2 + 3.8; v < S.d / 2 - 1; v += 3.8) quads.push([onPanel(-S.w / 2 + 0.6, v - 0.15), onPanel(S.w / 2 - 0.6, v - 0.15), onPanel(S.w / 2 - 0.6, v + 0.15), onPanel(-S.w / 2 + 0.6, v + 0.15)]);
-    prims.push({ kind: "quads", quads, colour: PALETTE.pvLine, group: "static", ref: [x, y, z - 20] });
-    for (const lx of [-S.w / 2 + 2, S.w / 2 - 2]) P("cyl", { at: [x + lx, y, z], r: 0.6, h: 3.4, seg: 8, colour: PALETTE.steel });
+    prims.push({ kind: "quads", quads, colour: PALETTE.water, group: "static", ref: [x, y, z - 20] });
+    for (const lx of [-S.w / 2 + 2, S.w / 2 - 2]) P("cyl", { at: [x + lx, y, z], r: 0.6, h: 3.4, seg: 8, colour: PALETTE.wood });
     claim(x, y, 17);
   }
 }
@@ -439,8 +509,8 @@ const steam = [];
   const B = W.BATTERY;
   for (let n = 0; n < B.n; n++) {
     const x = B.x + n * 13, y = B.y, z = on(x, y);
-    P("rbox", { at: [x, y, z], size: [10, 18, 9], r: 1.2, colour: PALETTE.white });
-    P("rbox", { at: [x, y + 9.05, z + 2], size: [7, 0.2, 2], r: 0.3, colour: PALETTE.towers[3] });
+    P("rbox", { at: [x, y, z], size: [10, 18, 9], r: 1.2, colour: PALETTE.cream });
+    P("rbox", { at: [x, y + 9.05, z + 2], size: [7, 0.2, 2], r: 0.3, colour: PALETTE.grass });
     P("box", { at: [x, y + 9.1, z + 6.4], size: [2.4, 0.1, 0.9], colour: "#3ee07f", group: "lights:led" });
     claim(x, y, 12);
   }
@@ -448,49 +518,56 @@ const steam = [];
 const smoke = [];
 {
   const { x, y } = W.FACTORY, z = on(x, y);
-  P("rbox", { at: [x, y, z], size: [30, 22, 13], r: 1, colour: PALETTE.brick });
-  for (let i = 0; i < 3; i++) P("gable", { at: [x - 10 + i * 10, y, z + 13], size: [10, 22, 4.2], colour: "#b65a3f" });
-  P("cyl", { at: [x - 11, y - 7, z], r: 3.2, r2: 2.6, h: 42, seg: 18, colour: PALETTE.white });
+  P("rbox", { at: [x, y, z], size: [30, 22, 13], r: 1, colour: PALETTE.tan });
+  for (let i = 0; i < 3; i++) P("gable", { at: [x - 10 + i * 10, y, z + 13], size: [10, 22, 4.2], colour: PALETTE.woodDark });
+  P("cyl", { at: [x - 11, y - 7, z], r: 3.2, r2: 2.6, h: 42, seg: 18, colour: PALETTE.cream });
   for (const b of [28, 36]) P("cyl", { at: [x - 11, y - 7, z + b], r: 2.85, h: 3, seg: 18, colour: PALETTE.red });
   P("cyl", { at: [x - 11, y - 7, z + 42], r: 2.2, h: 0.3, seg: 18, colour: "#ffb35c", group: "lights:glow" });
+  for (const [dx, dy] of [[20, 8], [23, 5], [20, 4.5]]) place("crate", x + dx, y + dy, R(), 1);
   smoke.push([x - 11, y - 7, z + 43]);
-  claim(x, y, 26);
+  claim(x, y, 28);
   tall.push([x - 11, y - 7, z + 68]);
 }
 
-// ── The harbour on the inlet: a quay and two boats alongside ───────────────
+// ── The jetty into the bay, crates and boats ────────────────────────────────
 {
-  const { x, y } = W.HARBOUR, z = on(x, y);
-  P("rbox", { at: [x + 8, y, WATER - 1], size: [26, 40, z - WATER + 2.2], r: 0.8, colour: PALETTE.concrete });
-  P("rbox", { at: [x + 26, y - 8, WATER - 0.8], size: [14, 5.4, 2.6], rot: [0, 0, Math.PI / 2], r: 0.8, colour: PALETTE.white });
-  P("rbox", { at: [x + 26, y - 8, WATER + 1.8], size: [4, 3.6, 3], r: 0.6, colour: PALETTE.red });
-  P("rbox", { at: [x + 27, y + 10, WATER - 0.8], size: [11, 4.4, 2.4], rot: [0, 0, Math.PI / 2], r: 0.8, colour: PALETTE.white });
-  P("cyl", { at: [x + 27, y + 10, WATER + 1.6], r: 3.2, r2: 0.05, h: 13, seg: 3, colour: "#fbfbf9" });
-  claim(x + 8, y, 24);
+  const J = W.JETTY, z = WATER + 1.6;
+  for (let u = 0; u < J.length; u += 2.2) P("box", { at: [J.x + u, J.y, z], size: [2, 7, 0.3], colour: u % 4.4 < 2.2 ? PALETTE.wood : "#a58d6f" });
+  for (let u = 2; u < J.length; u += 8) for (const sgn of [-1, 1]) P("cyl", { at: [J.x + u, J.y + sgn * 3.2, BED], r: 0.45, h: z - BED + 1.4, seg: 8, colour: PALETTE.woodDark });
+  for (const [dx, dy] of [[6, 1.6], [8.6, 1.4], [6, -1.4]]) place("crate", J.x + dx, J.y + dy, R(), 0.9, z + 0.3);
+  place("lantern", J.x + J.length - 2, J.y + 2.4, 0, 0.9, z + 0.3);
+  const boat = (x, y, ang, len, sail) => {
+    P("rbox", { at: [x, y, WATER - 0.8], size: [len, len * 0.38, 2.4], rot: [0, 0, ang], r: 0.8, colour: sail ? PALETTE.cream : PALETTE.red });
+    if (sail) P("cyl", { at: [x, y, WATER + 1.6], r: 3.4, r2: 0.05, h: 14, seg: 3, rot: [0, 0, ang], colour: PALETTE.cream });
+    else P("rbox", { at: [x - Math.cos(ang) * 2.5, y - Math.sin(ang) * 2.5, WATER + 1.6], size: [5, 4, 3], rot: [0, 0, ang], r: 0.6, colour: PALETTE.cream });
+  };
+  boat(J.x + J.length + 6, J.y + 7, 0.1, 12, false);
+  boat(250, 76, 0.7, 11, true);
 }
 
-// ── Geothermal at the near edge, its bore down the wall ────────────────────
+// ── Geothermal at the front edge, its bore down the wall ───────────────────
 let bore;
 {
   const t = W.GEOTHERMAL, [ex, ey] = W.edgeAt(t), [px, py] = W.edgeAt(t, 0.86);
   const z = on(px, py);
-  P("rbox", { at: [px, py, z], size: [22, 16, 9], r: 1, colour: PALETTE.towers[1] });
-  P("rbox", { at: [px - 4, py - 3, z + 9], size: [10, 8, 4], r: 0.6, colour: PALETTE.steel });
+  P("rbox", { at: [px, py, z], size: [22, 16, 9], r: 1, colour: PALETTE.cream });
+  P("rbox", { at: [px - 4, py - 3, z + 9], size: [10, 8, 4], r: 0.6, colour: PALETTE.slate });
   const [wx, wy] = W.edgeAt(t, 0.97);
-  P("rbox", { at: [wx, wy, on(wx, wy)], size: [6, 6, 1.2], r: 0.4, colour: PALETTE.safety });
-  P("cyl", { at: [wx, wy, on(wx, wy) + 1.2], r: 1.4, h: 5, seg: 12, colour: PALETTE.steel });
-  P("tube", { points: [[wx, wy, on(wx, wy) + 5], [px + 6, py + 6, z + 5]], r: 0.9, colour: "#c6cdd2" });
+  P("rbox", { at: [wx, wy, on(wx, wy)], size: [6, 6, 1.2], r: 0.4, colour: PALETTE.yellow });
+  P("cyl", { at: [wx, wy, on(wx, wy) + 1.2], r: 1.4, h: 5, seg: 12, colour: PALETTE.slate });
+  P("tube", { points: [[wx, wy, on(wx, wy) + 5], [px + 6, py + 6, z + 5]], r: 0.9, colour: PALETTE.stone });
   const out = [Math.cos(t) * 0.6, Math.sin(t) * 0.6];
-  P("tube", { points: [[ex + out[0], ey + out[1], TOP - 2.2], [ex + out[0], ey + out[1], -60]], r: 1.1, colour: "#55606a" });
-  bore = [ex + out[0] * 1.4, ey + out[1] * 1.4, -62];
+  P("tube", { points: [[ex + out[0], ey + out[1], TOP - 2.2], [ex + out[0], ey + out[1], -54]], r: 1.1, colour: PALETTE.coal });
+  bore = [ex + out[0] * 1.4, ey + out[1] * 1.4, -56];
   claim(px, py, 18);
 }
 
 // ── Substations, where each line comes down at a city ──────────────────────
 for (const [x, y] of Object.values(W.SUBSTATIONS)) {
   const z = on(x, y);
-  P("rbox", { at: [x, y, z - 0.6], size: [18, 14, 1.2], r: 0.4, colour: "#cfcabe" });
-  for (const dx of [-4, 4]) P("rbox", { at: [x + dx, y, z + 0.6], size: [5, 6, 5], r: 0.6, colour: PALETTE.dark });
+  P("rbox", { at: [x, y, z - 0.6], size: [18, 14, 1.2], r: 0.4, colour: PALETTE.sand });
+  for (const dx of [-4, 4]) P("rbox", { at: [x + dx, y, z + 0.6], size: [5, 6, 5], r: 0.6, colour: PALETTE.slate });
+  for (let k = -1.5; k <= 1.5; k++) place("fence", x + k * 4.4, y - 8, 0, 1);
   claim(x, y, 12);
 }
 
@@ -505,14 +582,14 @@ const ARMS = [{ z: 26, w: 7.5 }, { z: 32, w: 6.5 }], PEAK = 38;
     bars.push([[au * half(zz), av * half(zz), zz], [bu * half(zz), bv * half(zz), zz]], [[au * half(z0), av * half(z0), z0], [bu * half(zz), bv * half(zz), zz]]);
   }
   for (const arm of ARMS) for (const side of [-1, 1]) bars.push([[0.8, side * half(arm.z), arm.z], [0, side * arm.w, arm.z]], [[-0.8, side * half(arm.z), arm.z], [0, side * arm.w, arm.z]], [[0, side * arm.w, arm.z], [0, side * arm.w, arm.z - 2.6]]);
-  protos.pylon = [{ kind: "bars", bars, r: 0.3, colour: "#8f9aa3" }, { kind: "sphere", at: [0, 0, PEAK + 0.6], r: 0.7, sub: 1, colour: PALETTE.red, group: "lights:beacon" }];
+  protos.pylon = [{ kind: "bars", bars, r: 0.3, colour: PALETTE.slate }, { kind: "sphere", at: [0, 0, PEAK + 0.6], r: 0.7, sub: 1, colour: PALETTE.red, group: "lights:beacon" }];
 }
 const lines = [];
 for (const pts of Object.values(W.LINES)) {
   const tips = pts.map(([x, y], i) => {
     const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
     const rot = Math.atan2(b[1] - a[1], b[0] - a[0]), z0 = on(x, y), c = Math.cos(rot), s = Math.sin(rot);
-    instances.push({ proto: "pylon", at: [x, y, z0], rot, scale: 1 });
+    place("pylon", x, y, rot, 1, z0);
     claim(x, y, 7);
     return ARMS.flatMap((arm) => [-1, 1].map((side) => [x - s * side * arm.w, y + c * side * arm.w, z0 + arm.z - 2.6]));
   });
@@ -520,41 +597,71 @@ for (const pts of Object.values(W.LINES)) {
   for (let i = 0; i < tips.length - 1; i++) for (let c = 0; c < tips[i].length; c++) {
     const a = tips[i][c], b = tips[i + 1][c], sag = Math.hypot(b[0] - a[0], b[1] - a[1]) * 0.05;
     const wire = Array.from({ length: 9 }, (_, n) => { const t = n / 8; return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t) - sag * 4 * t * (1 - t)]; });
-    P("tube", { points: wire, r: 0.22, colour: "#5f6a72", seg: 4 });
+    P("tube", { points: wire, r: 0.22, colour: PALETTE.coal, seg: 4 });
     if (c === 2) wire0.push(...(i ? wire.slice(1) : wire));
   }
   lines.push(wire0.map((p) => p.map((v) => Math.round(v * 100) / 100)));
 }
 
-// ── Trees: on the highlands, along the river, between everything ────────────
-for (let n = 0, tries = 0; n < 190 && tries < 8000; tries++) {
+// ── Trees, bushes and flowers: woods on the highland, the rest scattered ────
+const open = (x, y, gap) => W.seaShare(x, y) === 0 && reservoir(x, y) > 1.25 && river(x, y).d > 5 && pondGap(x, y) > 4 && !onFloor(x, y, 3) && pathGap(x, y) > W.PATH_WIDTH / 2 + gap && W.reach(x, y) < 0.95;
+for (let n = 0, tries = 0; n < 70 && tries < 4000; tries++) {
+  const a = R() * Math.PI * 2, d = Math.sqrt(R()) * 150, x = W.HIGHLAND.x + Math.cos(a) * d, y = W.HIGHLAND.y + Math.sin(a) * d;
+  if (!open(x, y, 3) || !free(x, y, 4)) continue;
+  tree(x, y, R() < 0.35 ? "birch" : "oak"); n++;
+}
+// birches along the river, cherries along the main path
+for (let i = 2; i < RIVER.length - 2; i += 3) {
+  const [x, y] = RIVER[i], [x2, y2] = RIVER[i + 1], dx = x2 - x, dy = y2 - y, l = Math.hypot(dx, dy) || 1;
+  for (const side of [-1, 1]) {
+    if (R() < 0.45) continue;
+    const off = 14 + R() * 6, tx = x - (dy / l) * off * side, ty = y + (dx / l) * off * side;
+    if (open(tx, ty, 2) && free(tx, ty, 3)) tree(tx, ty, "birch", 0.8 + R() * 0.4);
+  }
+}
+for (const [x, y] of PATHS.main.filter((_, i) => i % 5 === 2)) {
+  const tx = x + 9, ty = y + 9;
+  if (open(tx, ty, 1) && free(tx, ty, 3)) tree(tx, ty, "cherry", 0.75 + R() * 0.3);
+}
+for (let n = 0, tries = 0; n < 130 && tries < 8000; tries++) {
   const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.94, [x, y] = W.edgeAt(t, f);
-  if (W.seaShare(x, y) > 0 || reservoir(x, y) < 1.25 || river(x, y).d < 5 || onPlinth(x, y, 3) || !free(x, y, 6)) continue;
+  if (!open(x, y, 2) || !free(x, y, 6)) continue;
   tree(x, y); n++;
 }
+for (let n = 0, tries = 0; n < 160 && tries < 8000; tries++) {
+  const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.94, [x, y] = W.edgeAt(t, f);
+  if (!open(x, y, 0.5) || !free(x, y, 2.5)) continue;
+  claim(x, y, 2.5, true);
+  place("bush", x, y, R() * 6.28, 0.7 + R() * 0.6); n++;
+}
+for (let n = 0, tries = 0; n < 220 && tries < 8000; tries++) {
+  const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.94, [x, y] = W.edgeAt(t, f);
+  if (!open(x, y, -3) || !free(x, y, 1.2)) continue;
+  place(pick(["flower_pink", "flower_orange", "flower_white", "flower_violet"]), x, y, R() * 6.28, 0.8 + R() * 0.5); n++;
+}
+// benches by the ponds
+for (const p of W.PONDS) for (const a of [0.8, 2.4]) { const x = p.x + Math.cos(a) * (p.r + 5), y = p.y + Math.sin(a) * (p.r + 5); if (free(x, y, 2)) place("bench", x, y, a + Math.PI / 2, 1); }
 
-// ── Cars on the roads: the page drives them ─────────────────────────────────
+// ── Cars on the paths: the page drives them ─────────────────────────────────
 const cars = [];
-for (const [name, line] of Object.entries(ROADS)) {
-  const n = Math.max(1, Math.round(line.length / 22));
-  for (let k = 0; k < n; k++) cars.push({ road: name, at: (k + R() * 0.5) / n, forward: R() < 0.5, speed: 12 + R() * 6, colour: PALETTE.cars[cars.length % PALETTE.cars.length] });
+for (const [name, line] of Object.entries(PATHS)) {
+  const n = Math.max(1, Math.round(line.length / 24));
+  for (let k = 0; k < n; k++) cars.push({ road: name, at: (k + R() * 0.5) / n, forward: R() < 0.5, speed: 11 + R() * 5, colour: PALETTE.cars[cars.length % PALETTE.cars.length] });
 }
 protos.car = [
-  { kind: "rbox", at: [0, 0, 0.4], size: [5.6, 2.6, 1.6], r: 0.6, colour: "#ffffff", group: "paint:body" },
-  { kind: "rbox", at: [-0.4, 0, 1.9], size: [3, 2.3, 1.1], r: 0.45, colour: "#9fd0e6" },
-  { kind: "box", at: [2.82, 0.75, 1.0], size: [0.06, 0.6, 0.35], colour: "#fff6cf", group: "lights:head" },
-  { kind: "box", at: [2.82, -0.75, 1.0], size: [0.06, 0.6, 0.35], colour: "#fff6cf", group: "lights:head" },
+  { kind: "rbox", at: [0, 0, 0.5], size: [5.6, 2.8, 1.7], r: 0.6, colour: "#ffffff", group: "paint:body" },
+  { kind: "rbox", at: [-0.4, 0, 2.1], size: [3, 2.5, 1.2], r: 0.45, colour: PALETTE.slate },
+  ...[[-1.8, 1.3], [1.8, 1.3], [-1.8, -1.3], [1.8, -1.3]].map(([dx, dy]) => ({ kind: "cyl", at: [dx, dy, 0.6], r: 0.65, h: 0.5, seg: 10, rot: [Math.PI / 2, 0, 0], colour: PALETTE.coal })),
+  { kind: "box", at: [2.82, 0.8, 1.1], size: [0.06, 0.6, 0.35], colour: "#fff6cf", group: "lights:head" },
+  { kind: "box", at: [2.82, -0.8, 1.1], size: [0.06, 0.6, 0.35], colour: "#fff6cf", group: "lights:head" },
 ];
 
 // ── Where grass grows: a grid of the ground's height, a mask and its colour ─
-// The page scatters swaying blades over it. No grass on water, sand, rock,
-// paving, roads or under anything built; trees stand in it.
 const GRASS_STEP = 3;
 function grassGrid() {
   const { x: x0, y: y0, w, d } = W.BOUNDS, nx = Math.ceil(w / GRASS_STEP) + 1, ny = Math.ceil(d / GRASS_STEP) + 1;
   const heights = new Int16Array(nx * ny), mask = new Uint8Array(nx * ny), colour = new Uint8Array(nx * ny * 3);
-  const built = taken.filter((t) => !t.tree);
-  const nearRoad = (x, y) => Object.values(ROADS).some((line) => line.some(([px, py]) => Math.hypot(px - x, py - y) < W.ROAD_WIDTH / 2 + 2));
+  const built = taken.filter((t) => !t.soft);
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const x = x0 + i * GRASS_STEP, y = y0 + j * GRASS_STEP, n = j * nx + i;
     const f = W.reach(x, y);
@@ -562,10 +669,9 @@ function grassGrid() {
     const z = groundZ(x, y, f);
     heights[n] = Math.round(z * 10);
     const slope = Math.hypot(groundZ(x + 2, y) - groundZ(x - 2, y), groundZ(x, y + 2) - groundZ(x, y - 2)) / 4;
-    const c = groundColour(x, y, z, slope);
-    colour.set(c.map((v) => Math.round(v * 255)), n * 3);
-    const grassy = W.seaShare(x, y) === 0 && reservoir(x, y) > 1.1 && river(x, y).d > 3 && slope < 0.6 && !onPlinth(x, y, 2) && !nearRoad(x, y) &&
-      built.every((t) => Math.hypot(t.x - x, t.y - y) > t.r * 0.85);
+    colour.set(groundColour(x, y, z, slope).map((v) => Math.round(v * 255)), n * 3);
+    const grassy = W.seaShare(x, y) === 0 && reservoir(x, y) > 1.1 && river(x, y).d > 3.5 && pondGap(x, y) > 3 && slope < 0.6 && !onFloor(x, y, 2) &&
+      pathGap(x, y) > W.PATH_WIDTH / 2 + 1.5 && built.every((t) => Math.hypot(t.x - x, t.y - y) > t.r * 0.85);
     mask[n] = grassy ? 255 : 0;
   }
   return { x0, y0, step: GRASS_STEP, nx, ny, heights, mask, colour };
@@ -575,9 +681,9 @@ export function scene() {
   const r1 = (p) => p.map((v) => Math.round(v * 100) / 100);
   return {
     tile: W.BOUNDS, depth: DEPTH, seaLevel: WATER,
-    prims, protos, instances, rotors, cars, steam, smoke, pixels, spray, lines,
-    roads: Object.fromEntries(Object.entries(ROADS).map(([n, l]) => [n, l.map(([x, y]) => r1([x, y, roadZ(x, y) + 0.4]))])),
-    roadWidth: Object.fromEntries(Object.keys(ROADS).map((n) => [n, W.ROAD_WIDTH])),
+    prims, protos, instances, rotors, cars, steam, smoke, spray, lines,
+    roads: Object.fromEntries(Object.entries(PATHS).map(([n, l]) => [n, l.map(([x, y]) => r1([x, y, pathZ(x, y) + 0.3]))])),
+    roadWidth: Object.fromEntries(Object.keys(PATHS).map((n) => [n, W.PATH_WIDTH])),
     tall, bore,
     grass: grassGrid(),
   };

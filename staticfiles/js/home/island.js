@@ -77,9 +77,9 @@ export async function mountIsland(stage, { still = false } = {}) {
     }
 
     // ── Light: a warm low sun from the upper left, and the sky ──────────────
-    const hemi = new THREE.HemisphereLight(0xd6ecff, 0x9db878, 1.0);
+    const hemi = new THREE.HemisphereLight(0xdfefff, 0xb9c398, 1.15);
     scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xfff0d8, 3.4);
+    const sun = new THREE.DirectionalLight(0xffe9c8, 3.2);
     // from the south-west and high: the faces turned to the viewer catch it
     const sunDir = new THREE.Vector3(-0.72, 1.0, 0.58).normalize();
     sun.position.copy(target).addScaledVector(sunDir, 1500);
@@ -98,10 +98,11 @@ export async function mountIsland(stage, { still = false } = {}) {
     const lamp = (colour, base = 0) => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, emissive: colour, emissiveIntensity: base, side: THREE.DoubleSide });
     const MATERIALS = {
         ground: solid, rock: solid, solid,
-        water: new THREE.MeshStandardMaterial({ color: 0x3bbcd8, roughness: 0.12, metalness: 0, transparent: true, opacity: 0.86 }),
+        water: new THREE.MeshStandardMaterial({ color: 0x3dbbe7, roughness: 0.18, metalness: 0, transparent: true, opacity: 0.9 }),
         lights_window: lamp(0xffcf7a), lights_glow: lamp(0xffb45a), lights_beacon: lamp(0xff4b3a, 0.6),
         lights_led: lamp(0x3ee07f, 0.8), lights_head: lamp(0xfff2c4), lights_lamp: lamp(0xfff0b0, 0.3),
         lights_trace: lamp(0x46e0e6, 1.6),
+        lights_lantern: lamp(0xffb347, 0.25),
         foam: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xe8f7ff, emissiveIntensity: 0.35, roughness: 0.6, transparent: true, opacity: 0.92, side: THREE.DoubleSide }),
     };
     const lights = {};
@@ -373,7 +374,7 @@ export async function mountIsland(stage, { still = false } = {}) {
             fragmentShader: `
                 varying float vUp; varying vec3 vTint; varying float vShade;
                 void main() {
-                    vec3 base = vTint * 0.5, tip = vTint * 1.35 + vec3(0.03, 0.05, 0.0);
+                    vec3 base = vTint * 0.55, tip = vTint * 1.25 + vec3(0.06, 0.06, -0.02);
                     vec3 c = mix(base, tip, smoothstep(0.0, 1.0, vUp)) * (0.88 + 0.24 * vShade);
                     gl_FragColor = vec4(c, 1.0);
                     #include <tonemapping_fragment>
@@ -400,10 +401,15 @@ export async function mountIsland(stage, { still = false } = {}) {
             g.fill();
         }
         const leafTex = new THREE.CanvasTexture(c);
-        const shapes = { tree_round: { centre: [0, 0, 11], r: 6.6, cards: 30, size: 6.6, tall: 1 }, tree_tall: { centre: [0, 0, 9], r: 4.6, cards: 22, size: 5.4, tall: 1.9 } };
+        const G3 = (h) => [1, 3, 5].map((i) => toLinear(parseInt(h.slice(i, i + 2), 16)));
+        // each kind: where its crown sits, how many cards, and its shade, middle and sunlit colours
+        const shapes = {
+            oak: { centre: [0, 0, 11.5], r: 6.8, cards: 30, size: 6.4, tall: 1, leaf: ['#5c7a4a', '#91ad78', '#b7c98a'] },
+            birch: { centre: [0, 0, 13], r: 5.2, cards: 24, size: 5.2, tall: 1.15, leaf: ['#7f8a2a', '#abae2b', '#d2cf5a'] },
+            cherry: { centre: [0, 0, 9.5], r: 6.2, cards: 28, size: 6.0, tall: 0.95, leaf: ['#c24a7c', '#ed71a0', '#f7a4c0'] },
+            bush: { centre: [0, 0, 1.8], r: 2.5, cards: 10, size: 2.6, tall: 0.8, leaf: ['#55703f', '#7e9a66', '#a4bb86'] },
+        };
         const sun = new THREE.Vector3(-0.72, 1.0, 0.58).normalize();
-        // shadowed, middle and sunlit leaf greens (#3f8a2a, #5aa837, #8ccc4f), in linear light
-        const LEAF = ['#3f8a2a', '#5aa837', '#8ccc4f'].map((h) => [1, 3, 5].map((i) => toLinear(parseInt(h.slice(i, i + 2), 16))));
         const centres = [], sizes = [], shades = [], phases = [];
         let sd2 = 11;
         const r3 = () => ((sd2 = (sd2 * 16807) % 2147483647) / 2147483647);
@@ -418,6 +424,7 @@ export async function mountIsland(stage, { still = false } = {}) {
                 const off = new THREE.Vector3(ox * S.r, oz * S.r * S.tall, oy * S.r).multiplyScalar(k * 0.8);
                 const p = V([inst.at[0] + S.centre[0] * k, inst.at[1] + S.centre[1] * k, inst.at[2] + S.centre[2] * k]).add(off);
                 const lit = Math.max(0, Math.min(1, 0.5 + 0.5 * off.clone().normalize().dot(sun) + 0.15 * oz));
+                const LEAF = S.leaf.map(G3);
                 const col = lit < 0.5 ? LEAF[0].map((v, i) => v + (LEAF[1][i] - v) * lit * 2) : LEAF[1].map((v, i) => v + (LEAF[2][i] - v) * (lit - 0.5) * 2);
                 centres.push(p.x, p.y, p.z); sizes.push(S.size * k * (0.75 + r3() * 0.5)); shades.push(...col); phases.push(r3() * 6.28);
             }

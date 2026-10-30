@@ -451,7 +451,7 @@ def combine(o, strength=0.85):
 
 for o in list(bpy.context.scene.objects):
     if o.type == "MESH" and "col" in o.data.color_attributes:
-        combine(o, 0.0 if o.name in ("sea", "water") else 0.85)
+        combine(o, 0.0 if o.name in ("sea", "water", "foam") else 0.7)
 
 # prototypes hang under empties so the page finds each by name
 for name, objs in proto_objs.items():
