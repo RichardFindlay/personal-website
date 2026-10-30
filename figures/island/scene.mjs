@@ -1,7 +1,7 @@
 // The island as a scene description for Blender, in the manner of Bruno
 // Simon's folio: a rounded square of grass with wide sandy paths winding
 // between the places, wooden fences and lanterns along them, birch, oak and
-// cherry trees, bushes and flowers, ponds and a bay with foam at the shore,
+// maple trees in autumn colours, bushes and flowers, ponds and a bay with foam at the shore,
 // and simple flat-coloured buildings in his palette. Highlands with a
 // reservoir and a hydro dam; a river to the bay; two cities; every power
 // station wired to them by pylons. The slab's cut faces keep their strata. All
@@ -274,7 +274,7 @@ const tall = [];
 const GROW = { pylon: 1.4, rock: 1.4, fence: 1.6, crate: 1.6, lantern: 1.8, bench: 1.8 };
 const grow = (proto) => GROW[proto] ?? 2;
 const place = (proto, x, y, rot = 0, scale = 1, z = on(x, y)) => instances.push({ proto, at: [x, y, z], rot, scale: scale * grow(proto) });
-const CAR = 1.8;   // the page draws the cars at this size
+const CAR = 2.6;   // the page draws the cars at this size
 
 // ── Paths: sand, raised a touch, with a bridge over the river ───────────────
 const pathZ = (x, y) => { const r = river(x, y); return r.d < 6 ? Math.max(on(x, y), r.level + 4.2) : on(x, y); };
@@ -332,7 +332,7 @@ for (const [name, line] of Object.entries(PATHS)) {
 
 // ── Prototypes, instanced by the page ───────────────────────────────────────
 // Trees: a trunk and a solid crown that only casts shadow; the page draws the
-// leaves as soft cards in each tree's own green or pink.
+// leaves as soft cards in each tree's own autumn colours.
 protos.oak = [
   { kind: "cyl", at: [0, 0, 0], r: 1.1, r2: 0.8, h: 6.5, seg: 8, colour: PALETTE.woodDark },
   { kind: "sphere", at: [0, 0, 11.5], r: 6.6, sub: 2, colour: PALETTE.grass, group: "leaves" },
@@ -341,12 +341,12 @@ protos.birch = [
   { kind: "cyl", at: [0, 0, 0], r: 0.7, r2: 0.45, h: 9, seg: 8, colour: PALETTE.cream },
   { kind: "sphere", at: [0, 0, 13], r: 5, sub: 2, colour: PALETTE.lime, group: "leaves" },
 ];
-protos.cherry = [
+protos.maple = [
   { kind: "cyl", at: [0, 0, 0], r: 0.9, r2: 0.6, h: 5.5, seg: 8, colour: PALETTE.woodDark },
-  { kind: "sphere", at: [0, 0, 9.5], r: 6, sub: 2, colour: PALETTE.pink, group: "leaves" },
+  { kind: "sphere", at: [0, 0, 9.5], r: 6, sub: 2, colour: PALETTE.red, group: "leaves" },
 ];
 protos.bush = [{ kind: "sphere", at: [0, 0, 1.6], r: 2.4, sub: 1, colour: PALETTE.grassDark, group: "leaves" }];
-for (const [name, colour] of [["flower_pink", PALETTE.pink], ["flower_orange", PALETTE.orange], ["flower_white", PALETTE.cream], ["flower_violet", PALETTE.violet]]) {
+for (const [name, colour] of [["flower_red", PALETTE.red], ["flower_orange", PALETTE.orange], ["flower_white", PALETTE.cream], ["flower_yellow", PALETTE.yellow]]) {
   protos[name] = [0, 1, 2].map((n) => ({ kind: "sphere", at: [Math.cos(n * 2.1) * 1.1, Math.sin(n * 2.1) * 1.1, 1.2 + (n % 2) * 0.3], r: 0.55, sub: 1, colour }));
 }
 protos.fence = [
@@ -378,7 +378,7 @@ PALETTE.buildings.slice(0, 4).forEach((wall, n) => {
     { kind: "quad", pts: [[w / 2 + 0.05, -1, 2.6], [w / 2 + 0.05, 1, 2.6], [w / 2 + 0.05, 1, 4.8], [w / 2 + 0.05, -1, 4.8]], colour: PALETTE.slate, group: "lights:window" },
   ];
 });
-const TREES = ["oak", "oak", "birch", "cherry"];
+const TREES = ["oak", "oak", "birch", "maple"];
 function tree(x, y, kind = pick(TREES), s = 0.8 + R() * 0.45) {
   claim(x, y, 5.5 * s * grow(kind), true);
   place(kind, x, y, R() * 6.28, s);
@@ -412,14 +412,14 @@ function city(C, heightAt) {
   for (let i = 0; i <= C.cols; i++) for (let j = 0; j <= C.rows; j++) {
     const x = C.x + (i - C.cols / 2) * C.pitch + 8.5, y = C.y + (j - C.rows / 2) * C.pitch + 8.5;
     if (hash(i, j, 21) < 0.5) place("lantern", x, y, 0, 0.9, TOP + 0.2);
-    else place(hash(i, j, 22) < 0.5 ? "cherry" : "birch", x, y, R() * 6.28, 0.42 + R() * 0.1, TOP + 0.2);
+    else place(hash(i, j, 22) < 0.5 ? "maple" : "birch", x, y, R() * 6.28, 0.42 + R() * 0.1, TOP + 0.2);
   }
   for (let j = 0; j < C.rows; j++) for (let i = 0; i < C.cols; i++) {
     const x = C.x + (i - (C.cols - 1) / 2) * C.pitch, y = C.y + (j - (C.rows - 1) / 2) * C.pitch;
     if (C.park && C.park[0] === i && C.park[1] === j) {
       P("rbox", { at: [x, y, TOP + 0.05], size: [C.pitch - 12, C.pitch - 12, 0.3], r: 0.6, colour: PALETTE.grassLight });
       P("cyl", { at: [x + 6, y + 5, TOP + 0.3], r: 9, h: 0.2, seg: 28, colour: PALETTE.water });
-      for (const [dx, dy, k] of [[-14, -14, "cherry"], [14, -15, "oak"], [-15, 12, "cherry"]]) place(k, x + dx, y + dy, R() * 6.28, 0.42 + R() * 0.1, TOP + 0.35);
+      for (const [dx, dy, k] of [[-14, -14, "maple"], [14, -15, "oak"], [-15, 12, "maple"]]) place(k, x + dx, y + dy, R() * 6.28, 0.42 + R() * 0.1, TOP + 0.35);
       for (const [dx, dy, rot] of [[13, 15, 0], [-4, 17, 0]]) place("bench", x + dx, y + dy, rot, 1, TOP + 0.35);
       continue;
     }
@@ -441,7 +441,7 @@ for (const S of W.SUBURBS) {
     const hx = x + (R() - 0.5) * 4, hy = y + (R() - 0.5) * 4;
     if (W.reach(hx, hy) > 0.9 || river(hx, hy).d < 12 || reservoir(hx, hy) < 1.4 || pondGap(hx, hy) < 12 || onFloor(hx, hy, 12) || pathGap(hx, hy) < W.PATH_WIDTH / 2 + 12 || !free(hx, hy, 13)) continue;
     if (R() < 0.8) house(hx, hy, R() < 0.5 ? 0 : Math.PI / 2);
-    else tree(hx, hy, "cherry", 0.55 + R() * 0.25);
+    else tree(hx, hy, "maple", 0.55 + R() * 0.25);
   }
 }
 {
@@ -575,21 +575,68 @@ const smoke = [];
   boat(246, 80, 0.7, 18, true);
 }
 
-// ── Geothermal at the front edge, its bore down the wall ───────────────────
+// ── Geothermal at the front edge: a drilling rig over the bore, the plant
+// behind it with its condensers steaming, and the bore itself down the cut face
+// to a glowing pocket of hot rock, hot water up in red and cold back down in blue
 let bore;
+const vapour = [];
 {
-  const t = W.GEOTHERMAL, [ex, ey] = W.edgeAt(t), [px, py] = W.edgeAt(t, 0.86);
-  const z = on(px, py);
-  P("rbox", { at: [px, py, z], size: [32, 22, 13], r: 1.8, colour: PALETTE.cream });
-  P("rbox", { at: [px - 6, py - 4, z + 13], size: [14, 11, 6], r: 1, colour: PALETTE.slate });
-  const [wx, wy] = W.edgeAt(t, 0.97);
-  P("rbox", { at: [wx, wy, on(wx, wy)], size: [10, 10, 2], r: 0.7, colour: PALETTE.yellow });
-  P("cyl", { at: [wx, wy, on(wx, wy) + 2], r: 2.4, h: 8, seg: 12, colour: PALETTE.slate });
-  P("tube", { points: [[wx, wy, on(wx, wy) + 8], [px + 8, py + 8, z + 8]], r: 1.5, colour: PALETTE.stone });
-  const out = [Math.cos(t) * 0.6, Math.sin(t) * 0.6];
-  P("tube", { points: [[ex + out[0], ey + out[1], TOP - 2.2], [ex + out[0], ey + out[1], -54]], r: 1.1, colour: PALETTE.coal });
-  bore = [ex + out[0] * 1.4, ey + out[1] * 1.4, -56];
-  claim(px, py, 24);
+  const t = W.GEOTHERMAL, [ex, ey] = W.edgeAt(t), [px, py] = W.edgeAt(t, 0.84), [wx, wy] = W.edgeAt(t, 0.95);
+  const z = on(px, py), wz = on(wx, wy);
+  const HOT = PALETTE.red, COLD = "#2f8fd0";
+  // the plant: a long hall with a stepped roof, warm windows and a red band
+  P("rbox", { at: [px, py, z], size: [54, 34, 21], r: 2.2, colour: PALETTE.cream });
+  P("rbox", { at: [px, py, z + 21], size: [56, 36, 2.2], r: 0.8, colour: PALETTE.slate });
+  P("rbox", { at: [px + 9, py - 3, z + 23], size: [24, 18, 8], r: 1.4, colour: PALETTE.slate });
+  P("box", { at: [px, py + 17.06, z + 15.5], size: [54, 0.1, 2.8], colour: HOT });
+  prims.push({ kind: "quads", group: "lights:glow", colour: "#ffcf7a", ref: [px, py, z + 6], quads: [-18, -6, 6, 18].map((u) => [[px + u - 3.5, py + 17.08, z + 4], [px + u + 3.5, py + 17.08, z + 4], [px + u + 3.5, py + 17.08, z + 11], [px + u - 3.5, py + 17.08, z + 11]]) });
+  // two squat condensers beside it, each with a plume
+  for (const dy of [-11, 11]) {
+    const cx = px - 44, cy = py + dy * 1.15, cz = on(cx, cy);
+    P("cyl", { at: [cx, cy, cz], r: 10.5, r2: 8.8, h: 26, seg: 28, colour: PALETTE.stone });
+    P("cyl", { at: [cx, cy, cz + 18], r: 9.5, h: 3.5, seg: 28, colour: PALETTE.orange });
+    P("cyl", { at: [cx, cy, cz + 26], r: 7.8, h: 0.3, seg: 28, colour: PALETTE.slate });
+    vapour.push([cx, cy, cz + 27]);
+    claim(cx, cy, 13);
+  }
+  // the rig over the well: an orange lattice tower on a yellow pad, a beacon on top
+  const legs = [[1, 1], [1, -1], [-1, -1], [-1, 1]], H = 48, half = (h) => 7.5 - (h / H) * 5.5, levels = [0, 8, 16, 24, 32, 40, H], bars = [];
+  for (const [u, v] of legs) for (let j = 0; j < levels.length - 1; j++) bars.push([[wx + u * half(levels[j]), wy + v * half(levels[j]), wz + levels[j]], [wx + u * half(levels[j + 1]), wy + v * half(levels[j + 1]), wz + levels[j + 1]]]);
+  for (let j = 1; j < levels.length; j++) for (let f = 0; f < 4; f++) {
+    const [au, av] = legs[f], [bu, bv] = legs[(f + 1) % 4], h0 = levels[j - 1], h1 = levels[j];
+    bars.push([[wx + au * half(h1), wy + av * half(h1), wz + h1], [wx + bu * half(h1), wy + bv * half(h1), wz + h1]], [[wx + au * half(h0), wy + av * half(h0), wz + h0], [wx + bu * half(h1), wy + bv * half(h1), wz + h1]]);
+  }
+  P("rbox", { at: [wx, wy, wz - 0.4], size: [20, 20, 2], r: 0.8, colour: PALETTE.yellow });
+  P("bars", { bars, r: 0.55, colour: PALETTE.ember });
+  P("rbox", { at: [wx, wy, wz + H], size: [6, 6, 2.4], r: 0.6, colour: PALETTE.ember });
+  P("sphere", { at: [wx, wy, wz + H + 3.4], r: 1.4, sub: 1, colour: PALETTE.red, group: "lights:beacon" });
+  P("cyl", { at: [wx, wy, wz + 1.6], r: 3, h: 6, seg: 14, colour: PALETTE.slate });
+  tall.push([wx, wy, wz + H + 8]);
+  claim(wx, wy, 13);
+  // the pipes: hot up from the well to the plant in red, cold back in blue, on low stands
+  for (const [side, colour] of [[-3.2, HOT], [3.2, COLD]]) {
+    const a = [wx + side, wy - 4, wz + 4], b = [px + side * 2, py + 17.5, z + 4];
+    P("tube", { points: [a, [lerp(a[0], b[0], 0.5), lerp(a[1], b[1], 0.5), wz + 8], b], r: 1.4, colour, seg: 10 });
+    // and from the well down to the cut face, then down the wall to the hot rock
+    const top = [ex + side * 1.6, ey + 2.4, TOP - 1.4];
+    P("tube", { points: [[wx + side, wy + 4, wz + 3], top], r: 1.6, colour, seg: 10 });
+    P("tube", { points: [top, [top[0], top[1], -50]], r: 2, colour, seg: 10 });
+  }
+  // the hot rock: a glowing lens on the cut face where the bore ends, a dark rim round it
+  const lens = (rx, rz, off, colour, group) => {
+    const quads = [], n = 28, cz = -54;
+    for (let i = 0; i < n; i++) {
+      const a0 = (i / n) * Math.PI * 2, a1 = ((i + 1) / n) * Math.PI * 2;
+      const wob = (a) => 1 + 0.12 * Math.sin(3 * a + 1) + 0.07 * Math.sin(7 * a);
+      const pt = (a) => [ex + Math.cos(a) * rx * wob(a), ey + off, Math.max(-DEPTH + 0.6, cz + Math.sin(a) * rz * wob(a))];
+      quads.push([[ex, ey + off, cz], pt(a0), pt(a1), pt(a1)]);
+    }
+    prims.push({ kind: "quads", quads, colour, group, ref: [ex, ey, cz] });
+  };
+  lens(42, 11, 0.5, PALETTE.ember, "static");
+  lens(30, 7, 0.7, "#ffb35c", "lights:magma");
+  bore = [ex, ey + 1.6, -54];
+  claim(px, py, 34);
 }
 
 // ── Substations, where each line comes down at a city ──────────────────────
@@ -653,7 +700,7 @@ for (let i = 3; i < RIVER.length - 3; i += 6) {
 }
 for (const [x, y] of PATHS.main.filter((_, i) => i % 9 === 4)) {
   const tx = x + 18, ty = y + 14;
-  if (open(tx, ty, 4) && free(tx, ty, 6)) tree(tx, ty, "cherry", 0.75 + R() * 0.25);
+  if (open(tx, ty, 4) && free(tx, ty, 6)) tree(tx, ty, "maple", 0.75 + R() * 0.25);
 }
 for (let n = 0, tries = 0; n < 55 && tries < 8000; tries++) {
   const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.92, [x, y] = W.edgeAt(t, f);
@@ -670,7 +717,7 @@ for (let n = 0, tries = 0; n < 90 && tries < 8000; tries++) {
   const t = R() * Math.PI * 2, f = Math.sqrt(R()) * 0.93, [x, y] = W.edgeAt(t, f);
   if (!open(x, y, -2) || !free(x, y, 2.4)) continue;
   claim(x, y, 2.4, true);
-  place(pick(["flower_pink", "flower_orange", "flower_white", "flower_violet"]), x, y, R() * 6.28, 0.8 + R() * 0.5); n++;
+  place(pick(["flower_red", "flower_orange", "flower_white", "flower_yellow"]), x, y, R() * 6.28, 0.8 + R() * 0.5); n++;
 }
 // benches by the ponds
 for (const p of W.PONDS) for (const a of [0.8, 2.4]) { const x = p.x + Math.cos(a) * (p.r + 9), y = p.y + Math.sin(a) * (p.r + 9); if (free(x, y, 3)) place("bench", x, y, a + Math.PI / 2, 1); }
@@ -734,7 +781,7 @@ export function scene() {
     prims, protos, instances, rotors, cars, steam, smoke, spray, lines,
     roads: Object.fromEntries(Object.entries(PATHS).map(([n, l]) => [n, l.map(([x, y]) => r1([x, y, pathZ(x, y) + 0.3]))])),
     roadWidth: Object.fromEntries(Object.keys(PATHS).map((n) => [n, W.PATH_WIDTH])),
-    tall, bore, carScale: CAR,
+    tall, bore, vapour, carScale: CAR,
     grass: grassGrid(),
   };
 }

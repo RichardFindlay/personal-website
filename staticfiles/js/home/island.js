@@ -103,6 +103,7 @@ export async function mountIsland(stage, { still = false } = {}) {
         lights_led: lamp(0x3ee07f, 0.8), lights_head: lamp(0xfff2c4), lights_lamp: lamp(0xfff0b0, 0.3),
         lights_trace: lamp(0x46e0e6, 1.6),
         lights_lantern: lamp(0xffb347, 0.25),
+        lights_magma: lamp(0xff7a2a, 1.4),
         foam: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xe8f7ff, emissiveIntensity: 0.35, roughness: 0.6, transparent: true, opacity: 0.92, side: THREE.DoubleSide }),
     };
     const lights = {};
@@ -217,7 +218,7 @@ export async function mountIsland(stage, { still = false } = {}) {
         grad.addColorStop(1, 'rgba(210,80,40,0)');
         g.fillStyle = grad;
         g.fillRect(0, 0, 128, 128);
-        const glow = new THREE.Mesh(new THREE.PlaneGeometry(110, 46), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, toneMapped: false }));
+        const glow = new THREE.Mesh(new THREE.PlaneGeometry(150, 64), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, toneMapped: false }));
         glow.position.copy(V([meta.bore[0], meta.bore[1] + 0.6, meta.bore[2]]));
         scene.add(glow);
     }
@@ -238,8 +239,8 @@ export async function mountIsland(stage, { still = false } = {}) {
         return new THREE.CanvasTexture(c);
     })();
     const puffs = [];
-    const vents = [...meta.steam.map((v) => ({ v, kind: 'steam' })), ...(meta.smoke || []).map((v) => ({ v, kind: 'smoke' })), ...(meta.spray || []).map((v) => ({ v, kind: 'spray' }))];
-    const PUFF = { steam: { n: 9, size: 1, colour: 0xffffff, rise: 1, life: 11 }, smoke: { n: 6, size: 0.45, colour: 0xc9c4bd, rise: 1, life: 11 }, spray: { n: 5, size: 0.22, colour: 0xffffff, rise: 0.25, life: 2.6 } };
+    const vents = [...meta.steam.map((v) => ({ v, kind: 'steam' })), ...(meta.smoke || []).map((v) => ({ v, kind: 'smoke' })), ...(meta.spray || []).map((v) => ({ v, kind: 'spray' })), ...(meta.vapour || []).map((v) => ({ v, kind: 'vapour' }))];
+    const PUFF = { steam: { n: 9, size: 1, colour: 0xffffff, rise: 1, life: 11 }, smoke: { n: 6, size: 0.45, colour: 0xc9c4bd, rise: 1, life: 11 }, spray: { n: 5, size: 0.22, colour: 0xffffff, rise: 0.25, life: 2.6 }, vapour: { n: 7, size: 0.5, colour: 0xffffff, rise: 0.9, life: 8 } };
     for (const { v: vent, kind } of vents) for (let n = 0; n < PUFF[kind].n; n++) {
         const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: puffTex, transparent: true, depthWrite: false, color: PUFF[kind].colour, toneMapped: false }));
         scene.add(sprite);
@@ -404,10 +405,10 @@ export async function mountIsland(stage, { still = false } = {}) {
         const G3 = (h) => [1, 3, 5].map((i) => toLinear(parseInt(h.slice(i, i + 2), 16)));
         // each kind: where its crown sits, how many cards, and its shade, middle and sunlit colours
         const shapes = {
-            oak: { centre: [0, 0, 11.5], r: 6.8, cards: 30, size: 6.4, tall: 1, leaf: ['#5c7a4a', '#91ad78', '#b7c98a'] },
-            birch: { centre: [0, 0, 13], r: 5.2, cards: 24, size: 5.2, tall: 1.15, leaf: ['#7f8a2a', '#abae2b', '#d2cf5a'] },
-            cherry: { centre: [0, 0, 9.5], r: 6.2, cards: 28, size: 6.0, tall: 0.95, leaf: ['#c24a7c', '#ed71a0', '#f7a4c0'] },
-            bush: { centre: [0, 0, 1.8], r: 2.5, cards: 10, size: 2.6, tall: 0.8, leaf: ['#55703f', '#7e9a66', '#a4bb86'] },
+            oak: { centre: [0, 0, 11.5], r: 6.8, cards: 30, size: 6.4, tall: 1, leaf: ['#a8541c', '#e8862e', '#f8b860'] },
+            birch: { centre: [0, 0, 13], r: 5.2, cards: 24, size: 5.2, tall: 1.15, leaf: ['#a8780e', '#e4a90c', '#f6d25a'] },
+            maple: { centre: [0, 0, 9.5], r: 6.2, cards: 28, size: 6.0, tall: 0.95, leaf: ['#9e2c16', '#d9481f', '#f27d48'] },
+            bush: { centre: [0, 0, 1.8], r: 2.5, cards: 10, size: 2.6, tall: 0.8, leaf: ['#6f6a2c', '#9c9440', '#c4b862'] },
         };
         const sun = new THREE.Vector3(-0.72, 1.0, 0.58).normalize();
         const centres = [], sizes = [], shades = [], phases = [];

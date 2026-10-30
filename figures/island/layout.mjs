@@ -95,7 +95,7 @@ export const NUCLEAR = { towers: [[186, -214], [238, -168]], reactor: [150, -178
 export const WIND = [[-278, -92], [-236, -250], [-150, -266], [-282, -4]];
 export const OFFSHORE = [[262, -34], [288, 44], [258, 114]];
 export const SOLAR = { x: -8, y: 98, cols: 3, rows: 2, w: 38, d: 24, gap: 9 };
-export const BATTERY = { x: 36, y: 216, n: 3 };
+export const BATTERY = { x: 152, y: 234, n: 3 };
 export const FACTORY = { x: 184, y: 104 };
 export const DATA_CENTRE = { x: 148, y: -30, w: 50, d: 30, h: 15 };
 export const JETTY = { x: 196, y: -22, length: 56 };
@@ -110,7 +110,7 @@ export const PATHS = {
   harbour: [[104, -96], [150, -82], [186, -54], [196, -32]],                       // the city to the jetty
   dam: [[-56, -150], [-98, -134], [-130, -124]],                                   // the city to the dam's powerhouse
   works: [[-124, 150], [-40, 164], [44, 174], [112, 176], [148, 148], [164, 130]], // the town past the solar to the works
-  geo: [[112, 176], [116, 230], [112, 284]],                                       // on to the geothermal plant
+  geo: [[112, 176], [118, 214], [122, 240]],                                       // on to the geothermal plant
   west: [[-150, 62], [-196, 30], [-236, 2], [-252, -36]],                          // the town out to the village
 };
 export const PATH_WIDTH = 16;

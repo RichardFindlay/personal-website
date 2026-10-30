@@ -61,7 +61,7 @@ rmSync(work, { recursive: true, force: true });
 const meta = {
   camera: CAMERA, tile: S.tile, depth: S.depth, seaLevel: S.seaLevel,
   instances: S.instances.map((i) => ({ proto: i.proto, at: i.at.map((v) => Math.round(v * 100) / 100), rot: Math.round(i.rot * 1000) / 1000, scale: Math.round(i.scale * 1000) / 1000 })),
-  rotors: S.rotors, cars: S.cars, roads: S.roads, roadWidth: S.roadWidth, steam: S.steam, smoke: S.smoke, pixels: S.pixels, spray: S.spray, lines: S.lines, tall: S.tall, bore: S.bore, carScale: S.carScale,
+  rotors: S.rotors, cars: S.cars, roads: S.roads, roadWidth: S.roadWidth, steam: S.steam, smoke: S.smoke, pixels: S.pixels, spray: S.spray, lines: S.lines, tall: S.tall, bore: S.bore, vapour: S.vapour, carScale: S.carScale,
 };
 // the grass grid as one small binary: heights (decimetres, int16), mask, colour
 const G = S.grass;
