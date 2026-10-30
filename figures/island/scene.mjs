@@ -418,21 +418,35 @@ function house(x, y, rot) {
 }
 
 // ── The cities: flat-coloured blocks on sandy ground, tiled streets ─────────
-function windows(x, y, w, d, z0, z1, colour, floor = 9) {
-  const quads = [], ww = 4, wh = 5, pitch = 7.5;
+// Towers get continuous glass bands round each floor, broken by slim mullions
+// in the facade's colour; lower blocks get punched windows.
+function windows(x, y, w, d, z0, z1, glass, facade, ribbon, floor = 9) {
+  const quads = [], fins = [], wh = ribbon ? 5.6 : 5;
+  const front = (u0, u1, a, b) => [[x + u0, y + d / 2 + 0.06, a], [x + u1, y + d / 2 + 0.06, a], [x + u1, y + d / 2 + 0.06, b], [x + u0, y + d / 2 + 0.06, b]];
+  const side = (u0, u1, a, b) => [[x + w / 2 + 0.06, y + u1, a], [x + w / 2 + 0.06, y + u0, a], [x + w / 2 + 0.06, y + u0, b], [x + w / 2 + 0.06, y + u1, b]];
+  let top = z0 + 10;
   for (let zz = z0 + 10; zz + wh < z1 - 2; zz += floor) {
-    for (let u = -w / 2 + 3.5; u + ww < w / 2 - 2.5; u += pitch) quads.push([[x + u, y + d / 2 + 0.06, zz], [x + u + ww, y + d / 2 + 0.06, zz], [x + u + ww, y + d / 2 + 0.06, zz + wh], [x + u, y + d / 2 + 0.06, zz + wh]]);
-    for (let u = -d / 2 + 3.5; u + ww < d / 2 - 2.5; u += pitch) quads.push([[x + w / 2 + 0.06, y + u + ww, zz], [x + w / 2 + 0.06, y + u, zz], [x + w / 2 + 0.06, y + u, zz + wh], [x + w / 2 + 0.06, y + u + ww, zz + wh]]);
+    top = zz + wh;
+    if (ribbon) { quads.push(front(-w / 2 + 2, w / 2 - 2, zz, zz + wh), side(-d / 2 + 2, d / 2 - 2, zz, zz + wh)); continue; }
+    for (let u = -w / 2 + 3.5; u + 4 < w / 2 - 2.5; u += 7.5) quads.push(front(u, u + 4, zz, zz + wh));
+    for (let u = -d / 2 + 3.5; u + 4 < d / 2 - 2.5; u += 7.5) quads.push(side(u, u + 4, zz, zz + wh));
   }
-  prims.push({ kind: "quads", quads, colour: toHex(mix(hex(colour), hex(PALETTE.slate), 0.7)), group: "lights:window", ref: [x, y, (z0 + z1) / 2] });
+  prims.push({ kind: "quads", quads, colour: glass, group: "lights:window", ref: [x, y, (z0 + z1) / 2] });
+  if (!ribbon) return;
+  for (let u = -w / 2 + 2 + 4.6; u < w / 2 - 3; u += 4.6) fins.push(front(u - 0.3, u + 0.3, z0 + 9.5, top + 0.5).map(([a, b, c]) => [a, b + 0.05, c]));
+  for (let u = -d / 2 + 2 + 4.6; u < d / 2 - 3; u += 4.6) fins.push(side(u - 0.3, u + 0.3, z0 + 9.5, top + 0.5).map(([a, b, c]) => [a + 0.05, b, c]));
+  prims.push({ kind: "quads", quads: fins, colour: facade, group: "static", ref: [x, y, (z0 + z1) / 2] });
 }
 const AWNINGS = [PALETTE.red, PALETTE.orange, PALETTE.yellow, PALETTE.water, PALETTE.grass];
+// modern blocks: charcoal to near-black towers with pale glass, the low blocks in lighter greys
+const TOWERS = ["#2b2f33", "#3b4045", "#1f2225", "#4a5056"], LOWS = ["#7d848a", "#a3a9ae", "#c9cdd0", "#646b71"];
 function block(x, y, w, d, h, colour, roof = PALETTE.woodDark) {
+  const ribbon = h > 40;
   const z = TOP;
   P("rbox", { at: [x, y, z], size: [w, d, h], r: 2.0, colour });
   P("rbox", { at: [x, y, z + h], size: [w + 1.6, d + 1.6, 2.0], r: 0.7, colour: roof });
   if (h > 30) P("rbox", { at: [x + w * 0.12, y - d * 0.1, z + h + 2], size: [w * 0.4, d * 0.35, 4.5], r: 0.8, colour: PALETTE.stone });
-  windows(x, y, w, d, z, z + h, colour);
+  windows(x, y, w, d, z, z + h, ribbon ? "#a9c2d0" : "#3d4a54", colour, ribbon);
   // a shopfront round the two faces the viewer sees: glass, an awning, a door
   const fy = y + d / 2 + 0.07, fx = x + w / 2 + 0.07, awning = AWNINGS[Math.floor(hash(Math.round(x), Math.round(y), 5) * AWNINGS.length)];
   prims.push({ kind: "quads", group: "lights:window", colour: "#3f4c55", ref: [x, y, z + 3], quads: [
@@ -445,7 +459,7 @@ function block(x, y, w, d, h, colour, roof = PALETTE.woodDark) {
   // on the roof: air-handling units, and a water tank and mast on the tall ones
   for (const k of [0, 1]) P("rbox", { at: [x - w * 0.28 + k * 5, y + d * 0.22, z + h + 2], size: [3.8, 3.8, 2.4], r: 0.5, colour: k ? PALETTE.stone : PALETTE.cream });
   if (h > 45) {
-    P("cyl", { at: [x - w * 0.25, y - d * 0.22, z + h + 2], r: 2.6, h: 5, seg: 14, colour: PALETTE.wood });
+    P("cyl", { at: [x - w * 0.25, y - d * 0.22, z + h + 2], r: 2.6, h: 5, seg: 14, colour: PALETTE.stone });
     P("cyl", { at: [x - w * 0.25, y - d * 0.22, z + h + 7], r: 2.9, r2: 0.3, h: 1.8, seg: 14, colour: PALETTE.woodDark });
   }
   if (h > 70) {
@@ -477,11 +491,11 @@ function city(C, heightAt) {
       continue;
     }
     const [h, kind] = heightAt(i, j);
-    const colour = PALETTE.buildings[(i * 3 + j * 5) % PALETTE.buildings.length];
-    const roof = PALETTE.roofs[(i + j) % PALETTE.roofs.length];
+    const tower = h > 40, colour = (tower ? TOWERS : LOWS)[(i * 3 + j * 5) % 4];
+    const roof = tower ? "#16181a" : "#3b4045";
     const bw = C.pitch - 24 - hash(i, j, 4) * 6, bd = C.pitch - 24 - hash(i, j, 6) * 6;
     if (kind === "tower") block(x, y, bw, bd, h, colour, roof);
-    else { block(x - 5, y - 5, bw * 0.62, bd * 0.7, h, colour, roof); block(x + bw * 0.3, y + bd * 0.3, bw * 0.38, bd * 0.38, h * 0.55, PALETTE.buildings[(i + j + 3) % PALETTE.buildings.length], roof); }
+    else { block(x - 5, y - 5, bw * 0.62, bd * 0.7, h, colour, roof); block(x + bw * 0.3, y + bd * 0.3, bw * 0.38, bd * 0.38, h * 0.55, LOWS[(i + j + 3) % 4], "#3b4045"); }
   }
 }
 city(W.CITY_A, (i, j) => {
