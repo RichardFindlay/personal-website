@@ -695,22 +695,24 @@ const vapour = [];
     // and from the well down to the cut face, then down the wall to the hot rock
     const top = [ex + side * 1.6, ey + 2.4, TOP - 1.4];
     P("tube", { points: [[wx + side, wy + 4, wz + 3], top], r: 1.6, colour, seg: 10 });
-    P("tube", { points: [top, [top[0], top[1], -50]], r: 2, colour, seg: 10 });
+    P("tube", { points: [top, [top[0], top[1], -40]], r: 2, colour, seg: 10 });
   }
-  // the hot rock: a glowing lens on the cut face where the bore ends, a dark rim round it
-  const lens = (rx, rz, off, colour, group) => {
-    const quads = [], n = 28, cz = -54;
-    for (let i = 0; i < n; i++) {
-      const a0 = (i / n) * Math.PI * 2, a1 = ((i + 1) / n) * Math.PI * 2;
-      const wob = (a) => 1 + 0.12 * Math.sin(3 * a + 1) + 0.07 * Math.sin(7 * a);
-      const pt = (a) => [ex + Math.cos(a) * rx * wob(a), ey + off, Math.max(-DEPTH + 0.6, cz + Math.sin(a) * rz * wob(a))];
-      quads.push([[ex, ey + off, cz], pt(a0), pt(a1), pt(a1)]);
-    }
-    prims.push({ kind: "quads", quads, colour, group, ref: [ex, ey, cz] });
+  // the hot rock: a wide glowing reservoir on the cut face where the bore ends,
+  // a dark rim round a hot body round a bright core, following the wall's wobble
+  const RES = -44;
+  const lens = (rx, rz, off, colour, group, k) => {
+    const quads = [], n = 48;
+    const onWall = (x, z) => { const [wx2, wy2] = W.edgeAt(Math.atan2(ey, x)); return [wx2, wy2 + off, z]; };
+    const wob = (a) => 1 + 0.09 * Math.sin(2 * a + k) + 0.06 * Math.sin(5 * a + 2 * k);
+    const pt = (a) => onWall(ex + Math.cos(a) * rx * wob(a), Math.max(-DEPTH + 0.6, Math.min(TOP - 12, RES + Math.sin(a) * rz * wob(a))));
+    const c = onWall(ex, RES);
+    for (let i = 0; i < n; i++) { const a0 = (i / n) * Math.PI * 2, a1 = ((i + 1) / n) * Math.PI * 2; quads.push([c, pt(a0), pt(a1), pt(a1)]); }
+    prims.push({ kind: "quads", quads, colour, group, ref: [ex, ey, RES] });
   };
-  lens(42, 11, 0.5, PALETTE.ember, "static");
-  lens(30, 7, 0.7, "#ffb35c", "lights:magma");
-  bore = [ex, ey + 1.6, -54];
+  lens(66, 19, 0.5, PALETTE.ember, "static", 1);
+  lens(52, 14, 0.7, "#ff9a3c", "lights:magma", 1.6);
+  lens(30, 7.5, 0.9, "#ffd27a", "lights:magma", 2.4);
+  bore = [ex, ey + 1.6, RES];
   claim(px, py, 34);
 }
 

@@ -219,7 +219,7 @@ export async function mountIsland(stage, { still = false } = {}) {
         grad.addColorStop(1, 'rgba(210,80,40,0)');
         g.fillStyle = grad;
         g.fillRect(0, 0, 128, 128);
-        const glow = new THREE.Mesh(new THREE.PlaneGeometry(150, 64), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, toneMapped: false }));
+        const glow = new THREE.Mesh(new THREE.PlaneGeometry(240, 110), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false, toneMapped: false }));
         glow.position.copy(V([meta.bore[0], meta.bore[1] + 0.6, meta.bore[2]]));
         scene.add(glow);
     }
