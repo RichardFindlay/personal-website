@@ -106,10 +106,10 @@ function groundZ(x, y, f = W.reach(x, y)) {
   const r = river(x, y);
   if (r.d < 14) z = r.d < 0 ? r.level - 3 + 1.2 * smooth(-6, 0, r.d) : lerp(r.level + 0.6, z, smooth(0, 14, r.d));
   z -= 2.2 * smooth(0.965, 1, f);
-  return lerp(z, BED + 0.8 * fbm(x / 25, y / 25, 2), W.seaShare(x, y));
+  return lerp(z, WATER - W.basinDepth(x, y) + 0.8 * fbm(x / 25, y / 25, 2), W.seaShare(x, y));
 }
 function groundColour(x, y, z, slope) {
-  if (W.seaShare(x, y) > 0.02 && z < WATER + 0.3) return mix(hex(PALETTE.sand), hex("#5fb3cf"), smooth(WATER - 1, BED + 1, z));
+  if (W.seaShare(x, y) > 0.02 && z < WATER + 0.3) return mix(hex(PALETTE.sand), hex("#246f93"), smooth(WATER - 1.5, WATER - 22, z));
   if (reservoir(x, y) < 1.02 || pondGap(x, y) < 0) return hex("#8fb7b0");
   const r = river(x, y);
   if (r.d < 0.5) return hex(PALETTE.dirt);
@@ -218,11 +218,11 @@ function column(t) {
   const [x, y] = W.edgeAt(t), sea = W.seaShare(x * 0.999, y * 0.999), top = groundZ(x, y, 1);
   const wet = sea > 0.5, land = wet ? 0 : 1;
   const s = t * 300, n = (len, ph) => fbm(s / len, ph, 17);
-  const th = [wet ? WATER - top : 0, (2.6 + 1.2 * n(40, 1)) * land, (4 + 2.5 * n(60, 2)) * land, (7 + 4 * n(90, 3)) * land, wet ? 4 + 2 * n(50, 4) : 0];
+  const th = [wet ? WATER - top : 0, (2.6 + 1.2 * n(40, 1)) * land, (4 + 2.5 * n(60, 2)) * land, (7 + 4 * n(90, 3)) * land, wet ? 3 + 1.5 * n(50, 4) : 0];
   const z = [wet ? WATER : top];
   for (const h of th) z.push(z[z.length - 1] - Math.max(0.3, h));
   // the rock's beds heave and dip, and lift where a mountain stands above
-  const lift = Math.max(0, top - TOP - 6) * 0.35;
+  const lift = wet ? -(WATER - top) * 0.55 : Math.max(0, top - TOP - 6) * 0.35;
   const wave = (base, amp, len, ph) => base + lift + amp * Math.sin(s / len + ph) + amp * 0.6 * Math.sin(s / (len * 0.37) + ph * 2.1) + amp * 0.8 * fbm(s / 45, ph, 19);
   z.push(Math.min(z[z.length - 1] - 3, wave(-20, 4, 60, 0.4)));
   z.push(Math.min(z[z.length - 1] - 2, wave(-36, 5, 80, 1.9)));
@@ -231,24 +231,32 @@ function column(t) {
   return { x, y, z };
 }
 function walls() {
-  const verts = [], faces = [], fcolours = [];
+  const verts = [], faces = [], vcolours = [];
   const cols = Array.from({ length: NT + 1 }, (_, i) => column((i / NT) * Math.PI * 2));
+  const deep = hex("#1b6f94"), shallow = hex(PALETTE.water);
+  const push = (p, c) => { verts.push(p); vcolours.push(...c.map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255))); };
   for (let i = 0; i < NT; i++) {
     const a = cols[i], b = cols[i + 1];
     LAYERS.forEach((name, l) => {
       if (a.z[l] - a.z[l + 1] < 0.02 && b.z[l] - b.z[l + 1] < 0.02) return;
       const n = verts.length;
-      verts.push([a.x, a.y, a.z[l]], [a.x, a.y, a.z[l + 1]], [b.x, b.y, b.z[l + 1]], [b.x, b.y, b.z[l]]);
+      if (name === "water") {
+        // the cut through the bay: surface blue at the top, darkening to the bed
+        const cz = (zz) => mix(shallow, deep, smooth(WATER - 1, WATER - 24, zz));
+        push([a.x, a.y, a.z[l]], cz(a.z[l])); push([a.x, a.y, a.z[l + 1]], cz(a.z[l + 1]));
+        push([b.x, b.y, b.z[l + 1]], cz(b.z[l + 1])); push([b.x, b.y, b.z[l]], cz(b.z[l]));
+      } else {
+        const c = hex(PALETTE.layers[name]).map((v) => v * (1 + 0.08 * fbm(i / 6, l * 3, 23)));
+        push([a.x, a.y, a.z[l]], c); push([a.x, a.y, a.z[l + 1]], c); push([b.x, b.y, b.z[l + 1]], c); push([b.x, b.y, b.z[l]], c);
+      }
       faces.push([n, n + 1, n + 2, n + 3]);
-      const v = 0.08 * fbm(i / 6, l * 3, 23);
-      fcolours.push(toHex(hex(PALETTE.layers[name]).map((c) => c * (1 + v))));
     });
   }
-  const c = verts.length;
-  verts.push([0, 0, -DEPTH]);
-  for (let i = 0; i <= NT; i++) verts.push([cols[i % NT].x, cols[i % NT].y, -DEPTH]);
-  for (let i = 0; i < NT; i++) { faces.push([c, c + 2 + i, c + 1 + i]); fcolours.push(PALETTE.layers.granite); }
-  return { kind: "mesh", group: "rock", verts, faces, fcolours, colour: PALETTE.layers.granite, smooth: false };
+  const c = verts.length, granite = hex(PALETTE.layers.granite);
+  push([0, 0, -DEPTH], granite);
+  for (let i = 0; i <= NT; i++) push([cols[i % NT].x, cols[i % NT].y, -DEPTH], granite);
+  for (let i = 0; i < NT; i++) faces.push([c, c + 2 + i, c + 1 + i]);
+  return { kind: "mesh", group: "rock", verts, vcolours, faces, colour: PALETTE.layers.granite, smooth: false };
 }
 
 // ── Primitives ──────────────────────────────────────────────────────────────
@@ -470,7 +478,8 @@ const yaw = Math.atan2(AX[1], AX[0]);
 const rotors = [];
 function turbine(x, y, { base = on(x, y), hub = 80, R: rad = 40, offshore = false } = {}) {
   if (offshore) {
-    P("cyl", { at: [x, y, BED - 1], r: 3.6, h: WATER + 4 - BED, seg: 16, colour: PALETTE.yellow });
+    const bed = on(x, y) - 2;
+    P("cyl", { at: [x, y, bed], r: 3.6, h: WATER + 4 - bed, seg: 16, colour: PALETTE.yellow });
     P("cyl", { at: [x, y, WATER + 3], r: 6.5, h: 1.2, seg: 18, colour: PALETTE.yellow });
     base = WATER + 4.2;
   }
@@ -550,7 +559,7 @@ const smoke = [];
 {
   const J = W.JETTY, z = WATER + 1.6;
   for (let u = 0; u < J.length; u += 2.2) P("box", { at: [J.x + u, J.y, z], size: [2, 7, 0.3], colour: u % 4.4 < 2.2 ? PALETTE.wood : "#a58d6f" });
-  for (let u = 2; u < J.length; u += 8) for (const sgn of [-1, 1]) P("cyl", { at: [J.x + u, J.y + sgn * 3.2, BED], r: 0.45, h: z - BED + 1.4, seg: 8, colour: PALETTE.woodDark });
+  for (let u = 2; u < J.length; u += 8) for (const sgn of [-1, 1]) { const bed = on(J.x + u, J.y + sgn * 3.2) - 1; P("cyl", { at: [J.x + u, J.y + sgn * 3.2, bed], r: 0.45, h: z - bed + 1.4, seg: 8, colour: PALETTE.woodDark }); }
   for (const [dx, dy] of [[6, 1.6], [8.6, 1.4], [6, -1.4]]) place("crate", J.x + dx, J.y + dy, R(), 0.9, z + 0.3);
   place("lantern", J.x + J.length - 2, J.y + 2.4, 0, 0.9, z + 0.3);
   const boat = (x, y, ang, len, sail) => {

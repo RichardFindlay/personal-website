@@ -41,7 +41,7 @@ export const BOUNDS = { x: -HALF - 16, y: -HALF - 16, w: 2 * HALF + 32, d: 2 * H
 
 // ── The bay on the east: water across the outer part of a sector, its shore
 // wandering in coves and spits rather than a clean curve ───────────────────
-const SEA = { from: -0.36, to: 0.74 };
+export const SEA = { from: -0.36, to: 0.74 };
 const wobble = (t, k) => 0.5 * Math.sin(3.1 * t + 0.4 + k) + 0.3 * Math.sin(7.3 * t + 1.9 + k) + 0.2 * Math.sin(13.7 * t + 0.2 + k);
 export const shoreStart = (t) => 0.6 + 0.07 * wobble(t, 0) - 0.05 * Math.max(0, Math.cos(5 * t + 0.9)) ** 3;   // a deep cove or two
 export function seaShare(x, y) {
@@ -49,6 +49,15 @@ export function seaShare(x, y) {
   const across = Math.min(t - (SEA.from + 0.03 * wobble(r * 4, 2)), (SEA.to + 0.03 * wobble(r * 4, 5)) - t);
   if (across <= 0) return 0;
   return Math.max(0, Math.min(1, (r - shoreStart(t)) / 0.05)) * Math.min(1, across / 0.1);
+}
+// how deep the bay is at a point: a basin, deepest in the middle of the sector
+// and well out from the shore, cut open at the island's edge
+export function basinDepth(x, y) {
+  const t = bearing(x, y), r = reach(x, y);
+  const across = Math.min(1, Math.max(0, (t - SEA.from) / (SEA.to - SEA.from)));
+  const bowl = Math.pow(Math.sin(Math.PI * across), 0.8);
+  const s0 = shoreStart(t), out = Math.min(1, Math.max(0, (r - s0) / 0.16));
+  return 1.5 + 26 * bowl * out * (2 - out);
 }
 // ponds and the reservoir: lobed outlines, a radius for each angle round the centre
 export const lobed = (a, k) => 1 + 0.22 * Math.sin(3 * a + k) + 0.12 * Math.sin(5 * a + 2 * k) + 0.06 * Math.sin(9 * a + k);
