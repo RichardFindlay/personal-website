@@ -405,10 +405,10 @@ export async function mountIsland(stage, { still = false } = {}) {
         const G3 = (h) => [1, 3, 5].map((i) => toLinear(parseInt(h.slice(i, i + 2), 16)));
         // each kind: where its crown sits, how many cards, and its shade, middle and sunlit colours
         const shapes = {
-            oak: { centre: [0, 0, 11.5], r: 6.8, cards: 30, size: 6.4, tall: 1, leaf: ['#a8541c', '#e8862e', '#f8b860'] },
-            birch: { centre: [0, 0, 13], r: 5.2, cards: 24, size: 5.2, tall: 1.15, leaf: ['#a8780e', '#e4a90c', '#f6d25a'] },
-            maple: { centre: [0, 0, 9.5], r: 6.2, cards: 28, size: 6.0, tall: 0.95, leaf: ['#9e2c16', '#d9481f', '#f27d48'] },
-            bush: { centre: [0, 0, 1.8], r: 2.5, cards: 10, size: 2.6, tall: 0.8, leaf: ['#6f6a2c', '#9c9440', '#c4b862'] },
+            oak: { centre: [0, 0, 11.5], r: 6.8, cards: 30, size: 6.4, tall: 1, leaf: ['#4a7a38', '#78ad52', '#acd472'] },
+            birch: { centre: [0, 0, 13], r: 5.2, cards: 24, size: 5.2, tall: 1.15, leaf: ['#78962a', '#a8c23a', '#d8e66c'] },
+            maple: { centre: [0, 0, 9.5], r: 6.2, cards: 28, size: 6.0, tall: 0.95, leaf: ['#2f6236', '#4f8c46', '#80c064'] },
+            bush: { centre: [0, 0, 1.8], r: 2.5, cards: 10, size: 2.6, tall: 0.8, leaf: ['#55703f', '#7e9a66', '#a4bb86'] },
         };
         const sun = new THREE.Vector3(-0.72, 1.0, 0.58).normalize();
         const centres = [], sizes = [], shades = [], phases = [];

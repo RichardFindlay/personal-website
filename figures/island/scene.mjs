@@ -1,7 +1,7 @@
 // The island as a scene description for Blender, in the manner of Bruno
 // Simon's folio: a rounded square of grass with wide sandy paths winding
 // between the places, wooden fences and lanterns along them, birch, oak and
-// maple trees in autumn colours, bushes and flowers, ponds and a bay with foam at the shore,
+// maple trees in summer greens, bushes and flowers, ponds and a bay with foam at the shore,
 // and simple flat-coloured buildings in his palette. Highlands with a
 // reservoir and a hydro dam; a river to the bay; two cities; every power
 // station wired to them by pylons. The slab's cut faces keep their strata. All
@@ -332,7 +332,7 @@ for (const [name, line] of Object.entries(PATHS)) {
 
 // ── Prototypes, instanced by the page ───────────────────────────────────────
 // Trees: a trunk and a solid crown that only casts shadow; the page draws the
-// leaves as soft cards in each tree's own autumn colours.
+// leaves as soft cards in each tree's own summer greens.
 protos.oak = [
   { kind: "cyl", at: [0, 0, 0], r: 1.1, r2: 0.8, h: 6.5, seg: 8, colour: PALETTE.woodDark },
   { kind: "sphere", at: [0, 0, 11.5], r: 6.6, sub: 2, colour: PALETTE.grass, group: "leaves" },
@@ -343,7 +343,7 @@ protos.birch = [
 ];
 protos.maple = [
   { kind: "cyl", at: [0, 0, 0], r: 0.9, r2: 0.6, h: 5.5, seg: 8, colour: PALETTE.woodDark },
-  { kind: "sphere", at: [0, 0, 9.5], r: 6, sub: 2, colour: PALETTE.red, group: "leaves" },
+  { kind: "sphere", at: [0, 0, 9.5], r: 6, sub: 2, colour: PALETTE.grassDark, group: "leaves" },
 ];
 protos.bush = [{ kind: "sphere", at: [0, 0, 1.6], r: 2.4, sub: 1, colour: PALETTE.grassDark, group: "leaves" }];
 for (const [name, colour] of [["flower_red", PALETTE.red], ["flower_orange", PALETTE.orange], ["flower_white", PALETTE.cream], ["flower_yellow", PALETTE.yellow]]) {
