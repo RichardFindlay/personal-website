@@ -23,7 +23,7 @@ export async function mountIsland(stage, { still = false } = {}) {
 
     // ── Renderer: transparent, so the page's white is the backdrop ──────────
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.75));
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
@@ -86,11 +86,12 @@ export async function mountIsland(stage, { still = false } = {}) {
     sun.target.position.copy(target);
     sun.castShadow = true;
     const small = Math.min(innerWidth, innerHeight) < 700;
-    sun.shadow.mapSize.set(small ? 1024 : 2048, small ? 1024 : 2048);
+    const shadowSize = small ? 2048 : Math.min(4096, renderer.capabilities.maxTextureSize);
+    sun.shadow.mapSize.set(shadowSize, shadowSize);
     Object.assign(sun.shadow.camera, { left: -460, right: 460, top: 460, bottom: -460, near: 900, far: 2200 });
     sun.shadow.bias = -0.0006;
     sun.shadow.normalBias = 0.6;
-    sun.shadow.radius = 3;
+    sun.shadow.radius = 2.5;
     scene.add(sun, sun.target);
 
     // ── Materials, by the name each part carries from Blender ──────────────
@@ -334,7 +335,7 @@ export async function mountIsland(stage, { still = false } = {}) {
             const h = (a, b) => heights[b * G.nx + a] / 10;
             return (h(i, j) * (1 - u) + h(i + 1, j) * u) * (1 - v) + (h(i, j + 1) * (1 - u) + h(i + 1, j + 1) * u) * v;
         };
-        const perCell = Math.min(innerWidth, innerHeight) < 700 ? 3 : 6;
+        const perCell = Math.min(innerWidth, innerHeight) < 700 ? 4 : 8;
         const pos = [], params = [], tint = [];
         let seed = 7;
         const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -405,10 +406,10 @@ export async function mountIsland(stage, { still = false } = {}) {
         const G3 = (h) => [1, 3, 5].map((i) => toLinear(parseInt(h.slice(i, i + 2), 16)));
         // each kind: where its crown sits, how many cards, and its shade, middle and sunlit colours
         const shapes = {
-            oak: { centre: [0, 0, 11.5], r: 6.8, cards: 30, size: 6.4, tall: 1, leaf: ['#4a7a38', '#78ad52', '#acd472'] },
-            birch: { centre: [0, 0, 13], r: 5.2, cards: 24, size: 5.2, tall: 1.15, leaf: ['#78962a', '#a8c23a', '#d8e66c'] },
-            maple: { centre: [0, 0, 9.5], r: 6.2, cards: 28, size: 6.0, tall: 0.95, leaf: ['#2f6236', '#4f8c46', '#80c064'] },
-            bush: { centre: [0, 0, 1.8], r: 2.5, cards: 10, size: 2.6, tall: 0.8, leaf: ['#55703f', '#7e9a66', '#a4bb86'] },
+            oak: { centre: [0, 0, 11.5], r: 6.8, cards: 46, size: 5.2, tall: 1, leaf: ['#4a7a38', '#78ad52', '#acd472'] },
+            birch: { centre: [0, 0, 13], r: 5.2, cards: 36, size: 4.3, tall: 1.15, leaf: ['#78962a', '#a8c23a', '#d8e66c'] },
+            maple: { centre: [0, 0, 9.5], r: 6.2, cards: 42, size: 4.9, tall: 0.95, leaf: ['#2f6236', '#4f8c46', '#80c064'] },
+            bush: { centre: [0, 0, 1.8], r: 2.5, cards: 16, size: 2.1, tall: 0.8, leaf: ['#55703f', '#7e9a66', '#a4bb86'] },
         };
         const sun = new THREE.Vector3(-0.72, 1.0, 0.58).normalize();
         const centres = [], sizes = [], shades = [], phases = [];
