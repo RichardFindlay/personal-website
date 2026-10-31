@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<!-- Light mode only for now: the dark tokens stay in home.css for later. -->
+<html lang="en-GB" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="google" content="notranslate">
+    <meta name="theme-color" content="#ffffff">
+    <title>Richard Findlay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap">
+    <link rel="stylesheet" href="staticfiles/js/vendor/lenis-1.3.26/lenis.css">
+    <link rel="stylesheet" href="staticfiles/css/home.css">
+    <script type="importmap">
+        {"imports": {"three": "./staticfiles/js/vendor/three-0.185.1/build/three.module.min.js", "three/addons/": "./staticfiles/js/vendor/three-0.185.1/examples/jsm/"}}
+    </script>
+</head>
+<body class="home">
+
+    <header class="masthead">
+        <!-- A floating pill of liquid glass with a thin-film sheen around the name,
+             which leads to AB0UT ME. -->
+        <nav class="glass-nav" aria-label="Site">
+            <span class="glass-layer glass-distort" aria-hidden="true"></span>
+            <span class="glass-layer glass-tint" aria-hidden="true"></span>
+            <span class="glass-layer glass-film" aria-hidden="true"></span>
+            <span class="glass-layer glass-edge" aria-hidden="true"></span>
+            <h1 class="masthead-name">
+                <a href="#about" aria-label="Richard Findlay: about me">RICHARD FINDLAY</a>
+            </h1>
+        </nav>
+        <p class="masthead-tagline">Energy | Climate Change | Artificial Intelligence</p>
+    </header>
+
+    <!-- The glass's distortion: a soft noise field that bends what shows through it. -->
+    <svg class="glass-filter" aria-hidden="true" focusable="false">
+        <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
+            <feTurbulence type="fractalNoise" baseFrequency="0.001 0.005" numOctaves="1" seed="17" result="turbulence"/>
+            <feComponentTransfer in="turbulence" result="mapped">
+                <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5"/>
+                <feFuncG type="gamma" amplitude="0" exponent="1" offset="0"/>
+                <feFuncB type="gamma" amplitude="0" exponent="1" offset="0.5"/>
+            </feComponentTransfer>
+            <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap"/>
+            <feSpecularLighting in="softMap" surfaceScale="5" specularConstant="1" specularExponent="100" lighting-color="white" result="specLight">
+                <fePointLight x="-200" y="-200" z="300"/>
+            </feSpecularLighting>
+            <feComposite in="specLight" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litImage"/>
+            <feDisplacementMap in="SourceGraphic" in2="softMap" scale="200" xChannelSelector="R" yChannelSelector="G"/>
+        </filter>
+    </svg>
+
+    <!-- The drawing sheet: a border with zone markers, and the title block, which names
+         the view in focus as the turbine explodes. -->
+    <div class="sheet" aria-hidden="true">
+        <div class="sheet-zones sheet-zones-top"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
+        <div class="sheet-zones sheet-zones-side"><span>A</span><span>B</span><span>C</span><span>D</span><span>E</span><span>F</span></div>
+    </div>
+    <dl class="title-block" aria-hidden="true">
+        <div class="tb-title"><dt>TITLE</dt><dd>WIND TURBINE, GEARED DRIVETRAIN</dd></div>
+        <div class="tb-view"><dt>VIEW</dt><dd data-view>GENERAL ARRANGEMENT</dd></div>
+        <div><dt>DRG N0.</dt><dd>RF-001</dd></div>
+        <div><dt>SCALE</dt><dd data-scale>1:40</dd></div>
+        <div><dt>SHEET</dt><dd>1 / 1</dd></div>
+        <div><dt>DRAWN</dt><dd>R. FINDLAY</dd></div>
+    </dl>
+
+    <!-- The turbine: fixed behind the page, a live 3D model drawn as an engineering drawing,
+         loaded after the page is up. Scrolling explodes it and drills into each assembly. -->
+    <div class="turbine-stage" id="turbine" aria-hidden="true" data-module="staticfiles/js/home/turbine.js"></div>
+
+    <main>
+        <section class="hero" aria-label="A wind turbine, drawn as an engineering drawing" data-p="0">
+            <p class="hero-note">A 4 MW wind turbine, taken apart as you scroll.</p>
+            <p class="scroll-cue" aria-hidden="true">SCR0LL</p>
+        </section>
+
+        <!-- Each section is paired with a view of the turbine: data-p is the scroll point of
+             the drawing the section sits beside. Cards arrive at M3. -->
+        <section class="section" data-p="0.22" aria-label="The turbine in an exploded view">
+            <p class="section-note">Seven assemblies, from the blades to the yaw system, lifted apart.</p>
+        </section>
+        <section class="section" id="blog" aria-labelledby="blog-label" data-p="0.37">
+            <h2 class="section-label" id="blog-label" aria-label="Blog posts">BL0G P0STS</h2>
+            <p class="section-note">Detail A: the hub and its pitch system. Each blade turns on a bearing of two rows of balls, driven by a motor and pinion on its gear teeth.</p>
+        </section>
+        <section class="section" id="reading" aria-labelledby="reading-label" data-p="0.6">
+            <h2 class="section-label" id="reading-label" aria-label="Reading and media">READING / MEDIA</h2>
+            <p class="section-note">Details B and C: the main bearing and the gearbox's planetary stage, where three planets share the rotor's torque.</p>
+        </section>
+        <section class="section" id="about" aria-labelledby="about-label" data-p="0.74">
+            <h2 class="section-label" id="about-label" aria-label="About me">AB0UT ME</h2>
+            <p class="section-note">Detail D: the generator, its rotor drawn out of the stator.</p>
+        </section>
+        <section class="section" id="projects" aria-labelledby="projects-label" data-p="0.88">
+            <h2 class="section-label" id="projects-label" aria-label="Other projects">0THER PR0JECTS</h2>
+            <p class="section-note">Detail E: the yaw system, six drives turning the nacelle into the wind.</p>
+        </section>
+        <section class="section section-end" data-p="1" aria-label="The turbine reassembled"></section>
+    </main>
+
+    <footer class="footer">
+        <p class="footer-name">RICHARD FINDLAY</p>
+        <nav class="socials" aria-label="Social links">
+            <a href="https://x.com/__RichFind__" target="_blank" rel="noopener" aria-label="X">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.9 1.15h3.68l-8.04 9.19L24 22.85h-7.4l-5.8-7.59-6.64 7.59H.47l8.6-9.83L0 1.15h7.6l5.24 6.93Zm-1.29 19.5h2.04L6.49 3.24H4.3Z"/></svg>
+            </a>
+            <a href="https://www.linkedin.com/in/richard-findlay-a4a8365a/" target="_blank" rel="noopener" aria-label="LinkedIn">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg>
+            </a>
+            <a href="https://github.com/RichardFindlay" target="_blank" rel="noopener" aria-label="GitHub">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.82-.26.82-.57v-2.04c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.67-.31-5.47-1.34-5.47-5.94 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.63-5.48 5.92.43.37.82 1.1.82 2.22v3.29c0 .32.21.69.82.57A12 12 0 0 0 12 .3"/></svg>
+            </a>
+        </nav>
+    </footer>
+
+    <script>document.getElementById("turbine").dataset.module = new URL(document.getElementById("turbine").dataset.module, document.baseURI).href;</script>
+    <script src="staticfiles/js/vendor/lenis-1.3.26/lenis.min.js" defer></script>
+    <script src="staticfiles/js/home/home.js" defer></script>
+</body>
+</html>
