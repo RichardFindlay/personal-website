@@ -1,0 +1,15 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Future city</title>
+<style>html,body{margin:0;height:100%;background:#fff}.stage{position:fixed;inset:0}.stage canvas{display:block;width:100%;height:100%}</style>
+<script type="importmap">{"imports":{"three":"../../staticfiles/js/vendor/three-0.185.1/build/three.module.min.js","three/addons/":"../../staticfiles/js/vendor/three-0.185.1/examples/jsm/"}}</script>
+</head><body><div class="stage"></div>
+<script type="module">
+// ?p=<0..1> the camera's place on its flight; ?still holds the motion; ?q=low|high
+const q = new URLSearchParams(location.search);
+const { mountCity } = await import("../../staticfiles/js/home/city.js");
+const city = await mountCity(document.querySelector(".stage"), { still: q.has("still"), quality: q.get("q") || undefined });
+city.setProgress(Number(q.get("p") || 0), true);
+city.draw();
+window.city = city;
+window.ready = true;
+</script></body></html>
