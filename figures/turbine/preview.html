@@ -1,0 +1,23 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Turbine</title>
+<style>
+html,body{margin:0;background:#fff;font-family:"Space Mono",ui-monospace,monospace}
+.stage{position:fixed;inset:0;}
+.stage canvas{display:block;width:100%;height:100%}
+.turbine-callouts{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.turbine-callouts line{stroke:#15191d;stroke-width:.8}
+.turbine-callouts circle{fill:#15191d}
+.turbine-callouts text{font:10px "Space Mono",ui-monospace,monospace;fill:#15191d;letter-spacing:.08em}
+.turbine-callouts .num{font-weight:700;font-size:11px}
+</style>
+<script type="importmap">{"imports":{"three":"../../staticfiles/js/vendor/three-0.185.1/build/three.module.min.js","three/addons/":"../../staticfiles/js/vendor/three-0.185.1/examples/jsm/"}}</script>
+</head><body><div class="stage"></div>
+<script type="module">
+// ?p=<0..1> holds the drawing at that point of the scroll; ?still holds the motion
+const q = new URLSearchParams(location.search);
+const { mountTurbine } = await import("../../staticfiles/js/home/turbine.js");
+const t = await mountTurbine(document.querySelector(".stage"), { still: q.has("still") });
+t.setProgress(Number(q.get("p") || 0), true);
+window.turbine = t;
+window.ready = true;
+</script></body></html>

@@ -222,10 +222,61 @@ a { color: inherit; }
     height: 100vh;
     height: 100svh;
 }
-/* The island fills the viewport behind the page and fades in once it has loaded. */
-.island-stage { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-.island-stage canvas { display: block; width: 100%; height: 100%; opacity: 0; transition: opacity 0.7s var(--ease-out); }
-.island-stage.in canvas { opacity: 1; }
+/* The turbine fills the viewport behind the page and fades in once it has drawn. */
+.turbine-stage { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.turbine-stage canvas { display: block; width: 100%; height: 100%; opacity: 0; transition: opacity 0.7s var(--ease-out); }
+.turbine-stage.in canvas { opacity: 1; }
+/* part callouts: a dot on the part, a leader, the number over the name */
+.turbine-callouts { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.turbine-callouts g { transition: opacity 0.3s linear; }
+.turbine-callouts line { stroke: var(--ink); stroke-width: 0.8; }
+.turbine-callouts circle { fill: var(--ink); }
+.turbine-callouts text { font: 10px var(--font); letter-spacing: 0.1em; fill: var(--ink); }
+.turbine-callouts .num { font-weight: 700; font-size: 11px; }
+
+/* ── The drawing sheet: grid paper, a ruled border with zones, a title block ── */
+body.home {
+    background-color: var(--page);
+    background-image:
+        linear-gradient(to right, rgba(17, 20, 24, 0.035) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(17, 20, 24, 0.035) 1px, transparent 1px),
+        linear-gradient(to right, rgba(17, 20, 24, 0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(17, 20, 24, 0.06) 1px, transparent 1px);
+    background-size: 12px 12px, 12px 12px, 60px 60px, 60px 60px;
+    background-attachment: fixed;
+}
+.sheet {
+    position: fixed;
+    inset: 14px;
+    z-index: 2;
+    border: 1px solid var(--ink);
+    outline: 1px solid var(--ink);
+    outline-offset: 5px;
+    pointer-events: none;
+}
+.sheet-zones { position: absolute; display: flex; justify-content: space-around; font-size: 9px; color: var(--muted); }
+.sheet-zones-top { inset: -17px 0 auto 0; }
+.sheet-zones-side { inset: 0 auto 0 -15px; flex-direction: column; }
+.title-block {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    margin: 0;
+    background: var(--page);
+    border-top: 1px solid var(--ink);
+    border-left: 1px solid var(--ink);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+}
+.title-block > div { padding: 5px 10px 6px; border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+.title-block > div:nth-child(4n) { border-right: 0; }
+.title-block .tb-title, .title-block .tb-view { grid-column: span 2; }
+.title-block dt { color: var(--muted); font-size: 8px; }
+.title-block dd { margin: 2px 0 0; color: var(--ink); font-weight: 700; white-space: nowrap; }
+
 main, .footer { position: relative; z-index: 1; }
 
 .scroll-cue {
@@ -255,19 +306,37 @@ main, .footer { position: relative; z-index: 1; }
     100% { transform: scaleY(1); opacity: 0; }
 }
 
-/* ── Sections (shells until M3) ──────────────────────────────────────────── */
+/* ── Sections: a column on the left, each beside the view it is paired with ── */
 .section {
-    min-height: 100vh;
-    padding: 120px var(--gutter) 60px;
+    min-height: 130vh;
+    padding: 30vh var(--gutter) 0 calc(var(--gutter) + 26px);
+    max-width: min(34vw, 460px);
 }
+.section-end { min-height: 100vh; }
 
+.section-label, .section-note, .hero-note {
+    position: relative;
+    background: var(--page);
+    border: 1px solid var(--ink);
+}
+/* each section reads as a block of drawing notes: a ruled heading over the text */
 .section-label {
     margin: 0;
+    padding: 8px 12px 7px;
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.32em;
+    color: var(--ink);
+}
+.section-note, .hero-note {
+    margin: 0;
+    padding: 10px 12px 12px;
+    font-size: 13px;
+    line-height: 1.7;
     color: var(--muted);
 }
+.section-label + .section-note { border-top: 0; }
+.hero-note { position: absolute; left: calc(var(--gutter) + 26px); bottom: 15vh; max-width: 320px; }
 
 /* ── Footer ──────────────────────────────────────────────────────────────── */
 .footer {
@@ -296,6 +365,11 @@ main, .footer { position: relative; z-index: 1; }
 .socials svg { width: 18px; height: 18px; fill: currentColor; }
 
 /* ── Small screens: the pill is just the name and the toggle ────────────── */
+@media (max-width: 900px) {
+    .section { max-width: none; padding-top: 62vh; }
+    .title-block { grid-template-columns: repeat(2, auto); }
+    .title-block .tb-title, .title-block > div:nth-child(n + 4) { display: none; }
+}
 @media (max-width: 600px) {
     .masthead { padding-top: 12px; }
     .glass-nav { padding: 10px 20px; }
