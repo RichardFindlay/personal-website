@@ -107,6 +107,18 @@ class HomepageTests(TestCase):
 		self.assertIn('navbar-brand', self.client.get('/about').content.decode())
 		self.assertIn('navbar-brand', self.client.get('/reading').content.decode())
 
+	def test_import_map_pins_three_before_the_module_that_needs_it(self):
+		html = self.home()
+		import_map = re.search(r'<script type="importmap">(.*?)</script>', html, re.S)
+		self.assertEqual(
+			json.loads(import_map.group(1)),
+			{'imports': {'three': 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js'}},
+		)
+		self.assertLess(import_map.start(), html.index('<script type="module" src="/static/js/home.js"></script>'))
+
+	def test_turbine_mount_point_keeps_the_svg_fallback_address(self):
+		self.assertIn('<div class="stage-figure" data-svg="/static/image/turbine/turbine.svg"></div>', self.home())
+
 	def test_generated_turbine_has_no_unfilled_bindings(self):
 		svg = (settings.BASE_DIR / 'staticfiles/image/turbine/turbine.svg').read_text()
 		self.assertIn('data-callout="yaw"', svg)

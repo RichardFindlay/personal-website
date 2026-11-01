@@ -115,6 +115,37 @@ a:hover { opacity: .72; }
   height: 100%;
 }
 
+.tb3d-canvas {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+
+.tb3d-canvas.is-ready {
+  opacity: 1;
+}
+
+.stage-figure .tb3d-callouts {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.tb3d-label {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.6px;
+  fill: var(--tb-ink);
+}
+
+.tb3d-number {
+  fill: var(--tb-lit);
+  font-weight: 700;
+}
+
 .stage-caption {
   position: absolute;
   top: 84px;
@@ -643,6 +674,7 @@ a:hover { opacity: .72; }
   .theme-btn { margin-left: 0; }
 
   .stage-caption { top: calc(var(--nav-h) + 12px); }
+  .tb3d-label { font-size: 16px; letter-spacing: 0.2px; }
   .step:not(.is-active) { display: none; }
 
   .hero-intro { display: none; }
@@ -656,5 +688,6 @@ a:hover { opacity: .72; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .tb3d-canvas { transition: none; }
   .card-scene svg { transition: none; }
 }

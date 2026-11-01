@@ -5,6 +5,7 @@ const HERO_OFFSET = 24;
 const NARROW_HERO_OFFSET = 22;
 const NARROW_WIDTH = 900;
 const THEME_KEY = 'theme';
+const SCENE_BUILD_LIMIT_MS = 15000;
 
 const root = document.documentElement;
 const figure = document.querySelector('.stage-figure');
@@ -48,7 +49,7 @@ function measureNav() {
   root.style.setProperty('--nav-h', `${nav.offsetHeight}px`);
 }
 
-async function mountFigure() {
+async function mountSvgFigure() {
   let markup;
   try {
     const response = await fetch(figure.dataset.svg);
@@ -62,6 +63,44 @@ async function mountFigure() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) svg.pauseAnimations();
   renderTurbine = mount(svg);
   update();
+}
+
+function hasCapableWebGL() {
+  const context = document.createElement('canvas').getContext('webgl2', { failIfMajorPerformanceCaveat: true });
+  context?.getExtension('WEBGL_lose_context')?.loseContext();
+  return Boolean(context);
+}
+
+function fallBack(reason) {
+  console.warn(`Showing the static turbine drawing: ${reason}`);
+  renderTurbine = () => {};
+  mountSvgFigure();
+}
+
+async function mountSceneFigure() {
+  const limit = new AbortController();
+  const timer = setTimeout(() => limit.abort(), SCENE_BUILD_LIMIT_MS);
+  const timedOut = new Promise((_, reject) => {
+    limit.signal.addEventListener('abort', () => reject(new Error('the 3D scene took too long')));
+  });
+  const load = async () => {
+    const { mountTurbine3D } = await import('./turbine3d/scene.js');
+    return mountTurbine3D(figure, { signal: limit.signal, onLost: () => fallBack('WebGL context lost') });
+  };
+  try {
+    renderTurbine = await Promise.race([load(), timedOut]);
+    update();
+  } catch (error) {
+    limit.abort();
+    fallBack(error.message);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function mountFigure() {
+  if (hasCapableWebGL()) mountSceneFigure();
+  else fallBack('no capable WebGL2');
 }
 
 function readTheme() {
