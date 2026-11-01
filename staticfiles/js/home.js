@@ -107,14 +107,9 @@ function readTheme() {
   return root.dataset.theme === 'dark' ? 'dark' : 'light';
 }
 
-function labelThemeButton() {
-  themeButton.textContent = readTheme() === 'dark' ? 'DAY' : 'NIGHT';
-}
-
 themeButton.addEventListener('click', () => {
   const theme = readTheme() === 'dark' ? 'light' : 'dark';
   root.dataset.theme = theme;
-  labelThemeButton();
   try {
     localStorage.setItem(THEME_KEY, theme);
   } catch {}
@@ -131,7 +126,6 @@ window.addEventListener('load', () => {
   update();
 });
 
-labelThemeButton();
 measureNav();
 update();
 mountFigure();
