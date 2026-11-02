@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { ALONG_Z, BOLT, DEG, Kit, TAU, aim, arc, box, boxAt, chamfer, fromArrays, gear, lathe, loftRings, pipe, prism, rod, sphere, trs } from "./shapes.js";
+import { hullHalfWidthAt, hullSection, superellipse } from "../assumed.js";
 
 export function buildConverter(spec, mats) {
   const kit = new Kit(mats);
@@ -53,135 +54,381 @@ function triangle(center, size, side) {
   return fromArrays(positions, normals, side > 0 ? [0, 2, 1] : [0, 1, 2]);
 }
 
-// Hull cross-section at a station: rounded rectangle from one lower edge over the roof to the other.
-function hullRing(x, halfWidth, bottom, top, corner, points) {
-  const ring = [];
-  const count = points;
-  const perimeter = [];
-  const lower = 10;
-  const arcSteps = 12;
-  for (let k = 0; k < lower; k++) perimeter.push([halfWidth, bottom + ((top - corner - bottom) * k) / lower]);
-  for (let k = 0; k <= arcSteps; k++) {
-    const a = (k / arcSteps) * (Math.PI / 2);
-    perimeter.push([halfWidth - corner + corner * Math.cos(a), top - corner + corner * Math.sin(a)]);
+const sampled = (count, at) => Array.from({ length: count }, (_, k) => at(k / count));
+// Even angular steps along a superellipse quarter, so a dome's steep end gets its share of stations.
+const domeT = (u, power) => Math.pow(Math.sin((u * Math.PI) / 2), 2 / power);
+const smoothstep = (a, b, t) => {
+  const c = Math.min(1, Math.max(0, (t - a) / (b - a)));
+  return c * c * (3 - 2 * c);
+};
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// One half of a section running up to the crown, mirrored into a whole one anticlockwise seen from upwind, so a rear-to-front loft with `flip` faces outwards.
+const mirrored = (x, half, crown) => [...half, crown, ...[...half].reverse().map(([y, z]) => [-y, z])].map(([y, z]) => [x, y, z]);
+
+const hullHalf = ({ halfWidth, top, bottom, cornerTop, cornerBottom }) => [
+    ...sampled(5, (u) => [((halfWidth - cornerBottom) * (u * 5 + 1)) / 6, bottom]),
+    ...sampled(10, (u) => [halfWidth - cornerBottom + cornerBottom * Math.sin((u * Math.PI) / 2), bottom + cornerBottom - cornerBottom * Math.cos((u * Math.PI) / 2)]),
+    ...sampled(10, (u) => [halfWidth, lerp(bottom + cornerBottom, top - cornerTop, u)]),
+    ...sampled(20, (u) => [halfWidth - cornerTop + cornerTop * Math.cos((u * Math.PI) / 2), top - cornerTop + cornerTop * Math.sin((u * Math.PI) / 2)]),
+    ...sampled(8, (u) => [(halfWidth - cornerTop) * (1 - u), top]),
+];
+
+const hullRing = (x, section) => [[x, 0, section.bottom], ...mirrored(x, hullHalf(section), [0, section.top])];
+
+const insetSection = ({ halfWidth, top, bottom, cornerTop, cornerBottom }, t) => ({
+  halfWidth: halfWidth - t,
+  top: top - t,
+  bottom: bottom + t,
+  cornerTop: Math.max(0.01, cornerTop - t),
+  cornerBottom: Math.max(0.01, cornerBottom - t),
+});
+
+// The stretch of a half outline between two heights, resampled evenly so every station gets the same column count.
+function outlineBetween(section, from, to, count) {
+  const outline = [[0, section.bottom], ...hullHalf(section), [0, section.top]];
+  const kept = [];
+  const at = (a, b, z) => [lerp(a[0], b[0], (z - a[1]) / (b[1] - a[1])), z];
+  outline.forEach((point, i) => {
+    const previous = outline[i - 1];
+    if (previous && previous[1] < from && point[1] > from) kept.push(at(previous, point, from));
+    if (point[1] >= from && point[1] <= to) kept.push(point);
+    if (previous && previous[1] < to && point[1] > to) kept.push(at(previous, point, to));
+  });
+  const lengths = [0];
+  kept.slice(1).forEach((point, i) => lengths.push(lengths[i] + Math.hypot(point[0] - kept[i][0], point[1] - kept[i][1])));
+  return Array.from({ length: count }, (_, k) => {
+    const s = (lengths.at(-1) * k) / (count - 1);
+    const reached = lengths.findIndex((length) => length >= s);
+    const i = reached < 0 ? kept.length - 2 : Math.max(0, reached - 1);
+    const u = lengths[i + 1] > lengths[i] ? (s - lengths[i]) / (lengths[i + 1] - lengths[i]) : 0;
+    return [lerp(kept[i][0], kept[i + 1][0], u), lerp(kept[i][1], kept[i + 1][1], u)];
+  });
+}
+
+const mirrorPath = (path) => path.map(([y, z]) => [-y, z]).reverse();
+
+// A loft of closed shell sections: the outer skin, a sharp rim, the inner skin and a sharp rim back. Each end closes on the shell's mid-line.
+function shellLoft(stations, arc) {
+  const ring = (x, outer, inner) => {
+    const flipped = [...inner].reverse();
+    return [...outer, outer.at(-1), flipped[0], ...flipped, flipped.at(-1), outer[0]].map(([y, z]) => [x, y, z]);
+  };
+  const cap = (x) => {
+    const { outer, inner } = arc(x);
+    const middle = outer.map(([y, z], k) => [(y + inner[k][0]) / 2, (z + inner[k][1]) / 2]);
+    return ring(x, middle, middle);
+  };
+  const rings = stations.map((x) => {
+    const { outer, inner } = arc(x);
+    return ring(x, outer, inner);
+  });
+  return loftRings([cap(stations[0]), ...rings, cap(stations.at(-1))], { closedRing: true, flip: true });
+}
+
+function coverStations({ nacelle: n }) {
+  const { stern, shoulder, panels } = n;
+  return [
+    ...sampled(8, (u) => lerp(panels.sternAt, stern.from, u)),
+    ...sampled(18, (u) => lerp(stern.from, shoulder.from, u)),
+    ...sampled(24, (u) => shoulder.from + (n.front - shoulder.from) * domeT(u, shoulder.power)),
+    n.front,
+  ];
+}
+
+const bandArc = (x, from, to, count, shell) => ({
+  outer: outlineBetween(hullSection(x), from, to, count),
+  inner: outlineBetween(insetSection(hullSection(x), shell), from, to, count),
+});
+
+// Side view of the raised housing: `upper` and `lower` bound it at each station, from a rounded rear wall, over the roof, down the rake to a rounded tip on the flank.
+function raisedOutline(r) {
+  const rake = Math.atan2(r.top - r.low, r.tip - r.frontTop);
+  const brow = { x: r.frontTop - r.browRadius * Math.tan(rake / 2), z: r.top - r.browRadius };
+  const tip = { x: r.tip - r.tipRadius / Math.tan(rake / 2), z: r.low + r.tipRadius };
+  const rakeFrom = brow.x + r.browRadius * Math.sin(rake);
+  const rakeTo = tip.x + r.tipRadius * Math.sin(rake);
+  const tipEnd = tip.x + r.tipRadius;
+  const onCircle = (centre, radius, x) => Math.sqrt(Math.max(0, radius * radius - (x - centre.x) * (x - centre.x)));
+  const lower = (x) => (x <= tip.x ? r.low : tip.z - onCircle(tip, r.tipRadius, x));
+  const upper = (x) => {
+    if (x <= r.tail) return r.low;
+    if (x < r.rearTop) return r.low + (r.top - r.low) * superellipse((r.rearTop - x) / (r.rearTop - r.tail), 3);
+    if (x <= brow.x) return r.top;
+    if (x <= rakeFrom) return brow.z + onCircle(brow, r.browRadius, x);
+    if (x <= rakeTo) return r.top - (x - r.frontTop) * Math.tan(rake);
+    if (x < tipEnd) return tip.z + onCircle(tip, r.tipRadius, x);
+    return tip.z;
+  };
+  const stations = [
+    ...sampled(24, (u) => r.rearTop - (r.rearTop - r.tail) * domeT(1 - u, 3)),
+    ...sampled(8, (u) => lerp(r.rearTop, brow.x, u)),
+    ...sampled(10, (u) => brow.x + r.browRadius * Math.sin(rake * u)),
+    // The recessed crown turns over the same brow, earlier.
+    ...sampled(10, (u) => brow.x - r.recess + r.browRadius * Math.sin(rake * u)),
+    ...sampled(30, (u) => lerp(rakeFrom, rakeTo, u)),
+    ...sampled(16, (u) => tip.x + r.tipRadius * Math.sin((u * Math.PI) / 2)),
+    tipEnd,
+  ]
+    .sort((a, b) => a - b)
+    .filter((x, i, all) => i === 0 || x - all[i - 1] > 1e-3);
+  return { rake, upper, lower, stations };
+}
+
+// Section of the raised housing. Its crown dips between the two side pillars, so the panes sit back from them, and runs on inside the cover where the rake has fallen below the roof.
+function raisedRing(x, r, { upper, lower }) {
+  const { halfWidth } = hullSection(x);
+  const outer = halfWidth + r.proud;
+  const bottom = lower(x);
+  const top = upper(x);
+  const crown = Math.min(top, upper(x + r.recess));
+  const corner = Math.min((top - bottom) / 2, lerp(r.cornerLow, r.corner, smoothstep(r.cornerFrom, r.top, top)));
+  const lip = Math.min(0.03, (top - bottom) * 0.2);
+  const sideTop = top - corner;
+  const sideAt = (z) => outer - r.lean * smoothstep(r.leanFrom, r.top, z);
+  const shoulderY = sideAt(sideTop) - corner;
+  const half = [
+    [halfWidth - 0.12, bottom],
+    [outer - lip, bottom],
+    ...sampled(12, (u) => {
+      const z = lerp(bottom + lip, sideTop, u);
+      return [sideAt(z), z];
+    }),
+    ...sampled(8, (u) => [shoulderY + corner * Math.cos((u * Math.PI) / 2), sideTop + corner * Math.sin((u * Math.PI) / 2)]),
+    ...sampled(10, (u) => {
+      const y = shoulderY * (1 - u);
+      return [y, lerp(crown, top, smoothstep(shoulderY - r.pillar, shoulderY, y))];
+    }),
+  ];
+  return mirrored(x, half, [0, crown]);
+}
+
+const densified = (path, step) =>
+  path.flatMap(([a, b], i) => {
+    const [c, d] = path[(i + 1) % path.length];
+    return sampled(Math.max(1, Math.ceil(Math.hypot(c - a, d - b) / step)), (u) => [lerp(a, c, u), lerp(b, d, u)]);
+  });
+
+const roundedRect = (cy, cz, width, height, radius, steps = 4) =>
+  [[1, 1, 0], [-1, 1, 1], [-1, -1, 2], [1, -1, 3]].flatMap(([sy, sz, quarter]) =>
+    Array.from({ length: steps + 1 }, (_, k) => {
+      const a = ((quarter + k / steps) * Math.PI) / 2;
+      return [cy + sy * (width / 2 - radius) + radius * Math.cos(a), cz + sz * (height / 2 - radius) + radius * Math.sin(a)];
+    }),
+  );
+
+// The pane band lies on the recessed rake plane; +x of a prism drawn with this matrix is that plane's normal.
+function addPanes(kit, r, { rake }) {
+  const { panes } = r;
+  const planeX = (z) => r.frontTop - r.recess + (r.top - z) / Math.tan(rake);
+  const middle = (panes.bottom + panes.top) / 2;
+  const slopeLength = (panes.top - panes.bottom) / Math.sin(rake);
+  const onPlane = trs([planeX(middle), 0, middle], [0, rake - Math.PI / 2, 0]);
+  const paneWidth = (panes.halfWidth * 2 - panes.mullion * (panes.count - 1)) / panes.count;
+  const holes = sampled(panes.count, (u) => roundedRect(-panes.halfWidth + paneWidth / 2 + u * panes.count * (paneWidth + panes.mullion), 0, paneWidth, slopeLength, panes.radius).reverse());
+  const size = [panes.halfWidth * 2 + 0.2, slopeLength + 0.2];
+  const glass = prism(roundedRect(0, 0, size[0] - 0.08, size[1] - 0.08, panes.radius), -0.06, 0.02);
+  const { position, normal } = glass.attributes;
+  for (let i = 0; i < normal.count; i++) {
+    if (normal.getX(i) < 0.5) continue;
+    const length = Math.hypot(1, position.getY(i) * panes.bow[0], position.getZ(i) * panes.bow[1]);
+    normal.setXYZ(i, 1 / length, (position.getY(i) * panes.bow[0]) / length, (position.getZ(i) * panes.bow[1]) / length);
   }
-  const roof = count - 2 * (lower + arcSteps + 1);
-  for (let k = 1; k <= roof; k++) perimeter.push([halfWidth - corner - ((2 * (halfWidth - corner)) * k) / (roof + 1), top]);
-  for (let k = 0; k <= arcSteps; k++) {
-    const a = Math.PI / 2 + (k / arcSteps) * (Math.PI / 2);
-    perimeter.push([-(halfWidth - corner) + corner * Math.cos(a), top - corner + corner * Math.sin(a)]);
+  kit.add("glass", glass, onPlane);
+  kit.add("paint", prism(roundedRect(0, 0, size[0], size[1], panes.radius + 0.08), -0.06, 0.07, { holes, bevel: 0.015, curve: 4 }), onPlane);
+}
+
+function addInstruments(kit, spec, mats) {
+  const { raised: r, instruments: inst } = spec.assumed;
+  const roof = r.top;
+  const tripod = (x, y, height) => {
+    const { spread, height: legs } = inst.tripod;
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * TAU + 0.5;
+      kit.add("galvanised", rod([x + spread * Math.cos(a), y + spread * Math.sin(a), roof - 0.02], [x, y, roof + legs], 0.02, 6));
+    }
+    kit.add("galvanised", rod([x, y, roof + legs - 0.12], [x, y, roof + height], [0.04, 0.026], 10));
+    kit.add("aluminium", rod([x, y, roof + legs], [x, y, roof + legs + 0.34], 0.08, 14));
+  };
+
+  const { cups } = inst;
+  tripod(cups.x, cups.y, cups.height);
+  const hub = [cups.x, cups.y, roof + cups.height];
+  kit.add("darkMetal", rod(hub, [hub[0], hub[1], hub[2] + 0.12], 0.045, 12));
+  const cup = sphere([0, 0, 0], cups.cupRadius, 14, 6, Math.PI / 2);
+  for (let k = 0; k < 3; k++) {
+    const a = (k / 3) * TAU + 0.35;
+    const tip = [hub[0] + cups.armLength * Math.cos(a), hub[1] + cups.armLength * Math.sin(a), hub[2] + 0.1];
+    kit.add("darkMetal", rod([hub[0], hub[1], hub[2] + 0.1], tip, 0.012, 6));
+    kit.add("darkMetal", cup.clone(), trs(tip, [0, 0, a]));
   }
-  for (let k = 1; k <= lower; k++) perimeter.push([-halfWidth, top - corner - ((top - corner - bottom) * k) / lower]);
-  for (const [y, z] of perimeter) ring.push([x, y, z]);
-  return ring;
+
+  const { vane } = inst;
+  tripod(vane.x, vane.y, vane.height);
+  const pivot = [vane.x, vane.y, roof + vane.height + 0.1];
+  kit.add("darkMetal", rod([pivot[0], pivot[1], roof + vane.height], pivot, 0.04, 10));
+  kit.add("aluminium", rod([pivot[0] + vane.head, pivot[1], pivot[2]], [pivot[0] - vane.tail, pivot[1], pivot[2]], 0.022, 8));
+  kit.add("aluminium", boxAt([pivot[0] - vane.tail, pivot[1], pivot[2]], [vane.fin[0], 0.014, vane.fin[1]], 0.005));
+  kit.add("darkMetal", rod([pivot[0] + vane.head - 0.025, pivot[1], pivot[2]], [pivot[0] + vane.head + 0.025, pivot[1], pivot[2]], vane.disc, 22));
+
+  const { radome, beacon } = inst;
+  kit.add("galvanised", rod([radome.x, radome.y, roof - 0.02], [radome.x, radome.y, roof + radome.collar], 0.17, 18));
+  kit.add("paint", sphere([0, 0, 0], radome.radius, 32, 22), trs([radome.x, radome.y, roof + radome.collar + radome.radius * 1.02], [0, 0, 0], [1, 1, 1.1]));
+
+  kit.add("galvanised", rod([beacon.x, beacon.y, roof - 0.02], [beacon.x, beacon.y, roof + beacon.height], [0.035, 0.024], 10));
+  kit.add("galvanised", rod([beacon.x, beacon.y, roof + beacon.height], [beacon.x, beacon.y, roof + beacon.height + 0.06], 0.08, 14));
+  const lamp = [beacon.x, beacon.y, roof + beacon.height + 0.14];
+  kit.add("beacon", sphere(lamp, 0.09, 16, 12));
+  const glow = new THREE.Sprite(mats.beaconGlow);
+  glow.position.set(...lamp);
+  glow.scale.set(3.6, 3.6, 1);
+  kit.object(glow);
+}
+
+// The cover as one closed skin with its panes, for the distant turbines. Returns geometry by finish.
+export function simpleNacelle(spec) {
+  const { nacelle: n, raised: r } = spec.assumed;
+  const { stern, shoulder } = n;
+  const shaftZ = spec.published.towerTopToShaft + n.front * Math.tan(spec.published.shaftTilt * DEG);
+  const stations = [
+    ...sampled(18, (u) => stern.from - (stern.from - n.rear) * domeT(1 - u, stern.power)),
+    ...sampled(8, (u) => lerp(stern.from, shoulder.from, u)),
+    ...sampled(12, (u) => shoulder.from + (n.front - shoulder.from) * domeT(u, shoulder.power)),
+    n.front,
+  ];
+  const thin = (list, step) => list.filter((_, k) => k % step === 0 || k === list.length - 1);
+  const rings = stations.map((x) => hullRing(x, hullSection(x)));
+  const nose = hullSection(n.front);
+  rings.push(hullRing(n.front, { halfWidth: nose.halfWidth * 0.1, top: shaftZ + (nose.top - shaftZ) * 0.1, bottom: shaftZ + (nose.bottom - shaftZ) * 0.1, cornerTop: nose.cornerTop * 0.1, cornerBottom: nose.cornerBottom * 0.1 }));
+  const outline = raisedOutline(r);
+  const solid = { paint: [loftRings(rings.map((ring) => thin(ring, 3)), { closedRing: true, flip: true }), loftRings(thin(outline.stations, 3).map((x) => thin(raisedRing(x, r, outline), 2)), { flip: true })], glass: [] };
+  addPanes({ add: (key, geometry, matrix) => solid[key].push(geometry.applyMatrix4(matrix)) }, r, outline);
+  return solid;
 }
 
 export function buildCover(spec, mats) {
   const kit = new Kit(mats);
-  const n = spec.assumed.nacelle;
-  const POINTS = 62;
-  const taper = (x) => {
-    const frontT = Math.min(1, Math.max(0, (x - 0.9) / (n.front - 0.9)));
-    const rearT = Math.min(1, Math.max(0, (-9.2 - x) / (-9.2 - n.rear)));
-    const f = frontT * frontT;
-    const r = rearT * rearT;
-    return {
-      halfWidth: n.halfWidth - 0.92 * f - 0.72 * r,
-      top: n.roof - 0.74 * f - 0.62 * r,
-      bottom: n.skirt + 1.15 * f + 0.34 * r,
-      corner: 0.46,
-    };
-  };
-  const stations = [];
-  const count = 36;
-  for (let i = 0; i <= count; i++) stations.push(n.rear + ((n.front - n.rear) * i) / count);
-  const rings = stations.map((x) => {
-    const t = taper(x);
-    return hullRing(x, t.halfWidth, t.bottom, t.top, t.corner, POINTS);
-  });
-  kit.add("paint", loftRings(rings, { flip: true }));
-
-  const endCap = (x, ring, normalX) => {
-    const positions = [];
-    const normals = [];
-    const indices = [];
-    const cx = x;
-    const cz = ring[Math.floor(POINTS / 2)][2] * 0.55 + ring[0][2] * 0.45;
-    positions.push(cx + normalX * 0.3, 0, cz);
-    normals.push(normalX, 0, 0);
-    for (const p of ring) {
-      positions.push(...p);
-      normals.push(normalX * 0.75, p[1] * 0.1, (p[2] - cz) * 0.1);
-    }
-    for (let k = 1; k < POINTS; k++) {
-      if (normalX > 0) indices.push(0, k, k + 1);
-      else indices.push(0, k + 1, k);
-    }
-    return fromArrays(positions, normals, indices);
-  };
-  const front = rings.at(-1);
-  const rear = rings[0];
-  kit.add("paint", endCap(n.front, front, 1));
-  kit.add("paint", endCap(n.rear, rear, -1));
-
+  const { nacelle: n } = spec.assumed;
   const shaftZ = spec.published.towerTopToShaft + n.front * Math.tan(spec.published.shaftTilt * DEG);
-  kit.add("rubber", lathe(chamfer([[-0.04, 1.26], [-0.04, 1.42], [0.04, 1.42], [0.04, 1.26]], 0.012), { seg: 72 }), trs([n.front + 0.3, 0, shaftZ]));
-  kit.add("dark", rod([n.front + 0.27, 0, shaftZ], [n.front + 0.32, 0, shaftZ], 1.27, 56));
+  kit.add("paint", shellLoft(coverStations(spec.assumed), (x) => {
+    const { outer, inner } = bandArc(x, n.seam.z, Infinity, 40, n.panels.shell);
+    return { outer: [...outer, ...mirrorPath(outer)], inner: [...inner, ...mirrorPath(inner)] };
+  }));
 
-  const seamBolts = [];
-  const hullAt = (x) => {
-    const t = taper(x);
-    return hullRing(x, t.halfWidth + 0.003, t.bottom, t.top + 0.003, t.corner, POINTS);
-  };
-  const frameXs = [-11, -8.6, -6.2, -3.8, -1.4, 0.9];
-  for (const x of frameXs) {
-    const line = hullAt(x);
-    kit.add("seam", pipe(line, 0.018, { seg: 5 }));
-    line.forEach((p, k) => {
-      if (k % 2 !== 0) return;
-      const inward = k < 11 ? [0, 1, 0] : k > POINTS - 11 ? [0, -1, 0] : [0, 0, 1];
-      if (k < 16 || k > POINTS - 16 || (k > 20 && k < POINTS - 20)) seamBolts.push(aim([p[0] + 0.05, p[1], p[2]], inward, 0.012));
-    });
+  // A flat plate closes the nose behind the spinner, around the shaft seal, and comes away with the roof.
+  const nose = hullSection(n.front);
+  const plate = [1, 0.75, 0.45, 0.15].map((f) => hullRing(n.front, { halfWidth: nose.halfWidth * f, top: shaftZ + (nose.top - shaftZ) * f, bottom: shaftZ + (nose.bottom - shaftZ) * f, cornerTop: nose.cornerTop * f, cornerBottom: nose.cornerBottom * f }));
+  kit.add("paint", loftRings(plate, { closedRing: true, flip: true }));
+  const { inner: sealInner, outer: sealOuter } = n.shaftSeal;
+  kit.add("rubber", lathe(chamfer([[-0.04, sealInner], [-0.04, sealOuter], [0.04, sealOuter], [0.04, sealInner]], 0.012), { seg: 72 }), trs([n.front + 0.02, 0, shaftZ]));
+  kit.add("dark", rod([n.front, 0, shaftZ], [n.front + 0.03, 0, shaftZ], sealInner + 0.01, 56));
+
+  const { vent, hatch } = n;
+  for (const side of [-1, 1]) {
+    const face = side * n.halfWidth;
+    kit.add("dark", boxAt([vent.x, face, vent.z], [vent.length, 0.02, vent.height], 0.003));
+    kit.add("paint", boxAt([vent.x, face + side * 0.03, vent.z + vent.height / 2 + 0.012], [vent.length + 0.12, 0.07, 0.03], 0.012));
   }
-  const longitudinal = (k) => stations.filter((x) => x > n.rear + 0.2 && x < n.front - 0.2).map((x) => hullAt(x)[k]);
-  for (const k of [22, POINTS - 23]) kit.add("seam", pipe(longitudinal(k), 0.016, { seg: 5 }));
-  for (const k of [6, POINTS - 7]) kit.add("seam", pipe(longitudinal(k), 0.014, { seg: 5 }));
-  kit.many("bolt", BOLT, seamBolts);
+  kit.add("paint", boxAt([hatch.x, hatch.y, n.roof + 0.012], [hatch.length, hatch.width, 0.03], 0.01));
+  kit.add("seam", boxAt([hatch.x, hatch.y, n.roof + 0.002], [hatch.length + 0.05, hatch.width + 0.05, 0.006]));
+  return kit.finish();
+}
 
-  const hatch = { x: -3.1, y: -0.95, w: 1.5, d: 1.15, z: n.roof };
-  kit.add("paint", boxAt([hatch.x, hatch.y, hatch.z + 0.035], [hatch.w, hatch.d, 0.07], 0.018));
-  kit.add("seam", boxAt([hatch.x, hatch.y, hatch.z + 0.003], [hatch.w + 0.05, hatch.d + 0.05, 0.006]));
-  for (const dx of [-0.42, 0.42]) kit.add("galvanised", boxAt([hatch.x + dx, hatch.y + hatch.d / 2 + 0.02, hatch.z + 0.05], [0.12, 0.06, 0.05], 0.008));
-  kit.add("galvanised", pipe([[hatch.x - 0.22, hatch.y - 0.33, hatch.z + 0.07], [hatch.x - 0.22, hatch.y - 0.33, hatch.z + 0.13], [hatch.x + 0.22, hatch.y - 0.33, hatch.z + 0.13], [hatch.x + 0.22, hatch.y - 0.33, hatch.z + 0.07]], 0.014));
+export function buildHousing(spec, mats) {
+  const kit = new Kit(mats);
+  const { nacelle: n, raised: r } = spec.assumed;
+  const outline = raisedOutline(r);
+  kit.add("paint", loftRings(outline.stations.map((x) => raisedRing(x, r, outline)), { flip: true }));
+  addPanes(kit, r, outline);
 
-  const louvres = [];
-  for (const [x0, rows] of [[-5, 10], [-9.8, 12]]) {
-    const yFace = -taper(x0).halfWidth - 0.015;
-    kit.add("galvanised", boxAt([x0, yFace, 1.75], [1.34, 0.022, rows * 0.082 + 0.08], 0.006));
-    for (let k = 0; k < rows; k++) louvres.push(trs([x0, yFace - 0.018, 1.75 - (rows * 0.082) / 2 + k * 0.082 + 0.04], [0.55, 0, 0]));
+  const onFlank = ([x, z]) => [x, hullHalfWidthAt(x, z) + 0.002, z];
+  // Side panel outlines: a gap up the rake where it lands on the flank, until the roof curves away, and a line along its foot, whose real gap faces downwards out of sight.
+  const finRake = outline.stations.filter((x) => outline.upper(x) < n.roof - n.cornerTop && x > r.frontTop).map((x) => onFlank([x, outline.upper(x)]));
+  const finFoot = outline.stations.filter((x) => x > r.tail + 0.02 && outline.lower(x) === r.low).map((x) => [x, hullSection(x).halfWidth + r.proud + 0.002, r.low + 0.05]);
+  for (const side of [-1, 1]) {
+    const onSide = (path) => path.map(([x, y, z]) => [x, side * y, z]);
+    kit.add("seam", pipe(onSide(finRake), 0.016, { seg: 5 }));
+    kit.add("seam", pipe(onSide(finFoot), 0.014, { seg: 5 }));
+    const { panel } = r;
+    const panelPath = densified(roundedRect((panel.rear + panel.front) / 2, (panel.bottom + panel.top) / 2, panel.front - panel.rear, panel.top - panel.bottom, panel.radius, 5), 0.2).map(([x, z]) => [x, side * (hullSection(x).halfWidth + r.proud + 0.002), z]);
+    kit.add("seam", pipe(panelPath, 0.01, { seg: 5, closed: true }));
   }
-  kit.many("darkMetal", box(1.22, 0.075, 0.012), louvres);
+  addInstruments(kit, spec, mats);
+  return kit.finish();
+}
 
-  const rail = [[-1.5, -2.15], [-5.5, -2.15]];
-  const posts = [];
-  for (let k = 0; k <= 5; k++) {
-    const x = rail[0][0] + ((rail[1][0] - rail[0][0]) * k) / 5;
-    posts.push(x);
-    kit.add("galvanised", rod([x, rail[0][1], n.roof - 0.02], [x, rail[0][1], n.roof + 0.5], 0.022, 6));
+export function buildSidePanel(spec, mats, side) {
+  const kit = new Kit(mats);
+  const { nacelle: n, raised: r } = spec.assumed;
+  kit.add("paint", shellLoft(coverStations(spec.assumed), (x) => {
+    const { outer, inner } = bandArc(x, n.seam.lowZ, n.seam.z, 24, n.panels.shell);
+    return side > 0 ? { outer, inner } : { outer: mirrorPath(outer), inner: mirrorPath(inner) };
+  }));
+  const onFlank = (x, z) => [x, side * (hullHalfWidthAt(x, z) + 0.002), z];
+  const flankSeam = (from, to, z, count = 50) => sampled(count + 1, (u) => onFlank(lerp(from, to, (u * (count + 1)) / count), z));
+  const seamFrom = r.frontTop + (r.top - n.seam.z) / Math.tan(raisedOutline(r).rake);
+  kit.add("seam", pipe(flankSeam(seamFrom, n.front - 0.25, n.seam.z), 0.014, { seg: 5 }));
+  kit.add("seam", pipe(flankSeam(n.stern.from - 1.5, r.tip - 0.2, n.seam.lowZ, 24), 0.014, { seg: 5 }));
+  return kit.finish();
+}
+
+export function buildFloor(spec, mats) {
+  const kit = new Kit(mats);
+  const { nacelle: n } = spec.assumed;
+  const pan = shellLoft(coverStations(spec.assumed), (x) => {
+    const { outer, inner } = bandArc(x, -Infinity, n.seam.lowZ, 40, n.panels.shell);
+    return { outer: [...mirrorPath(outer), ...outer], inner: [...mirrorPath(inner), ...inner] };
+  });
+  // The tower opening is cut by dropping triangles: the jagged edge they leave stays under the rim.
+  const { floorHole } = n.panels;
+  const position = pan.attributes.position;
+  const kept = [];
+  const index = pan.index.array;
+  for (let i = 0; i < index.length; i += 3) {
+    const [a, b, c] = [index[i], index[i + 1], index[i + 2]];
+    const cx = (position.getX(a) + position.getX(b) + position.getX(c)) / 3;
+    const cy = (position.getY(a) + position.getY(b) + position.getY(c)) / 3;
+    if (Math.hypot(cx, cy) > floorHole) kept.push(a, b, c);
   }
-  for (const h of [0.27, 0.5]) kit.add("galvanised", pipe([[rail[0][0], rail[0][1], n.roof + h], [rail[1][0], rail[0][1], n.roof + h]], 0.016));
-  kit.add("galvanised", boxAt([-3.5, rail[0][1], n.roof + 0.01], [4.2, 0.09, 0.03]));
+  pan.setIndex(kept);
+  kit.add("paint", pan);
+  kit.add("paint", lathe(chamfer([[-0.1, floorHole + 0.26], [-0.1, floorHole - 0.05], [-0.26, floorHole - 0.05], [-0.26, floorHole + 0.26]], 0.02, { closed: true }), { seg: 96, closed: true }), ALONG_Z);
+  return kit.finish();
+}
 
-  for (const [x, y] of [[-6.6, 1.1], [-7.8, 1.1], [0.2, 1.1]]) {
-    kit.add("galvanised", lathe(chamfer([[0, 0.3], [0.2, 0.3], [0.28, 0.2], [0.28, 0]], 0.012), { seg: 28 }), trs([x, y, n.roof], [0, -Math.PI / 2, 0]));
+export function buildStern(spec, mats) {
+  const kit = new Kit(mats);
+  const { nacelle: n } = spec.assumed;
+  const { stern, panels } = n;
+  const outer = [...sampled(30, (u) => stern.from - (stern.from - n.rear) * domeT(1 - u, stern.power))].filter((x) => x < panels.sternAt);
+  outer.push(panels.sternAt);
+  const skin = outer.map((x) => hullRing(x, hullSection(x)));
+  const inner = [...outer].reverse().filter((x) => hullSection(x).halfWidth > panels.shell * 2 && hullSection(x).top - hullSection(x).bottom > panels.shell * 2);
+  const lining = inner.map((x) => hullRing(x, insetSection(hullSection(x), panels.shell)));
+  const tip = lining.at(-1).map(([x]) => [x, 0, stern.centre]);
+  kit.add("paint", loftRings([...skin, skin.at(-1), lining[0], ...lining, tip], { closedRing: true, flip: true }));
+  return kit.finish();
+}
+
+export function buildSpaceframe(spec, mats, side) {
+  const kit = new Kit(mats);
+  const f = spec.assumed.spaceframe;
+  const y = side * f.y;
+  const bay = (f.front - f.rear) / f.bays;
+  for (const z of [f.low, f.high]) kit.add("galvanised", boxAt([(f.front + f.rear) / 2, y, z], [f.front - f.rear + f.chord, f.chord, f.chord], 0.012));
+  for (let k = 0; k <= f.bays; k++) {
+    const x = f.rear + k * bay;
+    kit.add("galvanised", rod([x, y, f.low], [x, y, f.high], f.member, 10));
+    kit.add("framePaint", boxAt([x, y, f.low - 0.14], [0.26, 0.2, 0.16], 0.012));
+    if (k < f.bays) kit.add("galvanised", k % 2 ? rod([x, y, f.low], [x + bay, y, f.high], f.member * 0.8, 8) : rod([x, y, f.high], [x + bay, y, f.low], f.member * 0.8, 8));
   }
   return kit.finish();
 }
 
 export function buildCooling(spec, mats) {
   const kit = new Kit(mats);
-  const { cooling: c, metMast: m, nacelle: n } = spec.assumed;
-  const base = n.roof - 0.32;
+  const { cooling: c } = spec.assumed;
+  const base = c.base;
   const width = c.width;
   const height = c.height;
   const depth = c.depth;
@@ -229,44 +476,6 @@ export function buildCooling(spec, mats) {
     for (let k = 0; k < 4; k++) spokes.push(frame.clone().multiply(trs([0.215, 0, 0], [(k / 4) * TAU, 0, 0])));
     kit.many("steel", rod([0, -c.fanRadius, 0], [0, c.fanRadius, 0], 0.006, 5), spokes);
   }
-
-  const mastBase = n.roof - 0.42;
-  const mastTop = n.roof + m.height;
-  kit.add("galvanised", rod([m.x, 0, mastBase], [m.x, 0, mastTop], [0.06, 0.035], 12));
-  kit.add("galvanised", boxAt([m.x, 0, mastBase + 0.02], [0.5, 0.5, 0.05], 0.006));
-  const arm = mastTop - 0.7;
-  for (const side of [-1, 1]) {
-    const tip = [m.x, side * 0.85, arm];
-    kit.add("galvanised", rod([m.x, 0, arm], tip, 0.02, 8));
-    kit.add("galvanised", rod(tip, [tip[0], tip[1], tip[2] + 0.34], 0.016, 8));
-  }
-  const head = [m.x, -0.85, arm + 0.34];
-  kit.add("darkMetal", rod(head, [head[0], head[1], head[2] + 0.1], 0.03, 10));
-  const cupGeometry = sphere([0, 0, 0], 0.052, 10, 5, Math.PI / 2).applyMatrix4(trs([0, 0, 0], [0, Math.PI / 2, 0]));
-  for (let k = 0; k < 3; k++) {
-    const a = (k / 3) * TAU;
-    const ax = head[0] + 0.17 * Math.cos(a);
-    const ay = head[1] + 0.17 * Math.sin(a);
-    kit.add("darkMetal", rod([head[0], head[1], head[2] + 0.1], [ax, ay, head[2] + 0.1], 0.006, 5));
-    kit.add("darkMetal", cupGeometry.clone(), trs([ax, ay, head[2] + 0.1], [0, 0, a + Math.PI / 2]));
-  }
-  const vane = [m.x, 0.85, arm + 0.34];
-  kit.add("darkMetal", rod(vane, [vane[0], vane[1], vane[2] + 0.12], 0.025, 10));
-  kit.add("darkMetal", rod([vane[0] + 0.24, vane[1], vane[2] + 0.12], [vane[0] - 0.3, vane[1], vane[2] + 0.12], 0.012, 6));
-  kit.add("darkMetal", boxAt([vane[0] - 0.3, vane[1], vane[2] + 0.12], [0.26, 0.006, 0.17]));
-  kit.add("darkMetal", sphere([vane[0] + 0.25, vane[1], vane[2] + 0.12], 0.028));
-
-  const beacon = [m.x, 0, mastTop + 0.06];
-  kit.add("galvanised", rod([m.x, 0, mastTop], [m.x, 0, mastTop + 0.08], 0.09, 16));
-  kit.add("beacon", sphere(beacon, 0.1, 16, 12));
-  kit.add("steel", rod([m.x + 0.2, 0, mastBase + 0.5], [m.x + 0.2, 0, mastTop + 0.7], [0.012, 0.004], 6));
-  kit.add("steel", rod([m.x, 0, mastBase + 0.5], [m.x + 0.2, 0, mastBase + 0.5], 0.012, 6));
-  kit.add("steel", rod([m.x, 0, mastTop - 0.3], [m.x + 0.2, 0, mastTop - 0.3], 0.012, 6));
-
-  const glow = new THREE.Sprite(mats.beaconGlow);
-  glow.position.set(beacon[0], beacon[1], beacon[2]);
-  glow.scale.set(3.6, 3.6, 1);
-  kit.object(glow);
   return kit.finish();
 }
 
@@ -350,13 +559,13 @@ export function buildBedplate(spec, mats) {
     for (const dy of [-0.18, 0, 0.18]) for (const dz of [-0.24, 0, 0.24]) splice.push(aim([b.castRear - 0.16, y + dy, topZ - b.girderDepth / 2 + dz], [-1, 0, 0], 0.024));
     kit.many("bolt", BOLT, splice);
     const stiffeners = [];
-    for (let k = 1; k < 13; k++) stiffeners.push(trs([b.castRear - (frameLength * k) / 13, y + side * 0.09, topZ - b.girderDepth / 2]));
+    for (let k = 1; k < 9; k++) stiffeners.push(trs([b.castRear - (frameLength * k) / 9, y + side * 0.09, topZ - b.girderDepth / 2]));
     kit.many("framePaint", box(0.02, 0.15, b.girderDepth - 0.06), stiffeners);
     for (const x of [-5.1, -6.7]) {
       kit.add("framePaint", boxAt([x, side * 0.87, topZ + 0.015], [0.72, 0.48, 0.03], 0.004));
     }
   }
-  const crossAt = [-3.3, -4.95, -6.75, -8.2, -9.9, -11.3];
+  const crossAt = [-3.3, -4.95, -6.4, -7.85];
   for (const x of crossAt) {
     kit.add("framePaint", boxAt([x, 0, topZ - b.girderDepth / 2], [0.03, b.girderY * 2, b.girderDepth - 0.02]));
     kit.add("framePaint", boxAt([x, 0, topZ - 0.03], [0.26, b.girderY * 2, 0.03]));
@@ -366,8 +575,10 @@ export function buildBedplate(spec, mats) {
 
   const conv = spec.assumed.converter;
   const convLength = conv.cabinets * (conv.width + 0.04);
+  const floorEdge = conv.rowY + (conv.depth + 0.3) / 2;
   for (const side of [-1, 1]) {
     kit.add("grating", boxAt([conv.x0 - convLength / 2 + conv.width / 2, side * conv.rowY, conv.z - 0.015], [convLength + 0.2, conv.depth + 0.3, 0.03]));
+    for (const x of crossAt.slice(1)) kit.add("framePaint", boxAt([x, side * ((b.girderY + floorEdge) / 2), conv.z - 0.08], [0.16, floorEdge - b.girderY, 0.1], 0.006));
   }
   return kit.finish();
 }

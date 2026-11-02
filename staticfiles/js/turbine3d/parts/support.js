@@ -1,5 +1,8 @@
 import * as THREE from "three";
-import { ALONG_Z, BOLT, DEG, Kit, TAU, aim, arc, box, boxAt, chamfer, fromArrays, lathe, pipe, rod, seeded, sphere, trs } from "./shapes.js";
+import { ALONG_Z, BOLT, DEG, Kit, TAU, aim, arc, box, boxAt, chamfer, fromArrays, inShaftFrame, lathe, merge, pipe, rod, seeded, sphere, trs } from "./shapes.js";
+import { seaPoint } from "../assumed.js";
+import { simpleNacelle } from "./nacelle.js";
+import { simpleRotor } from "./rotor.js";
 
 // Lathe angle whose radial direction lands on this azimuth once the lathe axis is turned onto +z.
 const azimuthToLathe = (azimuth) => azimuth + Math.PI / 2;
@@ -109,7 +112,7 @@ function buildTransitionPiece(kit, spec) {
 
   kit.add("yellow", lathe(chamfer([[local(tp.darkBelow), R], [local(tp.top - 0.3), R], [local(tp.top - 0.3), R + 0.13], [local(tp.top), R + 0.13], [local(tp.top), baseR + 0.08], [local(tp.top + 0.06), baseR + 0.08], [local(tp.top + 0.06), baseR]], 0.012), { seg: 96 }), ALONG_Z);
   kit.add("hullDark", lathe([[local(tp.bottom - 0.3), pileR], [local(tp.bottom), R - 0.02], [local(tp.darkBelow), R]], { seg: 96 }), ALONG_Z);
-  kit.add("pile", lathe([[local(published.seabed - spec.assumed.seaTile.sediment), pileR], [local(tp.bottom - 0.3), pileR]], { seg: 96 }), ALONG_Z);
+  kit.add("pile", lathe([[local(published.seabed - spec.assumed.seaTile.pileEmbed), pileR], [local(tp.bottom - 0.3), pileR]], { seg: 96 }), ALONG_Z);
 
   const flangeBolts = [];
   for (let k = 0; k < 120; k++) {
@@ -233,11 +236,8 @@ function buildTransitionPiece(kit, spec) {
   }
 }
 
-function seabedHeight(x, y, pileR) {
-  const swell = 0.28 * Math.sin(x * 0.11 + 1.3) * Math.cos(y * 0.09 - 0.7) + 0.12 * Math.sin(x * 0.31 + y * 0.23) + 0.05 * Math.sin(x * 0.83 - y * 0.67);
-  const d = Math.hypot(x, y);
-  const scour = -0.55 * Math.exp(-((d - pileR - 1) * (d - pileR - 1)) / 9);
-  return swell + scour;
+function seabedHeight(x, y) {
+  return 0.28 * Math.sin(x * 0.11 + 1.3) * Math.cos(y * 0.09 - 0.7) + 0.12 * Math.sin(x * 0.31 + y * 0.23) + 0.05 * Math.sin(x * 0.83 - y * 0.67);
 }
 
 function mix(a, b, t) {
@@ -254,169 +254,205 @@ const linear = (hex) => {
   return [c.r, c.g, c.b];
 };
 
-export function buildSea(spec, mats) {
-  const kit = new Kit(mats);
-  const { published, assumed } = spec;
-  const tile = assumed.seaTile;
-  const half = tile.half;
-  const seaZ = -published.towerTop;
-  const bedZ = seaZ + published.seabed;
-  const pileR = published.monopileDiameter / 2;
-  const random = seeded(5021);
-
-  const sand = linear("#c9b58c");
-  const sandDark = linear("#a8966f");
-  const STRATA = [[0, linear("#bda67a")], [0.09, linear("#b09769")], [0.28, linear("#8f7b58")], [0.55, linear("#6d5e49")], [1, linear("#4d4336")]];
-
-  const addMesh = (geometry, material) => kit.object(new THREE.Mesh(geometry, material));
-
-  const GRID = 64;
-  const positions = new Float32Array((GRID + 1) * (GRID + 1) * 3);
+// A unit-length fish, nose on +x: a tapered body with a dark back, then a forked tail and dorsal fin as flat plates.
+function fishGeometry() {
+  const RINGS = 14;
+  const AROUND = 10;
+  const BODY = 0.86;
+  const positions = [];
+  const normals = [];
   const colours = [];
   const indices = [];
-  for (let i = 0; i <= GRID; i++) {
-    for (let j = 0; j <= GRID; j++) {
-      const x = -half + (2 * half * i) / GRID;
-      const y = -half + (2 * half * j) / GRID;
-      const h = seabedHeight(x, y, pileR);
-      positions.set([x, y, bedZ + h], (i * (GRID + 1) + j) * 3);
-      colours.push(...mix(sand, sandDark, Math.min(1, Math.max(0, 0.5 - h * 1.1 + (random() - 0.5) * 0.32))));
-      if (i < GRID && j < GRID) {
-        const a = i * (GRID + 1) + j;
-        indices.push(a, a + GRID + 1, a + 1, a + 1, a + GRID + 1, a + GRID + 2);
-      }
-    }
-  }
-  const bed = new THREE.BufferGeometry();
-  bed.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  bed.setIndex(indices);
-  bed.computeVertexNormals();
-  addMesh(withColours(bed, colours), mats.sand);
-
-  const stratum = (t) => {
-    let c = STRATA[0][1];
-    for (let k = 1; k < STRATA.length; k++) {
-      const [t0, c0] = STRATA[k - 1];
-      const [t1, c1] = STRATA[k];
-      if (t >= t0 && t <= t1) c = mix(c0, c1, (t - t0) / (t1 - t0));
-    }
-    return c;
+  const shade = (up) => {
+    const c = 1 - 0.68 * Math.min(1, Math.max(0, up * 0.8 + 0.45));
+    colours.push(c, c, c);
   };
-  const WALL_COLUMNS = 80;
-  const WALL_ROWS = 22;
-  const edges = [
-    { from: [half, half], to: [half, -half], normal: [1, 0, 0] },
-    { from: [-half, half], to: [half, half], normal: [0, 1, 0] },
-    { from: [half, -half], to: [-half, -half], normal: [0, -1, 0] },
-    { from: [-half, -half], to: [-half, half], normal: [-1, 0, 0] },
-  ];
-  const sedimentPositions = [];
-  const sedimentNormals = [];
-  const sedimentColours = [];
-  const sedimentIndices = [];
-  for (const edge of edges) {
-    const base = sedimentPositions.length / 3;
-    for (let i = 0; i <= WALL_COLUMNS; i++) {
-      const u = i / WALL_COLUMNS;
-      const x = edge.from[0] + (edge.to[0] - edge.from[0]) * u;
-      const y = edge.from[1] + (edge.to[1] - edge.from[1]) * u;
-      const wobble = 0.05 * Math.sin(u * 19 + edge.normal[0] * 3) + 0.03 * Math.sin(u * 53);
-      const top = bedZ + seabedHeight(x, y, pileR);
-      const bottom = bedZ - tile.sediment;
-      for (let j = 0; j <= WALL_ROWS; j++) {
-        const v = j / WALL_ROWS;
-        sedimentPositions.push(x, y, top + (bottom - top) * v);
-        sedimentNormals.push(...edge.normal);
-        const grain = 1 + (random() - 0.5) * 0.09;
-        sedimentColours.push(...stratum(Math.max(0, v + wobble)).map((c) => c * grain));
-      }
-    }
-    for (let i = 0; i < WALL_COLUMNS; i++) {
-      for (let j = 0; j < WALL_ROWS; j++) {
-        const a = base + i * (WALL_ROWS + 1) + j;
-        const b = a + WALL_ROWS + 1;
-        sedimentIndices.push(a, b, a + 1, a + 1, b, b + 1);
+  for (let k = 0; k <= RINGS; k++) {
+    const u = k / RINGS;
+    const girth = Math.pow(Math.sin(Math.PI * Math.pow(u, 0.62)), 0.9) + 0.06;
+    const height = 0.1 * girth;
+    const width = 0.045 * girth;
+    for (let j = 0; j < AROUND; j++) {
+      const a = (j / AROUND) * TAU;
+      const length = Math.hypot(Math.cos(a) / width, Math.sin(a) / height);
+      positions.push(0.5 - BODY * u, width * Math.cos(a), height * Math.sin(a));
+      normals.push(0, Math.cos(a) / width / length, Math.sin(a) / height / length);
+      shade(Math.sin(a));
+      if (k < RINGS) {
+        const v = k * AROUND + j;
+        const next = k * AROUND + ((j + 1) % AROUND);
+        indices.push(v, v + AROUND, next, next, v + AROUND, next + AROUND);
       }
     }
   }
-  addMesh(withColours(fromArrays(sedimentPositions, sedimentNormals, sedimentIndices), sedimentColours), mats.sediment);
+  for (const plate of [
+    [[-0.34, 0], [-0.5, 0.14], [-0.44, 0]],
+    [[-0.34, 0], [-0.44, 0], [-0.5, -0.14]],
+    [[0.14, 0.09], [-0.02, 0.17], [-0.1, 0.075]],
+  ]) {
+    const base = positions.length / 3;
+    for (const [x, z] of plate) {
+      positions.push(x, 0, z);
+      normals.push(0, 1, 0);
+      shade(1);
+    }
+    indices.push(base, base + 1, base + 2);
+  }
+  return withColours(fromArrays(positions, normals, indices), colours);
+}
 
-  const big = new THREE.IcosahedronGeometry(1, 1);
-  const small = new THREE.IcosahedronGeometry(1, 0);
-  for (const g of [big, small]) g.deleteAttribute("uv");
+function addShoals(kit, spec, mats) {
+  const { shoals } = spec.assumed;
+  const seaZ = -spec.published.towerTop;
+  const random = seeded(7741);
+  const count = shoals.reduce((sum, shoal) => sum + shoal.count, 0);
+  const geometry = fishGeometry();
+  const orbit = new Float32Array(count * 4);
+  const motion = new Float32Array(count * 4);
+  const clarity = new Float32Array(count);
+  const mesh = new THREE.InstancedMesh(geometry, mats.fish, count);
+  const identity = new THREE.Matrix4();
+  const colour = new THREE.Color();
+  let i = 0;
+  for (const shoal of shoals) {
+    for (let k = 0; k < shoal.count; k++, i++) {
+      orbit.set([shoal.centre[0], shoal.centre[1], seaZ - shoal.depth + (random() - 0.5) * shoal.spread[1], shoal.radius + (random() - 0.5) * shoal.spread[0]], i * 4);
+      motion.set([random() * shoal.arc, shoal.rate, shoal.length * (0.85 + 0.3 * random()), random() * TAU], i * 4);
+      clarity[i] = 0.95 - (0.5 * (seaZ - orbit[i * 4 + 2])) / -spec.published.seabed;
+      mesh.setMatrixAt(i, identity);
+      mesh.setColorAt(i, colour.set(shoal.tone).multiplyScalar(0.9 + 0.2 * random()));
+    }
+  }
+  geometry.setAttribute("aOrbit", new THREE.InstancedBufferAttribute(orbit, 4));
+  geometry.setAttribute("aMotion", new THREE.InstancedBufferAttribute(motion, 4));
+  geometry.setAttribute("aClarity", new THREE.InstancedBufferAttribute(clarity, 1));
+  mesh.renderOrder = 6;
+  mesh.frustumCulled = false;
+  kit.object(mesh);
+}
+
+const rockShape = (detail) => {
+  const geometry = new THREE.IcosahedronGeometry(1, detail);
+  geometry.deleteAttribute("uv");
+  return geometry;
+};
+
+// Scour rocks around each foundation in `spots`.
+function scatterRocks(kit, spec, mats, random, geometry, spots, reach, sizeMin, sizeMax) {
+  const pileR = spec.published.monopileDiameter / 2;
+  const bedZ = -spec.published.towerTop + spec.published.seabed;
   const rockColor = new THREE.Color();
-  const scatter = (geometry, count, rMin, rMax, sizeMin, sizeMax) => {
-    const mesh = new THREE.InstancedMesh(geometry, mats.rock, count);
-    const matrix = new THREE.Matrix4();
-    for (let i = 0; i < count; i++) {
+  const count = spots.reduce((sum, spot) => sum + spot.count, 0);
+  const mesh = new THREE.InstancedMesh(geometry, mats.rock, count);
+  const matrix = new THREE.Matrix4();
+  let i = 0;
+  for (const { at: [cx, cy], count: rocks } of spots) {
+    for (let k = 0; k < rocks; k++, i++) {
       const a = random() * TAU;
-      const r = pileR + 0.15 + (rMax - rMin) * Math.pow(random(), 0.7) + rMin;
-      const x = r * Math.cos(a);
-      const y = r * Math.sin(a);
-      const edgeFade = 1 - Math.min(1, (r - pileR) / (rMax + 0.1));
+      const r = pileR + 0.15 + reach * Math.pow(random(), 0.7);
+      const x = cx + r * Math.cos(a);
+      const y = cy + r * Math.sin(a);
+      const edgeFade = 1 - Math.min(1, (r - pileR) / (reach + 0.1));
       const s = sizeMin + (sizeMax - sizeMin) * random() * (0.35 + 0.65 * edgeFade);
       const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(random() * TAU, random() * TAU, random() * TAU));
-      matrix.compose(new THREE.Vector3(x, y, bedZ + seabedHeight(x, y, pileR) + s * 0.3), q, new THREE.Vector3(s * (0.8 + random() * 0.5), s * (0.8 + random() * 0.5), s * (0.55 + random() * 0.4)));
+      matrix.compose(new THREE.Vector3(x, y, bedZ + seabedHeight(x, y) + s * 0.3), q, new THREE.Vector3(s * (0.8 + random() * 0.5), s * (0.8 + random() * 0.5), s * (0.55 + random() * 0.4)));
       mesh.setMatrixAt(i, matrix);
       const v = 0.42 + random() * 0.32;
       mesh.setColorAt(i, rockColor.setRGB(v, v * 0.97, v * 0.9));
     }
-    mesh.frustumCulled = false;
-    kit.object(mesh);
-  };
-  scatter(big, Math.round(tile.scourRocks * 0.2), 0, tile.scourRadius * 0.62, 0.35, 0.95);
-  scatter(small, Math.round(tile.scourRocks * 0.8), 0, tile.scourRadius, 0.14, 0.42);
-
-  // Water: the shaders lift whatever carries aTop = 1 by the wave field, so the surface and the top of the side walls move together.
-  const SURFACE = 128;
-  const surfacePositions = new Float32Array((SURFACE + 1) * (SURFACE + 1) * 3);
-  const surfaceNormals = new Float32Array((SURFACE + 1) * (SURFACE + 1) * 3);
-  const surfaceIndices = [];
-  for (let i = 0; i <= SURFACE; i++) {
-    for (let j = 0; j <= SURFACE; j++) {
-      const v = i * (SURFACE + 1) + j;
-      surfacePositions.set([-half + (2 * half * i) / SURFACE, -half + (2 * half * j) / SURFACE, seaZ], v * 3);
-      surfaceNormals.set([0, 0, 1], v * 3);
-      if (i < SURFACE && j < SURFACE) surfaceIndices.push(v, v + SURFACE + 1, v + 1, v + 1, v + SURFACE + 1, v + SURFACE + 2);
-    }
   }
-  const surface = fromArrays(surfacePositions, surfaceNormals, surfaceIndices);
-  surface.setAttribute("aTop", new THREE.BufferAttribute(new Float32Array((SURFACE + 1) * (SURFACE + 1)).fill(1), 1));
+  mesh.frustumCulled = false;
+  kit.object(mesh);
+}
 
-  const wall = (selected, order) => {
-    const positionsW = [];
-    const normalsW = [];
-    const tops = [];
-    const indicesW = [];
-    for (const edge of selected) {
-      const base = positionsW.length / 3;
-      const columns = 90;
-      for (let i = 0; i <= columns; i++) {
-        const u = i / columns;
-        const x = edge.from[0] + (edge.to[0] - edge.from[0]) * u;
-        const y = edge.from[1] + (edge.to[1] - edge.from[1]) * u;
-        positionsW.push(x, y, seaZ, x, y, bedZ);
-        normalsW.push(...edge.normal, ...edge.normal);
-        tops.push(1, 0);
-      }
-      for (let i = 0; i < columns; i++) {
-        const a = base + i * 2;
-        indicesW.push(a, a + 1, a + 2, a + 2, a + 1, a + 3);
+// Every other turbine in the farm, one draw call a finish: one rotor spins in `userData.rotors`, all else is fixed.
+export function buildFarm(spec, mats) {
+  const kit = new Kit(mats);
+  const { published, assumed } = spec;
+  const local = (elevation) => elevation - published.towerTop;
+  const tp = assumed.transitionPiece;
+  const pileR = published.monopileDiameter / 2;
+  const R = tp.radius;
+  const places = assumed.farm.map((point) => trs([...seaPoint(point), 0]));
+  const shell = simpleNacelle(spec);
+  kit.many("paint", merge([lathe(towerProfile(spec), { seg: 28, smooth: 0.98 }).applyMatrix4(ALONG_Z), ...shell.paint]), places);
+  kit.many("glass", merge(shell.glass), places);
+  kit.many("yellow", lathe([[local(tp.darkBelow), R], [local(tp.top), R], [local(tp.top), published.tower[0].diam / 2]], { seg: 28 }).applyMatrix4(ALONG_Z), places);
+  kit.many("hullDark", lathe([[local(tp.bottom), pileR], [local(tp.bottom), R - 0.02], [local(tp.darkBelow), R]], { seg: 28 }).applyMatrix4(ALONG_Z), places);
+  kit.many("pile", lathe([[local(published.seabed - assumed.seaTile.pileEmbed), pileR], [local(tp.bottom), pileR]], { seg: 28 }).applyMatrix4(ALONG_Z), places);
+  kit.many("grating", lathe([[local(assumed.platform.z), assumed.platform.radius], [local(assumed.platform.z), R]], { seg: 28 }).applyMatrix4(ALONG_Z), places);
+
+  const random = seeded(2207);
+  scatterRocks(kit, spec, mats, random, rockShape(1), assumed.farm.map((point) => ({ at: seaPoint(point), count: 70 })), assumed.seaTile.scourRadius * 0.62, 0.35, 0.95);
+  const rotors = new THREE.InstancedMesh(simpleRotor(spec), mats.paint, places.length);
+  rotors.castShadow = true;
+  rotors.receiveShadow = true;
+  rotors.frustumCulled = false;
+  rotors.userData.rotors = places.map((place) => ({ frame: place.clone().multiply(inShaftFrame(spec)), phase: random() * TAU }));
+  kit.object(rotors);
+  return kit.finish();
+}
+
+export function buildSea(spec, mats) {
+  const kit = new Kit(mats);
+  const { published, assumed } = spec;
+  const tile = assumed.seaTile;
+  const seaZ = -published.towerTop;
+  const bedZ = seaZ + published.seabed;
+  const random = seeded(5021);
+
+  const sand = linear("#c9b58c");
+  const sandDark = linear("#a8966f");
+
+  const addMesh = (geometry, material) => kit.object(new THREE.Mesh(geometry, material));
+  const spanU = tile.right - tile.left;
+
+  // A flat sheet over the sea in view axes as far as `front`: `fill` writes each point, and the winding faces up.
+  const sheet = (step, front, fill) => {
+    const spanV = front - tile.back;
+    const columns = Math.ceil(spanU / step);
+    const rows = Math.ceil(spanV / step);
+    const positions = new Float32Array((columns + 1) * (rows + 1) * 3);
+    const indices = [];
+    for (let i = 0; i <= columns; i++) {
+      for (let j = 0; j <= rows; j++) {
+        const [x, y] = seaPoint([tile.left + (spanU * i) / columns, tile.back + (spanV * j) / rows]);
+        const v = i * (rows + 1) + j;
+        positions.set([x, y, fill(x, y)], v * 3);
+        if (i < columns && j < rows) indices.push(v, v + 1, v + rows + 1, v + 1, v + rows + 2, v + rows + 1);
       }
     }
-    const geometry = fromArrays(positionsW, normalsW, indicesW);
-    geometry.setAttribute("aTop", new THREE.BufferAttribute(new Float32Array(tops), 1));
-    const mesh = new THREE.Mesh(geometry, mats.waterWall);
-    mesh.renderOrder = order;
-    mesh.frustumCulled = false;
-    kit.object(mesh);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geometry.setIndex(indices);
+    return { geometry, count: positions.length / 3 };
   };
+
+  // The seabed stops where it passes out from under the water's front edge on screen, flattening so the two lines meet exactly.
+  const bedFront = tile.front + 2 * published.seabed;
+  const colours = [];
+  const bed = sheet(6, bedFront, (x, y) => {
+    const h = seabedHeight(x, y) * Math.min(1, (bedFront - (x - y)) / 12);
+    colours.push(...mix(sand, sandDark, Math.min(1, Math.max(0, 0.5 - h * 1.1 + (random() - 0.5) * 0.32))));
+    return bedZ + h;
+  }).geometry;
+  bed.computeVertexNormals();
+  addMesh(withColours(bed, colours), mats.sand);
+
+  scatterRocks(kit, spec, mats, random, rockShape(1), [{ at: [0, 0], count: Math.round(tile.scourRocks * 0.2) }], tile.scourRadius * 0.62, 0.35, 0.95);
+  scatterRocks(kit, spec, mats, random, rockShape(0), [{ at: [0, 0], count: Math.round(tile.scourRocks * 0.8) }], tile.scourRadius, 0.14, 0.42);
+
+  addShoals(kit, spec, mats);
+
+  const { geometry: surface, count: surfaceCount } = sheet(5, tile.front, () => seaZ);
+  surface.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(surfaceCount * 3).map((_, i) => (i % 3 === 2 ? 1 : 0)), 3));
+
   const surfaceMesh = new THREE.Mesh(surface, mats.water);
   surfaceMesh.receiveShadow = true;
+  surfaceMesh.userData.seaSurface = true;
   surfaceMesh.renderOrder = 4;
   surfaceMesh.frustumCulled = false;
   kit.object(surfaceMesh);
-  wall([edges[0], edges[2]], 5);
 
   return kit.finish();
 }

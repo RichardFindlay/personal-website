@@ -9,14 +9,26 @@ const SCENE_BUILD_LIMIT_MS = 15000;
 
 const root = document.documentElement;
 const figure = document.querySelector('.stage-figure');
-const readout = document.querySelector('.stage-readout');
 const bar = document.querySelector('.stage-bar-fill');
 const steps = [...document.querySelectorAll('.step')].map((el) => ({ el, from: Number(el.dataset.from) }));
 const nav = document.querySelector('.nav');
+const hero = document.querySelector('.hero');
+const foot = document.querySelector('.stage-foot');
 const themeButton = document.querySelector('.theme-btn');
 
 let renderTurbine = () => {};
 let frameQueued = false;
+let usingScene = false;
+
+// The hero in page px at the top of the page: where the turbine's rotor may start, where the water must end, and the width to compose it to.
+function heroFrame() {
+  const bottom = hero.getBoundingClientRect().bottom + window.scrollY;
+  return {
+    top: nav.offsetHeight + 10,
+    edge: Math.max(bottom, foot.getBoundingClientRect().top - 12),
+    width: window.innerWidth,
+  };
+}
 
 function update() {
   frameQueued = false;
@@ -24,19 +36,18 @@ function update() {
   const max = root.scrollHeight - window.innerHeight;
   const p = max > 0 ? Math.min(1, Math.max(0, (y / max) * SCROLL_GAIN)) : 0;
   const rest = 1 - ease(y / (window.innerHeight * 0.7));
-  // The hero text sits beside the turbine when wide and above it when narrow.
+  // The static fallback drawing sits beside the hero text when wide and below it when narrow.
   const shift = window.innerWidth < NARROW_WIDTH
     ? `translateY(${(NARROW_HERO_OFFSET * rest).toFixed(2)}%)`
     : `translateX(${(HERO_OFFSET * rest).toFixed(2)}%)`;
 
-  figure.style.transform = shift;
+  figure.style.transform = usingScene ? '' : shift;
   bar.style.width = `${(p * 100).toFixed(1)}%`;
-  readout.textContent = `${String(Math.round(p * 100)).padStart(3, '0')}%`;
 
   const active = steps.filter((step) => p >= step.from).at(-1);
   for (const step of steps) step.el.classList.toggle('is-active', step === active);
 
-  renderTurbine(p);
+  renderTurbine(p, rest, usingScene ? heroFrame() : null);
 }
 
 function schedule() {
@@ -74,6 +85,9 @@ function hasCapableWebGL() {
 function fallBack(reason) {
   console.warn(`Showing the static turbine drawing: ${reason}`);
   renderTurbine = () => {};
+  usingScene = false;
+  root.classList.remove('sea-ready');
+  root.classList.add('no-sea');
   mountSvgFigure();
 }
 
@@ -89,6 +103,8 @@ async function mountSceneFigure() {
   };
   try {
     renderTurbine = await Promise.race([load(), timedOut]);
+    usingScene = true;
+    root.classList.add('sea-ready');
     update();
   } catch (error) {
     limit.abort();

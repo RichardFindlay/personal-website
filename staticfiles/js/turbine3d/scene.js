@@ -1,6 +1,7 @@
 import * as THREE from "three";
-import { CAMERA_SCALE, VIEWBOX, VIEW_DIRECTION, stateAt, toViewBox } from "./choreography.js";
+import { CAMERA_SCALE, INTRO, VIEWBOX, displacement, heroCamera, introAmount, stateAt, viewAxis, waveSlopeFor } from "./choreography.js";
 import { PARTS, SPEC } from "./parts/index.js";
+import { seaPoint } from "./assumed.js";
 import { LOOKS, createMaterials } from "./materials.js";
 
 const NARROW_WIDTH = 900;
@@ -9,47 +10,11 @@ const SHADOW_SIZE = 2048;
 const SLOW_FRAME_MS = 24;
 const QUALITY_WINDOW = 45;
 const PIXEL_RATIO_STEPS = [1.5, 1.25];
-const CAMERA_DISTANCE = 600;
-const CAMERA_AXIS = new THREE.Vector3(...VIEW_DIRECTION).normalize();
+const CAMERA_DISTANCE = 1400;
 const SPIN_RATE = (SPEC.assumed.spinRpm / 60) * Math.PI * 2;
 const THREE_FOLD = (Math.PI * 2) / 3;
-const CANVAS_MARGIN = 1.4;
-const SVG_NS = "http://www.w3.org/2000/svg";
 
 const nextTask = () => new Promise((resolve) => setTimeout(resolve));
-
-function buildCallouts() {
-  const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("class", "tb3d-callouts");
-  svg.setAttribute("viewBox", `0 0 ${VIEWBOX.width} ${VIEWBOX.height}`);
-  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-  svg.setAttribute("aria-hidden", "true");
-  const element = (name, attrs, parent) => {
-    const node = document.createElementNS(SVG_NS, name);
-    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
-    parent.appendChild(node);
-    return node;
-  };
-  const entries = PARTS.filter((part) => part.number).map((part) => {
-    const group = element("g", { opacity: 0 }, svg);
-    element("circle", { r: 2.6, fill: "var(--tb-ink)" }, group);
-    const end = part.lead.at(-1);
-    const points = ["0,0", ...part.lead.map(([dx, dy]) => `${dx},${dy}`)].join(" ");
-    element("polyline", { points, fill: "none", stroke: "var(--tb-ink)", "stroke-width": 0.9 }, group);
-    const left = part.side === "left";
-    const text = element("text", { class: "tb3d-label", x: end[0] + (left ? -4 : 4), y: end[1] + 4, "text-anchor": left ? "end" : "start" }, group);
-    const number = (attrs) => {
-      const span = element("tspan", { class: "tb3d-number", ...attrs }, text);
-      span.textContent = part.number;
-    };
-    if (!left) number({});
-    const label = element("tspan", { dx: left ? 0 : 8 }, text);
-    label.textContent = part.label;
-    if (left) number({ dx: 8 });
-    return { part, group };
-  });
-  return { svg, entries };
-}
 
 // Sky dome plus soft boxes: gives the paint a horizon line to reflect and the metal bright panels to catch.
 function environmentScene(env) {
@@ -101,7 +66,7 @@ function fadeInPlace(root, fadeCopy) {
     twins.push(twin);
     mesh.parent.add(twin);
   }
-  return { materials: [...faded], twins };
+  return { materials: [...faded], twins, meshes };
 }
 
 export async function mountTurbine3D(figure, { signal, onLost }) {
@@ -112,7 +77,6 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
   const canvas = document.createElement("canvas");
   canvas.className = "tb3d-canvas";
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "high-performance", failIfMajorPerformanceCaveat: true });
-  const callouts = buildCallouts();
 
   try {
     renderer.setClearColor(0x000000, 0);
@@ -132,14 +96,16 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     sun.shadow.bias = -0.00025;
     sun.shadow.radius = 2.2;
     sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 1000;
+    sun.shadow.camera.far = 2000;
     scene.add(sun, sun.target);
 
-    const { mats, shared, fadeCopy, applyLook } = createMaterials({ pileRadius: SPEC.published.monopileDiameter / 2 });
+    const { mats, shared, fadeCopy, applyLook } = createMaterials({ pileRadius: SPEC.published.monopileDiameter / 2, piles: [[0, 0], ...SPEC.assumed.farm.map(seaPoint)], seaFront: SPEC.assumed.seaTile.front });
 
     const entries = [];
     const spinning = [];
-    const fading = { blade: { roots: [], materials: [], twins: [] }, base: { roots: [], materials: [], twins: [] } };
+    const rotors = [];
+    let seaSurface;
+    const fading = { base: { roots: [], materials: [], twins: [], meshes: [] }, sea: { roots: [], materials: [], twins: [], meshes: [] }, farm: { roots: [], materials: [], twins: [], meshes: [] } };
     for (const part of PARTS) {
       await nextTask();
       checkpoint();
@@ -147,15 +113,18 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       root.add(part.build(SPEC, mats));
       root.traverse((object) => {
         if (object.userData.spins) spinning.push(object);
+        if (object.userData.rotors) rotors.push(object);
+        if (object.userData.seaSurface) seaSurface = object;
       });
       if (part.fade) {
-        const { materials, twins } = fadeInPlace(root, fadeCopy);
+        const { materials, twins, meshes } = fadeInPlace(root, fadeCopy);
         fading[part.fade].roots.push(root);
         fading[part.fade].materials.push(...materials);
         fading[part.fade].twins.push(...twins);
+        fading[part.fade].meshes.push(...meshes);
       }
       scene.add(root);
-      entries.push({ part, root, offset: new THREE.Vector3(...part.explode) });
+      entries.push({ part, root });
     }
     await nextTask();
     checkpoint();
@@ -170,6 +139,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     const applyTheme = () => {
       const name = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
       const look = LOOKS[name];
+      seaFaded = look.water.faded;
       scene.environment = environmentFor(name);
       scene.environmentIntensity = look.environment.intensity;
       renderer.toneMappingExposure = look.exposure;
@@ -179,21 +149,30 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       applyLook(look);
     };
     const sunDirection = new THREE.Vector3();
+    let seaFaded = 1;
     applyTheme();
 
-    figure.append(canvas, callouts.svg);
+    figure.append(canvas);
 
-    // The canvas covers the box and a margin for the rotor as it leaves, not the whole wide stage: clearing and resolving empty MSAA pixels costs real frame time.
+    // The canvas fills the stage, up behind the nav, because the sea does. The figure keeps the 800x1000 box the camera is framed in.
     let pixelRatioLimit = Infinity;
-    const view = { width: 1, height: 1, meet: 1 };
+    const view = { width: 1, height: 1, meet: 1, figureTop: 0, figureHeight: 1 };
+    let heroFrame = null;
+    let assembled;
+    const fitHero = () => {
+      if (heroFrame) assembled = heroCamera({ figureHeight: view.figureHeight, meet: view.meet, top: heroFrame.top - view.figureTop, edge: heroFrame.edge - view.figureTop, width: heroFrame.width });
+    };
     const resize = () => {
       const height = Math.max(1, figure.clientHeight);
       const full = Math.max(1, figure.clientWidth);
       view.meet = Math.min(full / VIEWBOX.width, height / VIEWBOX.height);
-      view.width = Math.min(full, Math.ceil(VIEWBOX.width * view.meet * CANVAS_MARGIN));
-      view.height = height;
-      canvas.style.width = `${view.width}px`;
-      canvas.style.left = `${(full - view.width) / 2}px`;
+      view.figureTop = figure.offsetTop;
+      view.figureHeight = height;
+      view.width = full;
+      view.height = height + view.figureTop;
+      canvas.style.top = `${-view.figureTop}px`;
+      canvas.style.height = `${view.height}px`;
+      fitHero();
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, narrow() ? 1.5 : 2, pixelRatioLimit));
       renderer.setSize(view.width, view.height, false);
     };
@@ -201,6 +180,11 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let progress = 0;
+    let heroShift = 0;
+    let heroRest = 1;
+    // The opening camera move runs on frame time, so it waits out a hidden tab, and is skipped for reduced motion or a page reopened part way down.
+    let introTime = reducedMotion.matches ? Infinity : 0;
+    let rendered = false;
     let spinAngle = 0;
     let spinRate = reducedMotion.matches ? 0 : SPIN_RATE;
     let seaTime = 0;
@@ -209,20 +193,28 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     let lastProgress = 0;
 
     const target = new THREE.Vector3();
+    const axis = new THREE.Vector3();
+    const rotorMatrix = new THREE.Matrix4();
+    const rotorTurn = new THREE.Matrix4();
     const place = (state) => {
-      const { zoom } = state.camera;
-      const halfWidth = view.width / view.meet / 2 / (zoom * CAMERA_SCALE);
-      const halfHeight = view.height / view.meet / 2 / (zoom * CAMERA_SCALE);
+      const intro = introAmount(introTime) * heroRest;
+      const perMetre = view.meet * state.camera.zoom * (1 + (INTRO.zoom - 1) * intro) * CAMERA_SCALE;
+      const centreX = view.width / 2 + heroShift;
+      const centreY = view.figureTop + view.figureHeight / 2;
+      axis.set(...viewAxis(intro, reducedMotion.matches ? [0, 0] : state.orbit));
+      shared.uWaveSlope.value = waveSlopeFor(axis.z);
       target.set(...state.camera.target);
-      camera.position.copy(target).addScaledVector(CAMERA_AXIS, CAMERA_DISTANCE);
-      camera.left = -halfWidth;
-      camera.right = halfWidth;
-      camera.top = halfHeight;
-      camera.bottom = -halfHeight;
+      target.x += INTRO.pan[0] * intro;
+      target.y += INTRO.pan[1] * intro;
+      camera.position.copy(target).addScaledVector(axis, CAMERA_DISTANCE);
+      camera.left = -centreX / perMetre;
+      camera.right = (view.width - centreX) / perMetre;
+      camera.top = centreY / perMetre;
+      camera.bottom = -(view.height - centreY) / perMetre;
       camera.lookAt(target);
       camera.updateProjectionMatrix();
 
-      const reach = Math.max(halfWidth, halfHeight) * 1.08;
+      const reach = Math.max(-camera.left, camera.right, camera.top, -camera.bottom) * 1.08;
       const shadow = sun.shadow.camera;
       shadow.left = -reach;
       shadow.right = reach;
@@ -230,7 +222,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       shadow.bottom = -reach;
       shadow.updateProjectionMatrix();
       sun.target.position.copy(target);
-      sun.position.copy(target).addScaledVector(sunDirection, 500);
+      sun.position.copy(target).addScaledVector(sunDirection, 1000);
       sun.shadow.normalBias = (reach * 2 * 1.6) / sun.shadow.mapSize.x;
     };
 
@@ -242,45 +234,52 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     };
 
     const draw = (now) => {
-      const state = stateAt(progress);
+      const state = stateAt(progress, assembled);
       const dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 0;
       lastFrame = now;
+      introTime += dt;
 
-      const spinningFull = state.bladeFade >= 1;
+      const spinningFull = state.spin >= 1;
       if (!reducedMotion.matches) {
         spinRate += ((spinningFull ? SPIN_RATE : 0) - spinRate) * Math.min(1, dt * 2.5);
         spinAngle += spinRate * dt;
         if (spinningFull) spinAngle %= THREE_FOLD;
         seaTime += dt;
       }
-      // Clockwise seen from upwind. Everything that spins has three-fold symmetry, so the angle can settle back to zero as the blades fade.
-      const shown = -spinAngle * state.bladeFade;
+      // Clockwise seen from upwind. Everything that spins has three-fold symmetry, so the angle settles back to zero before the blades are drawn off along their parked axes.
+      const shown = -spinAngle * state.spin;
       for (const object of spinning) object.rotation.x = shown;
+      if (state.farmFade > 0) {
+        for (const mesh of rotors) {
+          mesh.userData.rotors.forEach(({ frame: place, phase }, i) => mesh.setMatrixAt(i, rotorMatrix.copy(place).multiply(rotorTurn.makeRotationX(shown + phase))));
+          mesh.instanceMatrix.needsUpdate = true;
+        }
+      }
       shared.uSeaTime.value = seaTime;
 
       place(state);
-      for (const { part, root, offset } of entries) {
-        root.position.copy(offset).multiplyScalar(state.explode[part.key]);
+      for (const { part, root } of entries) {
+        root.position.set(...displacement(part, state.explode));
         root.visible = !part.revealedBy || state.explode[part.revealedBy] > 0;
       }
-      setFade(fading.blade, state.bladeFade);
       setFade(fading.base, state.baseFade);
-      shared.uBaseFade.value = state.baseFade;
+      // Once it starts to ghost the tower draws after the water, or its depth would punch a hole through the faded sea.
+      for (const mesh of fading.base.meshes) mesh.renderOrder = state.baseFade < 1 ? 7 : 1;
+      for (const twin of fading.base.twins) twin.renderOrder = state.baseFade < 1 ? 6 : 0;
+      const seaFade = 1 - state.seaFocus * (1 - seaFaded);
+      // The seabed goes faster than the water, so the faded backdrop stays blue instead of sandy.
+      setFade(fading.sea, seaFade * seaFade);
+      setFade(fading.farm, state.farmFade);
+      shared.uSeaFade.value = seaFade;
+      // Exploded parts would throw huge ghost shadows across the faded backdrop as the camera tours them.
+      seaSurface.receiveShadow = state.seaFocus < 0.9;
+      shared.uFarmFade.value = state.farmFade;
 
-      for (const { part, group } of callouts.entries) {
-        const opacity = state.callouts[part.key];
-        group.setAttribute("opacity", opacity.toFixed(3));
-        if (opacity <= 0) continue;
-        const factor = state.explode[part.key];
-        const point = part.anchor.map((value, i) => value + part.explode[i] * factor);
-        const [x, y] = toViewBox(point, state.camera);
-        group.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
-      }
 
       renderer.render(scene, camera);
     };
 
-    const animating = () => !reducedMotion.matches && !document.hidden && (stateAt(progress).bladeFade >= 1 || spinRate > 0.002);
+    const animating = () => !reducedMotion.matches && !document.hidden && (stateAt(progress).spin >= 1 || spinRate > 0.002);
 
     let qualityFrames = 0;
     let qualityTime = 0;
@@ -333,7 +332,6 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       if (frame) cancelAnimationFrame(frame);
       frame = -1;
       canvas.remove();
-      callouts.svg.remove();
       onLost();
     });
 
@@ -345,13 +343,21 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     canvas.classList.add("is-ready");
     request();
 
-    return (next) => {
+    // `rest` is 1 at the top of the page and `frame` the hero's px on screen: the rotor's top, where the water ends and the width of a wide screen.
+    return (next, rest = 0, frame = null) => {
+      if (!rendered && next > 0) introTime = Infinity;
+      rendered = true;
       progress = next;
+      if (frame) {
+        heroFrame = frame;
+        fitHero();
+        heroShift = (assembled?.shiftX ?? 0) * rest;
+        heroRest = rest;
+      }
       request();
     };
   } catch (error) {
     canvas.remove();
-    callouts.svg.remove();
     renderer.dispose();
     throw error;
   }

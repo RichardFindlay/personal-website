@@ -106,7 +106,6 @@ a:hover { opacity: .72; }
   bottom: 0;
   left: 0;
   right: 0;
-  overflow: hidden;
 }
 
 .stage-figure svg {
@@ -115,50 +114,17 @@ a:hover { opacity: .72; }
   height: 100%;
 }
 
+/* scene.js sets top and height: the canvas runs on up behind the nav. */
 .tb3d-canvas {
   position: absolute;
-  top: 0;
-  height: 100%;
+  left: 0;
+  width: 100%;
   opacity: 0;
   transition: opacity 0.7s ease;
 }
 
 .tb3d-canvas.is-ready {
   opacity: 1;
-}
-
-.stage-figure .tb3d-callouts {
-  position: absolute;
-  inset: 0;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.tb3d-label {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: 0.6px;
-  fill: var(--tb-ink);
-}
-
-.tb3d-number {
-  fill: var(--tb-lit);
-  font-weight: 700;
-}
-
-.stage-caption {
-  position: absolute;
-  top: 84px;
-  right: var(--gutter);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  pointer-events: none;
 }
 
 .stage-foot {
@@ -281,33 +247,36 @@ a:hover { opacity: .72; }
 [data-theme="dark"] .theme-icon--sun { display: block; }
 [data-theme="dark"] .theme-icon--moon { display: none; }
 
+/* The hero fills the screen down to the progress strip, where the water ends. */
 .hero {
-  min-height: 760px;
+  --foot-h: 62px;
+  min-height: max(560px, calc(100vh - var(--nav-h, 56px) - var(--foot-h)));
+  margin-bottom: var(--foot-h);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 22px;
-  padding: 48px var(--gutter) 120px;
+  padding: 48px var(--gutter) 56px;
   max-width: 640px;
 }
 
-.hero-sheet {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--muted);
+/* The hero text sits straight on the water. */
+.sea-ready .hero {
+  --ink: #f7fbfd;
+  --muted: rgba(240, 248, 252, 0.88);
+  text-shadow: 0 1px 14px rgba(8, 34, 48, 0.55);
 }
 
+/* Off screen but still the page's one h1, for screen readers and search; the nav shows the name. */
 .hero-name {
-  margin: 0;
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: clamp(38px, 4.6vw, 64px);
-  line-height: 1.02;
-  letter-spacing: -0.02em;
-  text-transform: uppercase;
-  color: var(--ink);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .hero-lines {
@@ -318,8 +287,8 @@ a:hover { opacity: .72; }
 
 .hero-focus {
   margin: 0;
-  font-size: 20px;
-  font-weight: 500;
+  font-size: 23px;
+  font-weight: 700;
   color: var(--ink);
 }
 
@@ -329,61 +298,34 @@ a:hover { opacity: .72; }
   color: var(--muted);
 }
 
-.hero-intro {
-  margin: 0;
-  max-width: 480px;
-  font-size: 16px;
-  line-height: 1.6;
-  color: var(--muted);
-}
-
 .socials {
   display: flex;
-  gap: 4px;
-  /* Lines the first logo up with the text above; the extra width is its touch target. */
-  margin-left: -11px;
+  /* Lines the first logo up with the text above and close under it; the extra size is its touch target. */
+  margin: -22px 0 0 -10px;
 }
 
 .social {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
+  width: 36px;
   height: 44px;
   color: var(--ink);
 }
 
 .social svg {
   display: block;
-  width: 22px;
-  height: 22px;
+  width: 16px;
+  height: 16px;
   fill: currentColor;
-}
-
-.scroll-cue {
-  margin-top: 36px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  text-decoration: none;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  color: var(--muted);
-  min-height: 44px;
-}
-
-.scroll-cue path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.4;
 }
 
 .panels {
   display: flex;
   flex-direction: column;
   gap: 320px;
-  padding: 0 clamp(16px, 3vw, 40px);
+  /* The last panel scrolls clear, so the page ends on the finished exploded view. */
+  padding: 0 clamp(16px, 3vw, 40px) 100vh;
 }
 
 .panel {
@@ -609,63 +551,13 @@ a:hover { opacity: .72; }
 
 .about-copy p + p { color: var(--muted); }
 
-.sheet-frame {
-  width: 100%;
-  max-width: 1180px;
-  margin: 0 auto 120px;
-  box-sizing: border-box;
-  background: var(--glass);
-}
-
-.sheet {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--ink);
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-}
-
-.sheet-cell {
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.sheet-cell--wide { grid-column: span 2; }
-.sheet-cell--right { border-right: 1px solid var(--ink); }
-.sheet-cell--under { border-bottom: 1px solid var(--ink); }
-
-.sheet-key { color: var(--muted); }
-
-.sheet-title {
-  font-weight: 700;
-  font-size: 13px;
-  overflow-wrap: anywhere;
-}
-
-.sheet-links {
-  grid-column: span 2;
-  padding: 6px 14px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.sheet-link {
-  text-decoration: none;
-  padding: 12px 6px;
-}
-
-/* Under this width home.js stops offsetting the turbine, so the hero text would sit on the drawing. */
+/* The static fallback drawing stops being offset under this width, so a card keeps the hero text legible on it. */
 @media (max-width: 899px) {
-  .hero {
+  .no-sea .hero {
     min-height: 0;
     justify-content: flex-start;
     gap: 16px;
-    margin: 16px var(--gutter) 320px;
+    margin: 16px var(--gutter) 100vh;
     padding: 24px;
     background: var(--glass);
     border: 1px solid var(--rule);
@@ -673,8 +565,17 @@ a:hover { opacity: .72; }
     -webkit-backdrop-filter: blur(10px) saturate(1.1);
     backdrop-filter: blur(10px) saturate(1.1);
   }
+}
 
-  .scroll-cue { margin-top: 0; }
+/* The focus line breaks after "Data Science" here, so it stops short of the main turbine's tower. */
+@media (max-width: 899px) {
+  .hero-focus { max-width: 13em; }
+}
+
+@media (max-width: 640px) {
+  .hero { padding-bottom: 24px; }
+  .hero-focus { font-size: 18px; }
+  .hero-sub { font-size: 15px; }
 }
 
 @media (max-width: 640px) {
@@ -694,16 +595,7 @@ a:hover { opacity: .72; }
   .nav-link { order: 1; padding: 14px 0; }
   .theme-btn { margin-left: 0; }
 
-  .stage-caption { top: calc(var(--nav-h) + 12px); }
-  .tb3d-label { font-size: 16px; letter-spacing: 0.2px; }
   .step:not(.is-active) { display: none; }
-
-  .hero-intro { display: none; }
-
-  .sheet-cell:first-child { grid-column: 1 / -1; border-right: 0; }
-  .sheet-cell:nth-child(2), .sheet-cell:nth-child(3) { grid-column: span 2; }
-  .sheet-links { padding: 6px 8px; }
-  .sheet-link { padding: 12px 4px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

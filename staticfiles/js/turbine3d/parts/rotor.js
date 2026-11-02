@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { sectionAt, bladeSpans, RING_POINTS } from "./loft.js";
-import { BOLT, DEG, Kit, TAU, aim, boltCircle, box, chamfer, gear, inShaftFrame, lathe, loftRings, pipe, positioned, rod, trs } from "./shapes.js";
+import { BOLT, DEG, Kit, TAU, aim, boltCircle, box, chamfer, gear, inShaftFrame, lathe, loftRings, merge, pipe, positioned, rod, sphere, trs } from "./shapes.js";
 
 const NOSE_INDEX = (RING_POINTS - 1) / 2;
 const AZIMUTHS = [0, 120, 240].map((a) => a * DEG);
@@ -61,11 +61,11 @@ function offsetStrip(skin, spans, fromSpan, j0, j1, lift) {
   return loftRings(rows, { flip: true });
 }
 
-export function buildBlades(spec, mats) {
+export function buildBlade(spec, mats, which) {
   const kit = rotatingKit(mats);
   const { assumed, published } = spec;
   const hub = published.hubRadius;
-  const frames = bladeFrames(spec);
+  const frames = [bladeFrames(spec)[which]];
   const { spans, rings, skin } = bladeSkin(spec);
 
   kit.many("paint", skin, frames);
@@ -93,8 +93,18 @@ export function buildBlades(spec, mats) {
   kit.many("paint", collar, frames.map((frame) => frame.clone().multiply(toBladeAxis)));
   const studs = boltCircle(92, rootRadius + 0.012, 0.165, 1, 0.038);
   kit.many("bolt", BOLT, frames.flatMap((frame) => positioned(studs, frame.clone().multiply(toBladeAxis))));
+  // Root bulkhead, so the open blade end shows a floor once the blade is drawn off the hub.
+  kit.many("darkMetal", rod([0, 0, hub + 0.3], [0, 0, hub + 0.32], rootRadius - 0.02, 48), frames);
 
   return inRotorFrame(kit, spec);
+}
+
+// A whole rotor as one mesh in the shaft frame, for the distant turbines.
+export function simpleRotor(spec) {
+  const { rings } = bladeSkin(spec);
+  const thin = (list, step) => list.filter((_, k) => k % step === 0 || k === list.length - 1);
+  const skin = loftRings(thin(rings, 5).map((ring) => thin(ring, 3)), { flip: true });
+  return merge([...bladeFrames(spec).map((frame) => skin.clone().applyMatrix4(frame)), sphere([spec.published.overhang, 0, 0], spec.assumed.spinner.radius, 16, 10)]);
 }
 
 function hubSkin(spec, frames) {
@@ -195,32 +205,28 @@ export function buildHub(spec, mats) {
   return inRotorFrame(kit, spec);
 }
 
-function spinnerRadius(x, assumed) {
-  const { radius, noseFromApex } = assumed.spinner;
-  const shoulder = 0.6;
-  if (x <= shoulder) return radius;
-  const t = Math.min(1, (x - shoulder) / (noseFromApex - shoulder));
-  return radius * Math.pow(1 - Math.pow(t, 2.1), 0.5);
+// Spinner profile, at `angle` from the bulge towards the nose (+) or the rear rim (-): an ellipse behind the bulge and a fuller superellipse ahead of it.
+function spinnerPoint(angle, { radius, bulge, noseFromApex, tail, nosePower }) {
+  if (angle < 0) return [bulge + tail * Math.sin(angle), radius * Math.cos(angle)];
+  return [bulge + (noseFromApex - bulge) * Math.pow(Math.sin(angle), 2 / nosePower), radius * Math.pow(Math.cos(angle), 2 / nosePower)];
 }
 
 export function buildSpinner(spec, mats) {
   const kit = rotatingKit(mats);
   const { assumed, published } = spec;
   const apex = published.overhang;
-  const { rear, noseFromApex, hole } = assumed.spinner;
+  const { spinner, bladeCollar: collar } = assumed;
   const frames = bladeFrames(spec);
   const axes = frames.map((frame) => new THREE.Vector3(0, 0, 1).transformDirection(frame));
   const origin = new THREE.Vector3(apex, 0, 0);
 
-  const rows = 92;
+  const rows = 110;
   const columns = 216;
+  const rearAngle = -Math.asin((spinner.bulge - (spinner.rear - apex)) / spinner.tail);
+  const lastAngle = (Math.PI / 2) * 0.998;
   const rings = [];
-  const xs = [];
   for (let i = 0; i <= rows; i++) {
-    const u = i / rows;
-    const x = rear - apex + (noseFromApex - (rear - apex)) * (1 - Math.pow(1 - u, 1.7));
-    xs.push(x);
-    const r = spinnerRadius(x, assumed);
+    const [x, r] = spinnerPoint(rearAngle + ((lastAngle - rearAngle) * i) / rows, spinner);
     const ring = new Array(columns);
     for (let j = 0; j < columns; j++) {
       const a = (j / columns) * TAU;
@@ -240,63 +246,47 @@ export function buildSpinner(spec, mats) {
     centre.multiplyScalar(1 / 3).sub(origin);
     const inHole = axes.some((axis) => {
       const along = centre.dot(axis);
-      return along > 0 && Math.sqrt(centre.lengthSq() - along * along) < hole;
+      return along > 0 && Math.sqrt(centre.lengthSq() - along * along) < spinner.hole;
     });
     if (!inHole) kept.push(index[i], index[i + 1], index[i + 2]);
   }
   shell.setIndex(new THREE.BufferAttribute(new Uint32Array(kept), 1));
   kit.add("grp", shell);
 
-  // The triangle-dropped hole edge is hidden under a gasket that follows the real intersection of cylinder and nose cone.
-  for (const frame of frames) {
-    const u = new THREE.Vector3(0, 0, 1).transformDirection(frame);
-    const e1 = new THREE.Vector3(1, 0, 0).transformDirection(frame);
-    const e2 = new THREE.Vector3(0, 1, 0).transformDirection(frame);
-    const path = [];
-    const point = new THREE.Vector3();
-    for (let k = 0; k < 72; k++) {
-      const a = (k / 72) * TAU;
-      const offset = e1.clone().multiplyScalar(hole * Math.cos(a)).addScaledVector(e2, hole * Math.sin(a));
-      let lo = 0.5;
-      let hi = 4.5;
-      for (let it = 0; it < 22; it++) {
-        const t = (lo + hi) / 2;
-        point.copy(offset).addScaledVector(u, t);
-        if (Math.hypot(point.y, point.z) > spinnerRadius(point.x, assumed)) hi = t;
-        else lo = t;
-      }
-      point.copy(offset).addScaledVector(u, (lo + hi) / 2).add(origin);
-      path.push(point.toArray());
-    }
-    kit.add("seam", pipe(path, 0.03, { seg: 8, closed: true }));
-  }
+  // The triangle-dropped hole edge is hidden under the collar, which seats below the skin all the way round.
+  const ring = lathe(
+    chamfer(
+      [
+        [collar.seat, collar.outer],
+        [collar.face, collar.outer],
+        [collar.face, collar.boltCircle - 0.07],
+        [collar.neck, collar.inner + 0.03],
+        [collar.neck, collar.inner],
+        [collar.seat, collar.inner],
+      ],
+      0.02,
+    ),
+    { seg: 120 },
+  );
+  const toBladeAxis = trs([0, 0, 0], [0, -Math.PI / 2, 0]);
+  const axisFrames = frames.map((frame) => frame.clone().multiply(toBladeAxis));
+  kit.many("paint", ring, axisFrames);
+  const bolts = boltCircle(collar.bolts, collar.boltCircle, collar.face, 1, collar.boltSize);
+  kit.many("bolt", BOLT, axisFrames.flatMap((frame) => positioned(bolts, frame)));
 
-  const seamBolts = [];
-  for (const a of [60, 180, 300]) {
-    const c = Math.cos(a * DEG);
-    const sn = Math.sin(a * DEG);
+  // The nose disc stands a step proud of the skin; its seam and the centre cap's are circles at the radius each sits.
+  const angleAt = (radius) => Math.acos(Math.pow(radius / spinner.radius, spinner.nosePower / 2));
+  const disc = Array.from({ length: 41 }, (_, k) => {
+    const [x, r] = spinnerPoint(angleAt(spinner.noseSeam) + (lastAngle - angleAt(spinner.noseSeam)) * (k / 40), spinner);
+    return [x + apex + spinner.noseStep, r];
+  });
+  kit.add("paint", lathe([[disc[0][0] - 2 * spinner.noseStep, disc[0][1]], ...disc], { seg: 144, smooth: 0.5 }));
+  for (const [radius, thickness, step] of [[spinner.noseSeam, 0.022, 0], [spinner.capSeam, 0.013, spinner.noseStep]]) {
+    const [x, r] = spinnerPoint(angleAt(radius), spinner);
     const path = [];
-    const stations = 46;
-    for (let i = 0; i <= stations; i++) {
-      const x = xs[Math.round((i / stations) * (rows - 1))];
-      const r = spinnerRadius(x, assumed) + 0.002;
-      path.push([x + apex, r * c, r * sn]);
-      if (i % 3 === 1 && x < noseFromApex - 0.3) {
-        for (const side of [-0.05, 0.05]) {
-          const ca = Math.cos(a * DEG + side / r);
-          const sa = Math.sin(a * DEG + side / r);
-          seamBolts.push(aim([x + apex, r * ca, r * sa], [0, ca, sa], 0.016));
-        }
-      }
-    }
-    kit.add("seam", pipe(path, 0.016, { seg: 5 }));
+    for (let k = 0; k < 120; k++) path.push([x + apex + step, r * Math.cos((k / 120) * TAU), r * Math.sin((k / 120) * TAU)]);
+    kit.add("seam", pipe(path, thickness, { seg: 5, closed: true }));
   }
-  const capX = noseFromApex - 1.05;
-  const capR = spinnerRadius(capX, assumed) + 0.002;
-  const cap = [];
-  for (let k = 0; k < 96; k++) cap.push([capX + apex, capR * Math.cos((k / 96) * TAU), capR * Math.sin((k / 96) * TAU)]);
-  kit.add("seam", pipe(cap, 0.014, { seg: 5, closed: true }));
-  kit.many("bolt", BOLT, seamBolts);
 
   return inRotorFrame(kit, spec);
 }

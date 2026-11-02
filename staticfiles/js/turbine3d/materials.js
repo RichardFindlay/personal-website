@@ -146,6 +146,7 @@ const FINISHES = {
   composite: { standard: { color: "#2a2c2f", roughness: 0.42, metalness: 0.2 }, surface: { scale: 0.22, rough: 0.1, bump: 0.05, tint: 0.3 } },
   darkMetal: { standard: { color: "#2f3236", roughness: 0.5, metalness: 0.7 } },
   dark: { standard: { color: "#17181a", roughness: 0.82 } },
+  glass: { physical: { color: "#1b2a35", roughness: 0.05, metalness: 0.6, clearcoat: 1, clearcoatRoughness: 0.02 } },
   seam: { standard: { color: "#5e6365", roughness: 0.7, metalness: 0.1 } },
   // Cut faces get the flat red engineers use on sectioned drawings, so the cutaway reads at a glance.
   cutFace: { standard: { color: "#b5412a", roughness: 0.6, metalness: 0.05 } },
@@ -157,7 +158,6 @@ const FINISHES = {
   caliper: { physical: { color: "#b23020", roughness: 0.4, metalness: 0.2, clearcoat: 0.4 } },
   rock: { lambert: { color: "#d4d0c6" } },
   sand: { lambert: { color: "#ffffff", vertexColors: true } },
-  sediment: { lambert: { color: "#ffffff", vertexColors: true } },
   beacon: { standard: { color: "#5e120c", emissive: "#ff2a18", emissiveIntensity: 1, roughness: 0.25 } },
 };
 
@@ -175,22 +175,35 @@ vec3 seaField(vec2 p) {
   return vec3(h, g);
 }`;
 
-function createWater(noise, shared) {
+function createWater(noise, shared, pileCount, seaFront) {
   const surface = new THREE.MeshStandardMaterial({ color: "#1f5f7d", roughness: 0.14, metalness: 0, transparent: true, opacity: 0.74, depthWrite: false });
   surface.userData.selfFading = true;
   surface.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, shared, { uSeaNoise: { value: noise } });
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", `#include <common>\n${SEA_GLSL}\nvarying vec2 vSeaPosition;\nvarying vec3 vSeaField;`)
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvSeaField = seaField(position.xy);\ntransformed.z += vSeaField.x;\nvSeaPosition = position.xy;");
+      .replace("#include <common>", `#include <common>\n${SEA_GLSL}\nuniform vec2 uPiles[${pileCount}];\nvarying vec2 vSeaPosition;\nvarying vec3 vSeaField;\nflat out vec2 vNearestPile;`)
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+vSeaField = seaField(position.xy);
+// Waves die away into the front edge, which keeps it dead level on screen.
+transformed.z += vSeaField.x * smoothstep(0.0, 18.0, ${seaFront.toFixed(1)} - (position.x - position.y));
+vSeaPosition = position.xy;
+// The nearest pile is found per vertex, so the pixel shader measures only one distance. It is flat because blending two piles would draw a false ring along the line between their regions.
+vNearestPile = uPiles[0];
+for (int i = 1; i < ${pileCount}; i++) if (distance(position.xy, uPiles[i]) < distance(position.xy, vNearestPile)) vNearestPile = uPiles[i];`,
+      );
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
         `#include <common>
 uniform float uSeaTime;
+uniform float uWaveSlope;
+uniform float uFarmFade;
 uniform sampler2D uSeaNoise;
 uniform float uPileRadius;
-uniform float uBaseFade;
+flat in vec2 vNearestPile;
+uniform float uSeaFade;
 uniform vec3 uFoamColor;
 varying vec2 vSeaPosition;
 varying vec3 vSeaField;
@@ -203,56 +216,60 @@ float foam;`,
 seaNow = vSeaField;
 vec2 rippleA = texture2D(uSeaNoise, vSeaPosition * 0.11 + vec2(0.022, 0.013) * uSeaTime).gb - 0.5;
 vec2 rippleB = texture2D(uSeaNoise, vSeaPosition * 0.37 - vec2(0.041, 0.031) * uSeaTime).gb - 0.5;
-float pileDistance = length(vSeaPosition) - uPileRadius;
+float pileDistance = length(vSeaPosition - vNearestPile) - uPileRadius;
 float breakup = texture2D(uSeaNoise, vSeaPosition * 0.031 + vec2(0.004, -0.005) * uSeaTime).r;
 vec2 skew = mat2(0.83, 0.56, -0.56, 0.83) * vSeaPosition;
 float wisps = texture2D(uSeaNoise, skew * vec2(0.083, 0.047) - vec2(0.007, 0.005) * uSeaTime).g;
-float crest = smoothstep(0.5, 0.8, seaNow.x / 4.2 + (breakup - 0.5) * 1.1) * smoothstep(0.48, 0.62, wisps);
-float ring = smoothstep(2.4, 0.2, pileDistance + (wisps - 0.5) * 5.0);
-foam = clamp(crest * 0.72 + ring * 0.85, 0.0, 1.0);
+float crest = smoothstep(0.68, 0.98, seaNow.x / 4.2 + (breakup - 0.5) * 1.1) * smoothstep(0.52, 0.68, wisps);
+// Foam rings on the farm's piles go with the turbines; the one in focus keeps its own at the origin.
+float ring = smoothstep(2.4, 0.2, pileDistance + (wisps - 0.5) * 5.0) * (dot(vNearestPile, vNearestPile) < 1.0 ? 1.0 : uFarmFade);
+foam = clamp(crest * 0.72 + ring * 0.85, 0.0, 1.0) * uSeaFade;
 diffuseColor.rgb = mix(diffuseColor.rgb, uFoamColor, foam);
-diffuseColor.a = mix(diffuseColor.a, 0.96, foam) * uBaseFade;`,
+diffuseColor.a = mix(diffuseColor.a, 0.96, foam) * uSeaFade;`,
       )
       .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.85, foam);")
       .replace(
         "#include <normal_fragment_maps>",
         `#include <normal_fragment_maps>
-vec3 seaNormal = normalize(vec3(-seaNow.yz - (rippleA + rippleB * 0.8) * 0.26, 1.0));
+vec3 seaNormal = normalize(vec3(-seaNow.yz * uWaveSlope - (rippleA + rippleB * 0.8) * 0.26, 1.0));
 normal = normalize(mat3(viewMatrix) * seaNormal);`,
       );
   };
 
-  const wall = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
-  wall.userData.selfFading = true;
-  wall.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, shared, { uSeaNoise: { value: noise } });
+  return surface;
+}
+
+// Fish swim in the vertex shader off the sea clock, so they cost no per-frame work and hold still under reduced motion.
+// Under the near-opaque water they vanish, so they draw after it and `aClarity` stands in for the water above them.
+function createFish(shared) {
+  const fish = new THREE.MeshStandardMaterial({ color: "#ffffff", vertexColors: true, roughness: 0.32, metalness: 0.35, transparent: true, side: THREE.DoubleSide });
+  fish.userData.selfFading = true;
+  fish.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, shared);
     shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", `#include <common>\n${SEA_GLSL}\nattribute float aTop;\nvarying float vDepth;\nvarying vec2 vWallPosition;`)
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\ntransformed.z += seaField(position.xy).x * aTop;\nvDepth = 1.0 - aTop;\nvWallPosition = vec2(position.x + position.y, position.z);");
-    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform float uSeaTime;\nattribute vec4 aOrbit;\nattribute vec4 aMotion;\nattribute float aClarity;\nvarying float vClarity;")
       .replace(
-        "#include <common>",
-        `#include <common>
-uniform sampler2D uSeaNoise;
-uniform float uSeaTime;
-uniform float uBaseFade;
-uniform vec3 uWallTop;
-uniform vec3 uWallDeep;
-uniform vec3 uFoamColor;
-varying float vDepth;
-varying vec2 vWallPosition;`,
+        "#include <beginnormal_vertex>",
+        `#include <beginnormal_vertex>
+vClarity = aClarity;
+float fishAngle = aMotion.x + aMotion.y * uSeaTime;
+float fishHeading = fishAngle + sign(aMotion.y) * PI / 2.0;
+mat2 fishTurn = mat2(cos(fishHeading), sin(fishHeading), -sin(fishHeading), cos(fishHeading));
+objectNormal.xy = fishTurn * objectNormal.xy;`,
       )
       .replace(
-        "#include <map_fragment>",
-        `#include <map_fragment>
-float shimmer = texture2D(uSeaNoise, vWallPosition * vec2(0.035, 0.05) + vec2(0.01, 0.006) * uSeaTime).r - 0.5;
-float depth = clamp(vDepth + shimmer * 0.12, 0.0, 1.0);
-diffuseColor.rgb = mix(uWallTop, uWallDeep, pow(depth, 0.72));
-diffuseColor.rgb = mix(diffuseColor.rgb, uFoamColor, smoothstep(0.03, 0.0, vDepth) * 0.72);
-diffuseColor.a = mix(0.46, 0.76, depth) * uBaseFade;`,
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+float fishSway = 0.09 * smoothstep(0.3, -0.5, position.x) * sin(aMotion.w + uSeaTime * 7.0 - position.x * 6.0);
+vec3 fishBody = (position + vec3(0.0, fishSway, 0.0)) * aMotion.z;
+float fishRadius = aOrbit.w + 0.35 * sin(uSeaTime * 0.31 + aMotion.w);
+transformed = vec3(aOrbit.xy + fishRadius * vec2(cos(fishAngle), sin(fishAngle)) + fishTurn * fishBody.xy, aOrbit.z + 0.25 * sin(uSeaTime * 0.43 + aMotion.w) + fishBody.z);`,
       );
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform float uSeaFade;\nvarying float vClarity;")
+      .replace("#include <map_fragment>", "#include <map_fragment>\ndiffuseColor.a *= vClarity * uSeaFade;");
   };
-  return { water: surface, waterWall: wall };
+  return fish;
 }
 
 // Theme looks: everything the lighting and sea need to switch between day and dusk.
@@ -261,14 +278,14 @@ export const LOOKS = {
     exposure: 1.02,
     sun: { color: "#fff1dd", intensity: 2.7, direction: [0.28, -0.8, 0.82] },
     environment: { intensity: 0.62, zenith: "#8fb2d0", horizon: "#e0e7ea", ground: "#6a777d", key: "#ffffff", keyStrength: 5 },
-    water: { color: "#1c5f7c", opacity: 0.72, foam: "#f2f7f7", wallTop: "#5d9dba", wallDeep: "#123f58" },
+    water: { color: "#1c5f7c", opacity: 0.72, foam: "#f2f7f7", faded: 0.28 },
     beacon: { emissive: 1.1, glow: 0.3 },
   },
   dark: {
     exposure: 1.18,
     sun: { color: "#ffc9a0", intensity: 1.5, direction: [0.05, -0.95, 0.42] },
     environment: { intensity: 0.85, zenith: "#2f4a78", horizon: "#a27c78", ground: "#141d2a", key: "#b6c9ee", keyStrength: 3 },
-    water: { color: "#163e58", opacity: 0.82, foam: "#b5c4d2", wallTop: "#235a7a", wallDeep: "#07202f" },
+    water: { color: "#163e58", opacity: 0.82, foam: "#b5c4d2", faded: 0.62 },
     beacon: { emissive: 7, glow: 1 },
   },
 };
@@ -287,16 +304,17 @@ function glowTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
-export function createMaterials({ pileRadius }) {
+export function createMaterials({ pileRadius, piles, seaFront }) {
   const noise = noiseTexture();
   const shared = {
     uSeaTime: { value: 0 },
+    uWaveSlope: { value: 1 },
+    uFarmFade: { value: 1 },
     uWaves: { value: WAVES.map((wave) => new THREE.Vector4(wave.kx, wave.ky, wave.omega, wave.amplitude)) },
     uPileRadius: { value: pileRadius },
-    uBaseFade: { value: 1 },
+    uPiles: { value: piles.map(([x, y]) => new THREE.Vector2(x, y)) },
+    uSeaFade: { value: 1 },
     uFoamColor: { value: new THREE.Color() },
-    uWallTop: { value: new THREE.Color() },
-    uWallDeep: { value: new THREE.Color() },
   };
 
   const mats = {};
@@ -305,7 +323,7 @@ export function createMaterials({ pileRadius }) {
     material.userData.surface = surface;
     mats[key] = patchSurface(material, surface, noise);
   }
-  Object.assign(mats, createWater(noise, shared));
+  Object.assign(mats, { water: createWater(noise, shared, piles.length, seaFront), fish: createFish(shared) });
   mats.beaconGlow = new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false });
 
   // A copy for fading parts: three.js does not carry onBeforeCompile across clone().
@@ -319,8 +337,6 @@ export function createMaterials({ pileRadius }) {
     mats.water.color.set(look.water.color);
     mats.water.opacity = look.water.opacity;
     shared.uFoamColor.value.set(look.water.foam);
-    shared.uWallTop.value.set(look.water.wallTop);
-    shared.uWallDeep.value.set(look.water.wallDeep);
     mats.beacon.emissiveIntensity = look.beacon.emissive;
     mats.beaconGlow.opacity = look.beacon.glow;
   };

@@ -6,7 +6,7 @@
     <script>try { var theme = localStorage.getItem('theme'); if (theme === 'dark' || theme === 'light') document.documentElement.dataset.theme = theme; } catch (e) {}</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="stylesheet" href="{% static 'css/home.css' %}">
     <script type="importmap">{"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js"}}</script>
@@ -16,18 +16,14 @@
 
 <div class="stage">
     <div class="stage-figure" data-svg="{% static 'image/turbine/turbine.svg' %}"></div>
-    <div class="stage-caption">
-        <span>FIG. 01 · OFFSHORE WIND TURBINE</span>
-        <span>EXPLODED AXONOMETRIC · <span class="stage-readout">000%</span></span>
-    </div>
     <div class="stage-foot">
         <div class="stage-bar"><div class="stage-bar-fill"></div></div>
         <div class="steps">
             <span class="step is-active" data-from="0">00 ASSEMBLED</span>
-            <span class="step" data-from="0.06">01 ROTOR OFF</span>
+            <span class="step" data-from="0.12">01 ROTOR OFF</span>
             <span class="step" data-from="0.3">02 NACELLE OPEN</span>
             <span class="step" data-from="0.46">03 DRIVETRAIN</span>
-            <span class="step" data-from="0.74">04 CALLOUTS</span>
+            <span class="step" data-from="0.74">04 EXPLODED</span>
         </div>
     </div>
 </div>
@@ -49,13 +45,11 @@
     </nav>
 
     <section id="top" class="hero">
-        <span class="hero-sheet">SHEET 00 · INDEX</span>
         <h1 class="hero-name">Richard Findlay</h1>
         <div class="hero-lines">
             <p class="hero-focus">Energy | Data Science | Artificial Intelligence</p>
             <p class="hero-sub">Technologies, Markets &amp; Policy</p>
         </div>
-        <p class="hero-intro">Applying AI and machine learning to energy markets and renewables: offshore wind, renewable and power price forecasting, and battery storage.</p>
         <div class="socials">
             <a href="https://x.com/__RichFind__" target="_blank" rel="noopener" class="social" aria-label="X">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"></path></svg>
@@ -67,10 +61,6 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"></path></svg>
             </a>
         </div>
-        <a href="#writing" class="scroll-cue">
-            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1v12M2 8l5 5 5-5"></path></svg>
-            SCROLL TO DISASSEMBLE
-        </a>
     </section>
 
     <div class="panels">
@@ -153,20 +143,6 @@
             </div>
             <a href="{% url 'about' %}" class="more-link">FULL PROFILE →</a>
         </section>
-
-        <footer class="sheet-frame glass">
-            <div class="sheet">
-                <div class="sheet-cell sheet-cell--wide sheet-cell--right sheet-cell--under"><span class="sheet-key">TITLE</span><span class="sheet-title">RICHARDFINDLAY.CO.UK</span></div>
-                <div class="sheet-cell sheet-cell--right sheet-cell--under"><span class="sheet-key">SCALE</span><span>NTS</span></div>
-                <div class="sheet-cell sheet-cell--under"><span class="sheet-key">SHEET</span><span>01 / 01</span></div>
-                <div class="sheet-cell sheet-cell--wide sheet-cell--right"><span class="sheet-key">DRAWN BY</span><span>R. FINDLAY</span></div>
-                <div class="sheet-links">
-                    <a href="https://x.com/__RichFind__" target="_blank" rel="noopener" class="sheet-link">X</a>
-                    <a href="https://www.linkedin.com/in/richard-findlay-a4a8365a/" target="_blank" rel="noopener" class="sheet-link">LINKEDIN</a>
-                    <a href="https://github.com/RichardFindlay" target="_blank" rel="noopener" class="sheet-link">GITHUB</a>
-                </div>
-            </div>
-        </footer>
 
     </div>
 </div>
