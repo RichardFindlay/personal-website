@@ -131,12 +131,17 @@ assert.equal(end.seaFocus, 1);
 assert.equal(start.farmFade, 1);
 assert.equal(end.farmFade, 0);
 
-// Channel values at p=0.5, worked by hand from the design's easing: smoothstep of 0.2/0.22, 0.14/0.2 and 0.04/0.32.
-const mid = stateAt(0.5);
-assert.equal(mid.explode.blade0, 1);
-close(mid.explode.cover, 0.97671, 1e-5, "c channel at 0.5");
-close(mid.explode.yaw, 0.784, 1e-9, "y channel at 0.5");
-close(mid.explode.gear, 0.04297, 1e-5, "d channel at 0.5");
+// Every part starts coming apart together just after the rotor stops, and all are fully apart before the bird's eye view.
+const moving = PART_TABLE.filter((part) => part.channel);
+assert.equal(stateAt(0.08).spin, 0);
+for (const part of moving) {
+  assert.equal(stateAt(0.08).explode[part.key], 0, `${part.key} still at p=0.08`);
+  assert.ok(stateAt(0.1).explode[part.key] > 0, `${part.key} moving at p=0.1`);
+  assert.equal(stateAt(0.38).explode[part.key], 1, `${part.key} apart at p=0.38`);
+}
+// Channel values at p=0.2, worked by hand from smoothstep of 0.12/0.2 and 0.12/0.3.
+close(stateAt(0.2).explode.cover, 0.648, 1e-9, "c channel at 0.2");
+close(stateAt(0.2).explode.gear, 0.352, 1e-9, "d channel at 0.2");
 
 const { front, left, right, back, pileEmbed, scourRadius } = ASSUMED.seaTile;
 const seaEdge = [front / 2, -front / 2, -PUBLISHED.towerTop];
@@ -198,7 +203,9 @@ assert.deepEqual(orbitAt(0), [0, 0]);
 assert.deepEqual(orbitAt(0.73), [0, 0]);
 assert.deepEqual(orbitAt(1), [0, 0]);
 assert.ok(Math.asin(viewAxis(0, orbitAt(0.36))[2]) > (80 * Math.PI) / 180, "the tour reaches a bird's eye view");
-close(Math.atan2(viewAxis(0, orbitAt(0.2))[1], viewAxis(0, orbitAt(0.2))[0]), -Math.PI / 2, 1e-9, "the tour reaches a side view from -y");
+for (let p = 0.05; p < 0.36; p += 0.01) {
+  assert.ok(viewAxis(0, orbitAt(p))[2] > viewAxis(0)[2], `the tour only climbs on its way to the bird's eye view, not down to a side view, at p=${p.toFixed(2)}`);
+}
 for (const [screenW, screenH] of [[375, 812], [1440, 900], [1920, 1080]]) {
   const figureHeight = screenH - 56;
   const meet = Math.min(screenW / VIEWBOX.width, figureHeight / VIEWBOX.height);

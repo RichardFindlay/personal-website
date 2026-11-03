@@ -62,10 +62,9 @@ const REST_ELEVATION = Math.atan2(VIEW_DIRECTION[2], Math.hypot(VIEW_DIRECTION[0
 
 const DEGREES = Math.PI / 180;
 
-// The camera's tour of the turbine as it comes apart: [progress, azimuth, elevation] away from the resting view, in degrees. It holds on a side view as the blades draw off, looks straight down as the cover lifts, comes round behind for the drivetrain, and is home for the finished diagram. Azimuths stay on the side of the turbine with sea behind it.
+// The camera's tour of the turbine as it comes apart: [progress, azimuth, elevation] away from the resting view, in degrees. It rises to look straight down as everything draws apart, comes round behind for the drivetrain, and is home for the finished diagram. Azimuths stay on the side of the turbine with sea behind it.
 const ORBIT = [
   [0.04, 0, 0],
-  [0.2, -45, -17],
   [0.36, 0, 47],
   [0.56, -75, -7],
   [0.72, 0, 0],
@@ -96,16 +95,21 @@ const CARRIERS = Object.fromEntries(PART_TABLE.map((part) => [part.key, part]));
 export const displacement = (part, explode) =>
   part.explode.map((value, i) => value * explode[part.key] + (part.carriedBy ? CARRIERS[part.carriedBy].explode[i] * explode[part.carriedBy] : 0));
 
+// The scroll progress at which the rotor has stopped and the turbine starts coming apart.
+export const EXPLODE_START = 0.08;
+
 export function stateAt(progress, assembled = CAMERA.assembled) {
   const p = clamp(progress);
+  // Every part starts drawing off together once the rotor stops. The shell gets furthest soonest, so the parts inside never pass through it.
+  const apart = (span) => ease((p - EXPLODE_START) / span);
   const channels = {
-    z: ease(p / 0.38),
-    b: ease((p - 0.12) / 0.24),
-    c: ease((p - 0.3) / 0.22),
-    s: ease((p - 0.34) / 0.22),
-    f: ease((p - 0.4) / 0.2),
-    y: ease((p - 0.36) / 0.2),
-    d: ease((p - 0.46) / 0.32),
+    z: ease(p / 0.32),
+    b: apart(0.2),
+    c: apart(0.2),
+    s: apart(0.22),
+    f: apart(0.26),
+    y: apart(0.26),
+    d: apart(0.3),
   };
 
   const { exploded } = CAMERA;
@@ -119,10 +123,10 @@ export function stateAt(progress, assembled = CAMERA.assembled) {
   return {
     camera,
     explode,
-    spin: 1 - ease((p - 0.02) / 0.1),
-    baseFade: 1 - ease((p - 0.14) / 0.22) * 0.85,
+    spin: 1 - ease((p - 0.01) / (EXPLODE_START - 0.01)),
+    baseFade: 1 - apart(0.22) * 0.85,
     // How far the sea has faded to its backdrop strength behind the exploded parts, which each theme sets.
-    seaFocus: ease((p - 0.14) / 0.22),
+    seaFocus: apart(0.22),
     orbit: orbitAt(p),
     farmFade: 1 - ease(p / 0.16),
   };
