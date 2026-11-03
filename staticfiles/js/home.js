@@ -91,9 +91,31 @@ function fallBack(reason) {
   mountSvgFigure();
 }
 
+// Runs `expire` after `ms` of the page being visible: a background tab slows the build's timers, which is no reason to give up on it.
+function visibleTimeout(ms, expire) {
+  let left = ms;
+  let started = 0;
+  let timer = 0;
+  const run = () => {
+    started = performance.now();
+    timer = setTimeout(expire, left);
+  };
+  const onVisibility = () => {
+    if (!document.hidden) return run();
+    clearTimeout(timer);
+    left -= performance.now() - started;
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+  if (!document.hidden) run();
+  return () => {
+    clearTimeout(timer);
+    document.removeEventListener('visibilitychange', onVisibility);
+  };
+}
+
 async function mountSceneFigure() {
   const limit = new AbortController();
-  const timer = setTimeout(() => limit.abort(), SCENE_BUILD_LIMIT_MS);
+  const stopLimit = visibleTimeout(SCENE_BUILD_LIMIT_MS, () => limit.abort());
   const timedOut = new Promise((_, reject) => {
     limit.signal.addEventListener('abort', () => reject(new Error('the 3D scene took too long')));
   });
@@ -110,7 +132,7 @@ async function mountSceneFigure() {
     limit.abort();
     fallBack(error.message);
   } finally {
-    clearTimeout(timer);
+    stopLimit();
   }
 }
 

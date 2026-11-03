@@ -181,14 +181,13 @@ const below = (v, z) => v * 0.5 - z;
 assert.ok(below(0, -PUBLISHED.towerTop + PUBLISHED.seabed - pileEmbed) < below(front, -PUBLISHED.towerTop), "pile foot above the water's edge");
 assert.ok(below((PUBLISHED.monopileDiameter / 2 + 0.15 + scourRadius + 1) * Math.SQRT2, -PUBLISHED.towerTop + PUBLISHED.seabed) < below(front, -PUBLISHED.towerTop), "rock apron above the water's edge");
 
-// The farm's rotors must not sweep through each other or the one in focus, and its towers must stay out from behind the hero text.
+// The farm's rotors must not sweep through each other or the one in focus, and every turbine stands on the sea.
 const turbines = [[0, 0], ...ASSUMED.farm];
 turbines.forEach((a, i) => turbines.slice(i + 1).forEach((b) => {
   const [dx, dy] = seaPoint([a[0] - b[0], a[1] - b[1]]);
   assert.ok(Math.hypot(dx, dy) > 2 * PUBLISHED.tipRadius + 4, `turbines at ${a} and ${b} sweep through each other`);
 }));
 for (const [u, v] of ASSUMED.farm) {
-  assert.ok(u > -88 || v < -70, `turbine at ${[u, v]} stands behind the hero text`);
   assert.ok(u > left && u < right && v > back && v < front, `turbine at ${[u, v]} is off the sea`);
 }
 

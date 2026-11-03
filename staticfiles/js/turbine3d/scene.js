@@ -11,6 +11,8 @@ const SLOW_FRAME_MS = 24;
 const QUALITY_WINDOW = 45;
 const PIXEL_RATIO_STEPS = [1.5, 1.25];
 const CAMERA_DISTANCE = 1400;
+// How long to wait for the browser to hand back a lost GPU context before falling back to the static drawing.
+const RESTORE_WAIT_MS = 10000;
 const SPIN_RATE = (SPEC.assumed.spinRpm / 60) * Math.PI * 2;
 const THREE_FOLD = (Math.PI * 2) / 3;
 
@@ -327,12 +329,26 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       applyTheme();
       request();
     }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    // Browsers take the context away on a GPU reset or from a tab they are starving, and usually give it back.
+    let lostTimer = 0;
     canvas.addEventListener("webglcontextlost", (event) => {
       event.preventDefault();
-      if (frame) cancelAnimationFrame(frame);
+      if (frame > 0) cancelAnimationFrame(frame);
       frame = -1;
-      canvas.remove();
-      onLost();
+      lostTimer = setTimeout(() => {
+        canvas.remove();
+        onLost();
+      }, RESTORE_WAIT_MS);
+    });
+    // three.js re-uploads geometry and textures by itself; the environment maps were rendered on the GPU, so they are rendered again.
+    canvas.addEventListener("webglcontextrestored", () => {
+      clearTimeout(lostTimer);
+      for (const name of Object.keys(environments)) delete environments[name];
+      applyTheme();
+      sun.shadow.needsUpdate = true;
+      frame = 0;
+      lastFrame = 0;
+      request();
     });
 
     place(stateAt(0));

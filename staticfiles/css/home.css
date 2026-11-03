@@ -255,10 +255,11 @@ a:hover { opacity: .72; }
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
+  align-items: center;
   gap: 22px;
-  padding: 48px var(--gutter) 56px;
-  max-width: 640px;
+  padding: 48px var(--gutter);
+  text-align: center;
 }
 
 /* The hero text sits straight on the water. */
@@ -279,29 +280,46 @@ a:hover { opacity: .72; }
   white-space: nowrap;
 }
 
-.hero-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+/* A dot-matrix title, the data half of the page set over the energy half: the glyphs are filled with a grid of dots in the text colour, sized with the type. */
+.hero-title {
+  margin: 0;
+  font-weight: 800;
+  font-size: clamp(40px, 11vw, 200px);
+  line-height: 0.92;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: transparent;
+  background-image: radial-gradient(circle, var(--ink) 0 36%, transparent 40%);
+  background-size: max(3px, 0.045em) max(3px, 0.045em);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 16px rgba(8, 34, 48, 0.35));
+  /* It scans in from the left once, like a display coming on. */
+  -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  -webkit-mask-size: 300% 100%;
+  mask-size: 300% 100%;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+  animation: hero-scan 1.6s ease-out 0.2s both;
 }
 
-.hero-focus {
-  margin: 0;
-  font-size: 23px;
-  font-weight: 700;
-  color: var(--ink);
+@keyframes hero-scan {
+  from { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
 }
 
 .hero-sub {
   margin: 0;
-  font-size: 17px;
-  color: var(--muted);
+  font-size: clamp(17px, 1.6vw, 22px);
+  font-weight: 500;
+  color: var(--ink);
 }
 
 .socials {
   display: flex;
-  /* Lines the first logo up with the text above and close under it; the extra size is its touch target. */
-  margin: -22px 0 0 -10px;
+  /* Close under the text above; the extra size is the logos' touch target. */
+  margin-top: -22px;
 }
 
 .social {
@@ -567,17 +585,6 @@ a:hover { opacity: .72; }
   }
 }
 
-/* The focus line breaks after "Data Science" here, so it stops short of the main turbine's tower. */
-@media (max-width: 899px) {
-  .hero-focus { max-width: 13em; }
-}
-
-@media (max-width: 640px) {
-  .hero { padding-bottom: 24px; }
-  .hero-focus { font-size: 18px; }
-  .hero-sub { font-size: 15px; }
-}
-
 @media (max-width: 640px) {
   .card {
     min-height: 156px;
@@ -600,6 +607,7 @@ a:hover { opacity: .72; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .hero-title { animation: none; }
   .tb3d-canvas { transition: none; }
   .card-scene svg { transition: none; }
 }
