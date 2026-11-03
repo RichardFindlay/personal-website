@@ -28,7 +28,7 @@
   --tb-bg: #ffffff;
   --tb-beacon-op: 0.85;
 
-  --accent: #f5b301;
+  --accent: #d8b750;
   --on-accent: #1d252c;
   --mono: 'Space Mono', monospace;
   --gutter: clamp(20px, 3vw, 40px);
@@ -439,8 +439,9 @@ a:hover { opacity: .72; }
   mask-image: linear-gradient(180deg, transparent, #000 24%);
 }
 
-/* The battery drawing's sky already runs into the base colour, so a short melt keeps the container's roof clear. */
-.card-scene.scene-battery {
+/* The battery's sky and the wake's sea already run into their base colours, so a short melt keeps the drawings crisp under the words. */
+.card-scene.scene-battery,
+.card-scene.scene-wake {
   -webkit-mask-image: linear-gradient(180deg, transparent, #000 6%);
   mask-image: linear-gradient(180deg, transparent, #000 6%);
 }
