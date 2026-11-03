@@ -74,7 +74,6 @@
                     {% else %}
                     <img class="card-photo" src="{% static card.thumbnail %}" alt="">
                     {% endif %}
-                    <div class="card-fade"></div>
                     <div class="card-text">
                         <span class="card-label">{{ card.date|date:"M d, Y"|upper }}</span>
                         <span class="card-title">{{ card.title }}</span>
@@ -98,7 +97,6 @@
             <div class="cards">
                 <a class="card bg-ohmera" href="https://ohmera.ai" target="_blank" rel="noopener">
                     <div class="card-scene ohmera-scene" aria-hidden="true" data-svg="{% static 'image/thumbnails/ohmera/offshore-colour.svg' %}" data-js="{% static 'image/thumbnails/ohmera/offshore-colour.js' %}"></div>
-                    <div class="card-fade"></div>
                     <div class="card-text">
                         <span class="card-label">VENTURE</span>
                         <span class="card-title card-title--venture">ohmera.ai</span>
@@ -136,9 +134,12 @@
                 <h2 class="panel-title" aria-label="About me">AB0UT ME</h2>
                 <div class="panel-rule"></div>
             </div>
-            <div class="about-copy">
-                <p>I'm a data scientist with a strong foundation in renewable energy development, energy storage modelling, and data-driven innovation across the energy sector. Since 2017, I've worked on projects spanning wind farm development, hydro optimisation, and the application of AI and machine learning to accelerate decision-making in clean energy infrastructure.</p>
-                <p>My current focus lies in the convergence of advanced analytics and energy markets, particularly the optimisation of battery energy storage systems and the role of data science in enhancing short-term trading strategies.</p>
+            <div class="about-body">
+                <div class="about-copy">
+                    <p>I'm a data scientist with a strong foundation in renewable energy development, energy storage modelling, and data-driven innovation across the energy sector. Since 2017, I've worked on projects spanning wind farm development, hydro optimisation, and the application of AI and machine learning to accelerate decision-making in clean energy infrastructure.</p>
+                    <p>My current focus lies in the convergence of advanced analytics and energy markets, particularly the optimisation of battery energy storage systems and the role of data science in enhancing short-term trading strategies.</p>
+                </div>
+                <img class="about-photo" src="{% static 'image/Profile_Image.jpeg' %}" alt="Richard Findlay" width="1000" height="1000" loading="lazy">
             </div>
             <a href="{% url 'about' %}" class="more-link">FULL PROFILE →</a>
         </section>

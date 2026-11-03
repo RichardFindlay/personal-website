@@ -175,7 +175,7 @@ vec3 seaField(vec2 p) {
   return vec3(h, g);
 }`;
 
-function createWater(noise, shared, pileCount, seaFront) {
+function createWater(noise, shared, pileCount) {
   const surface = new THREE.MeshStandardMaterial({ color: "#1f5f7d", roughness: 0.14, metalness: 0, transparent: true, opacity: 0.74, depthWrite: false });
   surface.userData.selfFading = true;
   surface.onBeforeCompile = (shader) => {
@@ -186,8 +186,7 @@ function createWater(noise, shared, pileCount, seaFront) {
         "#include <begin_vertex>",
         `#include <begin_vertex>
 vSeaField = seaField(position.xy);
-// Waves die away into the front edge, which keeps it dead level on screen.
-transformed.z += vSeaField.x * smoothstep(0.0, 18.0, ${seaFront.toFixed(1)} - (position.x - position.y));
+transformed.z += vSeaField.x;
 vSeaPosition = position.xy;
 // The nearest pile is found per vertex, so the pixel shader measures only one distance. It is flat because blending two piles would draw a false ring along the line between their regions.
 vNearestPile = uPiles[0];
@@ -278,7 +277,7 @@ export const LOOKS = {
     exposure: 1.02,
     sun: { color: "#fff1dd", intensity: 2.7, direction: [0.28, -0.8, 0.82] },
     environment: { intensity: 0.62, zenith: "#8fb2d0", horizon: "#e0e7ea", ground: "#6a777d", key: "#ffffff", keyStrength: 5 },
-    water: { color: "#1c5f7c", opacity: 0.72, foam: "#f2f7f7", faded: 0.28 },
+    water: { color: "#1c5f7c", opacity: 0.72, foam: "#f2f7f7", faded: 0.6 },
     beacon: { emissive: 1.1, glow: 0.3 },
   },
   dark: {
@@ -304,7 +303,7 @@ function glowTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
-export function createMaterials({ pileRadius, piles, seaFront }) {
+export function createMaterials({ pileRadius, piles }) {
   const noise = noiseTexture();
   const shared = {
     uSeaTime: { value: 0 },
@@ -323,7 +322,7 @@ export function createMaterials({ pileRadius, piles, seaFront }) {
     material.userData.surface = surface;
     mats[key] = patchSurface(material, surface, noise);
   }
-  Object.assign(mats, { water: createWater(noise, shared, piles.length, seaFront), fish: createFish(shared) });
+  Object.assign(mats, { water: createWater(noise, shared, piles.length), fish: createFish(shared) });
   mats.beaconGlow = new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false });
 
   // A copy for fading parts: three.js does not carry onBeforeCompile across clone().

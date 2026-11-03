@@ -9,7 +9,6 @@
   --card: rgba(255,255,255,0.86);
   --grid: rgba(79,93,106,0.08);
   --glass: rgba(255,255,255,0.6);
-  --fade: linear-gradient(90deg, #ffffff 34%, rgba(255,255,255,0.82) 52%, rgba(255,255,255,0.05) 100%);
 
   --tb-top: #f7f9fa;
   --tb-paper: #f2f4f5;
@@ -46,7 +45,6 @@
   --card: rgba(8,10,12,0.82);
   --grid: rgba(201,210,218,0.07);
   --glass: rgba(0,0,0,0.58);
-  --fade: linear-gradient(90deg, #07090b 34%, rgba(7,9,11,0.8) 52%, rgba(7,9,11,0.08) 100%);
 
   --tb-top: #3b444d;
   --tb-paper: #323a42;
@@ -322,7 +320,7 @@ a:hover { opacity: .72; }
 .panels {
   display: flex;
   flex-direction: column;
-  gap: 320px;
+  gap: 112px;
   /* The last panel scrolls clear, so the page ends on the finished exploded view. */
   padding: 0 clamp(16px, 3vw, 40px) 100vh;
 }
@@ -408,15 +406,16 @@ a:hover { opacity: .72; }
 
 .cards::-webkit-scrollbar { display: none; }
 
+/* Portrait cards: the post's scene fills the card, with the words in white over the top of it. */
 .cards > * {
-  flex: 0 0 88%;
+  flex: 0 0 clamp(240px, 38%, 400px);
+  aspect-ratio: 4 / 5;
   scroll-snap-align: start;
 }
 
 .card {
   display: block;
   position: relative;
-  height: 180px;
   box-sizing: border-box;
   border: 1px solid var(--rule);
   border-radius: 6px;
@@ -425,14 +424,27 @@ a:hover { opacity: .72; }
   background: var(--card);
 }
 
-.card.bg-ohmera { background: #a9c8e1; }
-.card.bg-wake { background: #1d5a89; }
+/* Each card's base is the colour along the top of its drawing, so the drawing seems to run up the whole card. */
+.card.bg-ohmera { background: #4a82b6; }
+.card.bg-wake { background: #2d74a8; }
 .card.bg-cyclone { background: #1b3a62; }
-.card.bg-battery { background: #cfe1ef; }
+.card.bg-battery { background: #6f9fca; }
 
+/* The drawing fills the lower card and its top edge melts into the base. */
 .card-scene {
   position: absolute;
+  inset: auto 0 0;
+  height: 66%;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 24%);
+  mask-image: linear-gradient(180deg, transparent, #000 24%);
+}
+
+/* The cyclone's map has no plain sky to melt into, so it fills the whole card instead. */
+.card-scene.scene-cyclone {
   inset: 0;
+  height: auto;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .card-scene svg {
@@ -447,24 +459,16 @@ a:hover { opacity: .72; }
 
 .card-photo {
   position: absolute;
-  top: 0;
-  right: 0;
-  height: 100%;
-  width: 70%;
-  object-fit: cover;
-  object-position: right center;
-}
-
-.card-fade {
-  position: absolute;
   inset: 0;
-  background: var(--fade);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .card-text {
   position: relative;
-  padding: 18px 22px;
-  max-width: 62%;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  padding: 20px 22px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -474,14 +478,14 @@ a:hover { opacity: .72; }
   font-family: var(--mono);
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .card-title {
   font-size: 18px;
   font-weight: 600;
   line-height: 1.3;
-  color: var(--ink);
+  color: #ffffff;
 }
 
 .card-title--venture {
@@ -492,7 +496,7 @@ a:hover { opacity: .72; }
 .card-blurb {
   font-size: 13px;
   line-height: 1.45;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .project {
@@ -500,8 +504,7 @@ a:hover { opacity: .72; }
   justify-content: space-between;
   align-items: flex-start;
   box-sizing: border-box;
-  min-height: 180px;
-  padding: 18px 22px;
+  padding: 20px 22px;
   border: 1px solid var(--rule);
   border-radius: 6px;
   background: var(--card);
@@ -565,15 +568,33 @@ a:hover { opacity: .72; }
   border-bottom: 1px solid var(--accent);
 }
 
-.about-copy {
-  display: flex;
-  flex-wrap: wrap;
+/* The photo sets the height: the words stop where it does and fade out, and the full profile link carries on from there. */
+.about-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(180px, 28%, 300px);
   gap: 28px;
 }
 
+.about-copy {
+  height: 0;
+  min-height: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 3em), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 3em), transparent);
+}
+
+.about-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
 .about-copy p {
-  flex: 1 1 380px;
-  margin: 0;
+  margin: 0 0 1em;
   font-size: 16px;
   line-height: 1.7;
   color: var(--ink);
@@ -598,12 +619,28 @@ a:hover { opacity: .72; }
 }
 
 @media (max-width: 640px) {
-  .card {
-    min-height: 156px;
+  /* A thumbnail beside the opening lines: too small to set the height, so the words stop at a few lines of their own. */
+  .about-body {
+    grid-template-columns: minmax(0, 1fr) 96px;
+    align-items: start;
+    gap: 16px;
+  }
+  .about-copy {
     height: auto;
+    min-height: 0;
+    max-height: 10.2em;
   }
 
-  .card-text { max-width: 80%; }
+  .cards > * { flex-basis: 84%; }
+  /* Titles take more lines on a narrow card, so the drawing starts lower to keep clear of them. */
+  .card-scene { height: 52%; }
+  .card-title { font-size: 16px; }
+  .card-blurb {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 
   .nav { gap: 0 16px; }
   .nav-links { display: contents; }

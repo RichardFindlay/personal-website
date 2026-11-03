@@ -115,8 +115,8 @@ export const ASSUMED = {
     { centre: [0, 0], radius: 11, arc: 1.5, spread: [3, 3], depth: 9.5, rate: 0.13, count: 36, length: 2.7, tone: "#dfe8ec" },
   ],
 
-  // Sea in view axes: `u` runs across the screen (x + y) and `v` up and down it (x - y), so the line v = front reads as a level edge. Far wider and deeper than any screen shows; only that edge is ever seen. `front` keeps the rocks and pile foot on screen above it, and `pileEmbed` is how far the piles run on below the seabed (m).
-  seaTile: { left: -820, right: 700, back: -920, front: 70, pileEmbed: 4.2, scourRadius: 14.5, scourRocks: 1300 },
+  // Sea in view axes: `u` runs across the screen (x + y) and `v` up and down it (x - y). Far bigger than any screen shows, its edges included: the water runs off the bottom of the page at rest and fills the screen all the way round the camera's tour. `heroEdge` is the level line across the water that the hero's bottom edge is fitted to, which sets the size of the opening view, and `pileEmbed` is how far the piles run on below the seabed (m).
+  seaTile: { left: -820, right: 700, back: -920, front: 240, heroEdge: 70, pileEmbed: 4.2, scourRadius: 14.5, scourRocks: 1300 },
   // The rest of the wind farm as [u, v] from the foundation in focus: far closer than the usual seven rotor diameters, so more than one fits on a screen.
   farm: [
     [120, -150], [-174, -79], [320, -110], [260, -300], [60, -350], [-230, -310], [-420, -300],

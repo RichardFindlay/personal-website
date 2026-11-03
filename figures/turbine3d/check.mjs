@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { PUBLISHED } from "../../staticfiles/js/turbine3d/published.js";
 import { ASSUMED, seaPoint, stageRatio, hssOffset, hullHalfWidthAt } from "../../staticfiles/js/turbine3d/assumed.js";
-import { INTRO, heroCamera, introAmount, orbitAt, stateAt, project, toViewBox, viewAxis, VIEW_DIRECTION, CAMERA_SCALE, VIEWBOX } from "../../staticfiles/js/turbine3d/choreography.js";
+import { FARM_FADED, INTRO, heroCamera, introAmount, orbitAt, stateAt, project, toViewBox, viewAxis, VIEW_DIRECTION, CAMERA_SCALE, VIEWBOX } from "../../staticfiles/js/turbine3d/choreography.js";
 import { PART_TABLE } from "../../staticfiles/js/turbine3d/parts/table.js";
 import { sectionAt, RING_POINTS } from "../../staticfiles/js/turbine3d/parts/loft.js";
 import { WAVES } from "../../staticfiles/js/turbine3d/parts/waves.js";
@@ -129,7 +129,7 @@ close(end.baseFade, 0.15, 1e-9, "baseFade at p=1");
 assert.equal(start.seaFocus, 0);
 assert.equal(end.seaFocus, 1);
 assert.equal(start.farmFade, 1);
-assert.equal(end.farmFade, 0);
+assert.equal(end.farmFade, FARM_FADED);
 
 // Every part starts coming apart together just after the rotor stops, and all are fully apart before the bird's eye view.
 const moving = PART_TABLE.filter((part) => part.channel);
@@ -143,9 +143,9 @@ for (const part of moving) {
 close(stateAt(0.2).explode.cover, 0.648, 1e-9, "c channel at 0.2");
 close(stateAt(0.2).explode.gear, 0.352, 1e-9, "d channel at 0.2");
 
-const { front, left, right, back, pileEmbed, scourRadius } = ASSUMED.seaTile;
-const seaEdge = [front / 2, -front / 2, -PUBLISHED.towerTop];
-// Resting camera, read off a desktop and a phone: the water's front edge lands exactly on `edge`, and the sea runs past every side of the screen, up behind the nav included.
+const { front, left, right, back, heroEdge } = ASSUMED.seaTile;
+const heroLine = [heroEdge / 2, -heroEdge / 2, -PUBLISHED.towerTop];
+// Resting camera, read off a desktop and a phone: the water's hero line lands exactly on `edge`, and the sea runs past every side of the screen, up behind the nav and down off the bottom.
 for (const { screenW, figureHeight, top, edge } of [
   { screenW: 1400, figureHeight: 944, top: 10, edge: 870 },
   { screenW: 375, figureHeight: 756, top: 66, edge: 694 },
@@ -153,7 +153,8 @@ for (const { screenW, figureHeight, top, edge } of [
   const meet = Math.min(screenW / VIEWBOX.width, figureHeight / VIEWBOX.height);
   const camera = heroCamera({ figureHeight, meet, top, edge, width: screenW });
   const screenY = (point) => figureHeight / 2 + meet * (toViewBox(point, camera)[1] - VIEWBOX.height / 2);
-  close(screenY(seaEdge), edge, 1e-6, "water ends on the hero edge");
+  close(screenY(heroLine), edge, 1e-6, "hero line on the hero edge");
+  assert.ok(screenY([front / 2, -front / 2, -PUBLISHED.towerTop]) > figureHeight, "sea runs off the bottom of the screen");
   const scale = meet * camera.zoom;
   assert.ok(left * C * scale < -(screenW / 2 + camera.shiftX), "sea reaches the left of the screen");
   assert.ok(right * C * scale > screenW / 2 - camera.shiftX, "sea reaches the right of the screen");
@@ -170,7 +171,7 @@ for (const [width, height] of [[375, 812], [768, 1024], [943, 798], [1280, 720],
   const scale = frame.meet * camera.zoom;
   const mainX = width / 2 + camera.shiftX;
   close((mainX + (mainX + REAR[0] * C * scale)) / 2 / width, 0.425, 1e-9, `${width}x${height}: pair centred`);
-  close(screenY(seaEdge), frame.edge, 1e-6, `${width}x${height}: water ends on the hero edge`);
+  close(screenY(heroLine), frame.edge, 1e-6, `${width}x${height}: hero line on the hero edge`);
   const [rearX, rearY] = seaPoint(REAR);
   assert.ok(screenY([rearX + ASSUMED.raised.rearTop, rearY, ASSUMED.raised.top + ASSUMED.instruments.cups.height]) >= frame.top - 1e-6, `${width}x${height}: rear nacelle under the top of the frame`);
 }
@@ -180,11 +181,6 @@ const wide = { screenW: 5120, figureHeight: 1384, top: 10, edge: 1310 };
 const wideScale = heroCamera({ figureHeight: wide.figureHeight, meet: wide.figureHeight / VIEWBOX.height, top: wide.top, edge: wide.edge, width: wide.screenW }).zoom * (wide.figureHeight / VIEWBOX.height);
 assert.ok(left * C * wideScale < -(wide.screenW * 0.7), "sea reaches the left of a 32:9 screen");
 assert.ok(right * C * wideScale > wide.screenW * 0.3, "sea reaches the right of a 32:9 screen");
-
-// Nothing under the water may show below its front edge: on screen the lowest things are the pile foot and the far side of the rock apron, whose biggest rocks sit a metre proud.
-const below = (v, z) => v * 0.5 - z;
-assert.ok(below(0, -PUBLISHED.towerTop + PUBLISHED.seabed - pileEmbed) < below(front, -PUBLISHED.towerTop), "pile foot above the water's edge");
-assert.ok(below((PUBLISHED.monopileDiameter / 2 + 0.15 + scourRadius + 1) * Math.SQRT2, -PUBLISHED.towerTop + PUBLISHED.seabed) < below(front, -PUBLISHED.towerTop), "rock apron above the water's edge");
 
 // The farm's rotors must not sweep through each other or the one in focus, and every turbine stands on the sea.
 const turbines = [[0, 0], ...ASSUMED.farm];
@@ -198,19 +194,30 @@ for (const [u, v] of ASSUMED.farm) {
 
 assert.deepEqual(project([1, 0, 0]), [Math.sqrt(3) / 2, 0.5]);
 
-// The scroll tour leaves from and returns to the resting view for the finished diagram, and water fills the screen all the way round while it can still be seen.
+// The scroll tour leaves from and returns to the resting view for the finished diagram, and water fills the whole screen at every point down the page.
 assert.deepEqual(orbitAt(0), [0, 0]);
 assert.deepEqual(orbitAt(0.73), [0, 0]);
 assert.deepEqual(orbitAt(1), [0, 0]);
-assert.ok(Math.asin(viewAxis(0, orbitAt(0.36))[2]) > (80 * Math.PI) / 180, "the tour reaches a bird's eye view");
-for (let p = 0.05; p < 0.36; p += 0.01) {
-  assert.ok(viewAxis(0, orbitAt(p))[2] > viewAxis(0)[2], `the tour only climbs on its way to the bird's eye view, not down to a side view, at p=${p.toFixed(2)}`);
+assert.ok(Math.asin(viewAxis(0, orbitAt(0.42))[2]) > (80 * Math.PI) / 180, "the tour looks almost straight down from the far side");
+// Above the resting view from the moment it sets off until it is back home: it never drops to a side view.
+for (let p = 0.13; p < 0.72; p += 0.01) {
+  assert.ok(viewAxis(0, orbitAt(p))[2] > viewAxis(0)[2], `the tour stays above the resting view at p=${p.toFixed(2)}`);
+}
+// One full turn round the turbine in one direction, ending a whole turn on from where it set off.
+close(orbitAt(0.72 - 1e-9)[0], -2 * Math.PI, 1e-6, "the tour turns a full circle");
+for (let p = 0.12; p + 0.01 < 0.72; p += 0.01) {
+  assert.ok(orbitAt(p + 0.01)[0] < orbitAt(p)[0], `the camera keeps turning the same way at p=${p.toFixed(2)}`);
+}
+// It keeps moving through each view rather than settling on it: over 0.005 of progress it turns more than half a degree.
+for (const p of [0.27, 0.42, 0.57]) {
+  const [a, b] = [orbitAt(p), orbitAt(p + 0.005)];
+  assert.ok(Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])) > (0.5 * Math.PI) / 180, `the camera passes through its view at p=${p} without stopping`);
 }
 for (const [screenW, screenH] of [[375, 812], [1440, 900], [1920, 1080]]) {
   const figureHeight = screenH - 56;
   const meet = Math.min(screenW / VIEWBOX.width, figureHeight / VIEWBOX.height);
   const rest = heroCamera({ figureHeight, meet, top: 10, edge: screenH - 118, width: screenW });
-  for (let p = 0.04; p <= 0.74; p += 0.01) {
+  for (let p = 0; p <= 1; p += 0.01) {
     const state = stateAt(p, rest);
     const [ax, ay, az] = viewAxis(0, state.orbit);
     const flat = Math.hypot(ax, ay);
@@ -223,12 +230,12 @@ for (const [screenW, screenH] of [[375, 812], [1440, 900], [1920, 1080]]) {
       const along = (-PUBLISHED.towerTop - point[2]) / az;
       const [x, y] = [point[0] + ax * along, point[1] + ay * along];
       const [u, v] = [x + y, x - y];
-      if (state.seaFocus > 0) assert.ok(u >= left && u <= right && v >= back && v <= front, `${screenW}x${screenH}: screen corner (${px}, ${py}) leaves the water at p=${p.toFixed(2)}: u ${u.toFixed(0)}, v ${v.toFixed(0)}`);
+      assert.ok(u >= left && u <= right && v >= back && v <= front, `${screenW}x${screenH}: screen corner (${px}, ${py}) leaves the water at p=${p.toFixed(2)}: u ${u.toFixed(0)}, v ${v.toFixed(0)}`);
     }
   }
 }
 
-// The opening move ends exactly on the resting view, and at every step the water fills the screen down to the hero edge.
+// The opening move ends exactly on the resting view, and at every step the water fills the screen, down to the bottom.
 assert.equal(introAmount(0), 1);
 assert.equal(introAmount(INTRO.seconds), 0);
 assert.equal(introAmount(Infinity), 0);
@@ -262,7 +269,7 @@ for (const { screenW, screenH, nav, edge } of [
       const [x, y] = [point[0] + ax * along, point[1] + ay * along];
       return [x + y, x - y];
     };
-    for (const [px, py] of [[0, edge], [screenW, edge], [0, 0], [screenW, 0]]) {
+    for (const [px, py] of [[0, screenH], [screenW, screenH], [0, 0], [screenW, 0]]) {
       const [u, v] = onWater(px, py);
       assert.ok(v <= front + 1e-6 && v >= back && u >= left && u <= right, `${screenW}x${screenH}: screen corner (${px}, ${py}) leaves the water with ${amount} of the opening move left: u ${u}, v ${v}`);
     }

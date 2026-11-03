@@ -6,10 +6,14 @@ const NARROW_HERO_OFFSET = 22;
 const NARROW_WIDTH = 900;
 const THEME_KEY = 'theme';
 const SCENE_BUILD_LIMIT_MS = 15000;
-// The share of the scroll from one panel's middle to the next that the turbine holds still at each end before crossing.
-const ASIDE_HOLD = 0.3;
-// How far the turbine slides off the middle beside each panel, as a share of the screen's width.
-const ASIDE_SHARE = 0.29;
+// The card drawings are 1400 x 200 strips. By drawing folder: the x each portrait card centres on, and how far to drop the drawing down the card, in drawing units.
+const SCENE_HEIGHT = 200;
+const SCENE_FRAMES = {
+  battery: { x: 1250, drop: 0 },
+  cyclone: { x: 1270, drop: 0 },
+  wake: { x: 1150, drop: 30 },
+  ohmera: { x: 1150, drop: 0 },
+};
 
 const root = document.documentElement;
 const figure = document.querySelector('.stage-figure');
@@ -18,7 +22,6 @@ const nav = document.querySelector('.nav');
 const hero = document.querySelector('.hero');
 const foot = document.querySelector('.stage-foot');
 const themeButton = document.querySelector('.theme-btn');
-const panels = [...document.querySelectorAll('.panel')];
 
 let renderTurbine = () => {};
 let frameQueued = false;
@@ -31,28 +34,7 @@ function heroFrame() {
     top: nav.offsetHeight + 10,
     edge: Math.max(bottom, foot.getBoundingClientRect().top - 12),
     width: window.innerWidth,
-    aside: asideShift(),
   };
-}
-
-// The turbine zigzags down the page behind the panels: left of the first, right of the next and so on while each is near the middle of the screen, crossing over between them, and back in the middle for the finished diagram. A narrow screen keeps it in the middle. Keys are [page y of the screen's middle, shift].
-function asideShift() {
-  const y = window.scrollY;
-  const middle = window.innerHeight / 2;
-  const reach = window.innerWidth < NARROW_WIDTH ? 0 : window.innerWidth * ASIDE_SHARE;
-  const keys = [[middle, 0]];
-  panels.forEach((panel, i) => {
-    const rect = panel.getBoundingClientRect();
-    keys.push([(rect.top + rect.bottom) / 2 + y, i % 2 ? reach : -reach]);
-  });
-  keys.push([keys[keys.length - 1][0] + window.innerHeight * 0.6, 0]);
-  const probe = y + middle;
-  const next = keys.findIndex(([at]) => at > probe);
-  if (next < 0) return 0;
-  if (next === 0) return keys[0][1];
-  const [[a, from], [b, to]] = [keys[next - 1], keys[next]];
-  const t = (probe - a) / (b - a);
-  return from + (to - from) * ease((t - ASIDE_HOLD) / (1 - 2 * ASIDE_HOLD));
 }
 
 function update() {
@@ -213,11 +195,21 @@ document.querySelectorAll('.panel').forEach((panel) => {
 });
 
 // Each card scene: fetched once the page is up; its script animates the
-// drawing while the card is on screen.
+// drawing while the card is on screen. The drawings are wide strips with the
+// subject towards the right, so a portrait card frames each one on its subject.
 document.querySelectorAll('.card-scene').forEach((scene) => {
+  const frame = SCENE_FRAMES[scene.dataset.svg.split('/').at(-2)];
   fetch(scene.dataset.svg)
     .then((r) => (r.ok ? r.text() : Promise.reject(new Error('scene ' + r.status))))
-    .then((svg) => { scene.insertAdjacentHTML('beforeend', svg); return import(scene.dataset.js); })
+    .then((svg) => {
+      scene.insertAdjacentHTML('beforeend', svg);
+      if (frame) {
+        const drawing = scene.querySelector('svg');
+        drawing.setAttribute('viewBox', `${frame.x - SCENE_HEIGHT} ${-frame.drop} ${SCENE_HEIGHT * 2} ${SCENE_HEIGHT}`);
+        drawing.setAttribute('preserveAspectRatio', 'xMidYMax slice');
+      }
+      return import(scene.dataset.js);
+    })
     .then(() => requestAnimationFrame(() => scene.classList.add('in')))
     .catch(() => {});
 });

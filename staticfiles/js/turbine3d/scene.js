@@ -101,7 +101,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     sun.shadow.camera.far = 2000;
     scene.add(sun, sun.target);
 
-    const { mats, shared, fadeCopy, applyLook } = createMaterials({ pileRadius: SPEC.published.monopileDiameter / 2, piles: [[0, 0], ...SPEC.assumed.farm.map(seaPoint)], seaFront: SPEC.assumed.seaTile.front });
+    const { mats, shared, fadeCopy, applyLook } = createMaterials({ pileRadius: SPEC.published.monopileDiameter / 2, piles: [[0, 0], ...SPEC.assumed.farm.map(seaPoint)] });
 
     const entries = [];
     const spinning = [];
@@ -360,7 +360,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     canvas.classList.add("is-ready");
     request();
 
-    // `rest` is 1 at the top of the page and `frame` the hero's px on screen: the rotor's top, where the water ends and the width of a wide screen, plus `aside`, how far to slide the turbine off centre beside the panel being read.
+    // `rest` is 1 at the top of the page and `frame` the hero's px on screen: the rotor's top, where the water ends and the width of a wide screen.
     return (next, rest = 0, frame = null) => {
       if (!rendered && next > 0) introTime = Infinity;
       rendered = true;
@@ -368,7 +368,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       if (frame) {
         heroFrame = frame;
         fitHero();
-        heroShift = (assembled?.shiftX ?? 0) * rest + frame.aside;
+        heroShift = (assembled?.shiftX ?? 0) * rest;
         heroRest = rest;
       }
       request();

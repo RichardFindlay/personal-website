@@ -26,7 +26,7 @@ const CAMERA = {
   exploded: { target: [2.6, 0, 11], zoom: 17.5 },
 };
 
-const SEA_EDGE = project([ASSUMED.seaTile.front / 2, -ASSUMED.seaTile.front / 2, -PUBLISHED.towerTop])[1];
+const HERO_EDGE = project([ASSUMED.seaTile.heroEdge / 2, -ASSUMED.seaTile.heroEdge / 2, -PUBLISHED.towerTop])[1];
 
 // The pair the hero is composed around is the turbine in focus and the one behind it, the farm's second.
 const [REAR_U, REAR_V] = ASSUMED.farm[1];
@@ -38,11 +38,11 @@ const PAIR_CENTRE = 0.425;
 // Below this, on a phone, the pair stops shrinking with the width and lets its outer blades run off the sides.
 const MIN_SCALE = 1.9;
 
-// The resting camera for a hero frame, in px down the figure: the water's front edge exactly on `edge`, and the pair grown with the screen `width`, centred on PAIR_CENTRE, until the rear nacelle reaches `top`.
+// The resting camera for a hero frame, in px down the figure: the water's hero line exactly on `edge`, and the pair grown with the screen `width`, centred on PAIR_CENTRE, until the rear nacelle reaches `top`.
 export function heroCamera({ figureHeight, meet, top, edge, width }) {
-  const scale = Math.max(MIN_SCALE, Math.min(width * WIDTH_SCALE, (edge - top) / (SEA_EDGE - REAR_NACELLE_TOP)));
+  const scale = Math.max(MIN_SCALE, Math.min(width * WIDTH_SCALE, (edge - top) / (HERO_EDGE - REAR_NACELLE_TOP)));
   const shiftX = width * (PAIR_CENTRE - 0.5) - (REAR_U * C * scale) / 2;
-  return { target: [0, 0, (edge - figureHeight / 2) / scale - SEA_EDGE], zoom: scale / meet, shiftX };
+  return { target: [0, 0, (edge - figureHeight / 2) / scale - HERO_EDGE], zoom: scale / meet, shiftX };
 }
 
 export function toViewBox(point, camera) {
@@ -62,21 +62,37 @@ const REST_ELEVATION = Math.atan2(VIEW_DIRECTION[2], Math.hypot(VIEW_DIRECTION[0
 
 const DEGREES = Math.PI / 180;
 
-// The camera's tour of the turbine as it comes apart: [progress, azimuth, elevation] away from the resting view, in degrees. It rises to look straight down as everything draws apart, comes round behind for the drivetrain, and is home for the finished diagram. Azimuths stay on the side of the turbine with sea behind it.
+// The camera's tour of the turbine as it comes apart: [progress, azimuth, elevation] away from the resting view, in degrees. It holds the resting view until the camera has drawn back, then makes one full turn round the turbine at a steady pace, rising to look almost straight down from the far side and coming back down to the resting view, a whole turn on, for the finished diagram.
 const ORBIT = [
-  [0.04, 0, 0],
-  [0.36, 0, 47],
-  [0.56, -75, -7],
-  [0.72, 0, 0],
+  [0.12, 0, 0],
+  [0.27, -90, 20],
+  [0.42, -180, 47],
+  [0.57, -270, 20],
+  [0.72, -360, 0],
 ];
 
-// The [azimuth, elevation] the tour has reached, in radians, easing to a stop at each view.
+// How fast each view is changing at each key, in degrees per unit of progress: still at the two ends, and elsewhere set by its neighbours so the camera passes through without pausing.
+const ORBIT_RATES = ORBIT.map((key, i) => {
+  if (i === 0 || i === ORBIT.length - 1) return [0, 0];
+  const [before, after] = [ORBIT[i - 1], ORBIT[i + 1]];
+  return [1, 2].map((j) => (after[j] - before[j]) / (after[0] - before[0]));
+});
+
+// Cubic Hermite between two keys, at `t` 0 to 1 across a span `span` of progress.
+const hermite = (a, b, rateA, rateB, t, span) => {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * a + (t3 - 2 * t2 + t) * span * rateA + (-2 * t3 + 3 * t2) * b + (t3 - t2) * span * rateB;
+};
+
+// The [azimuth, elevation] the tour has reached, in radians.
 export function orbitAt(p) {
   const next = ORBIT.findIndex(([at]) => at > p);
   if (next <= 0) return [0, 0];
   const [from, to] = [ORBIT[next - 1], ORBIT[next]];
-  const t = ease((p - from[0]) / (to[0] - from[0]));
-  return [lerp(from[1], to[1], t) * DEGREES, lerp(from[2], to[2], t) * DEGREES];
+  const span = to[0] - from[0];
+  const t = (p - from[0]) / span;
+  return [1, 2].map((j) => hermite(from[j], to[j], ORBIT_RATES[next - 1][j - 1], ORBIT_RATES[next][j - 1], t, span) * DEGREES);
 }
 
 // The unit direction towards the camera with that much of the opening move left and that far round the tour.
@@ -94,6 +110,9 @@ const CARRIERS = Object.fromEntries(PART_TABLE.map((part) => [part.key, part]));
 // Where a part has moved to, in nacelle axes, for a set of channel values.
 export const displacement = (part, explode) =>
   part.explode.map((value, i) => value * explode[part.key] + (part.carriedBy ? CARRIERS[part.carriedBy].explode[i] * explode[part.carriedBy] : 0));
+
+// How strongly the rest of the farm still shows once the turbine in focus has come apart.
+export const FARM_FADED = 0.35;
 
 // The scroll progress at which the rotor has stopped and the turbine starts coming apart.
 export const EXPLODE_START = 0.08;
@@ -128,6 +147,7 @@ export function stateAt(progress, assembled = CAMERA.assembled) {
     // How far the sea has faded to its backdrop strength behind the exploded parts, which each theme sets.
     seaFocus: apart(0.22),
     orbit: orbitAt(p),
-    farmFade: 1 - ease(p / 0.16),
+    // The rest of the farm stays in the background, faded back, as this one comes apart.
+    farmFade: 1 - ease(p / 0.16) * (1 - FARM_FADED),
   };
 }
