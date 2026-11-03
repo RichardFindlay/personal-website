@@ -401,8 +401,9 @@ export function buildSea(spec, mats) {
   const bedZ = seaZ + published.seabed;
   const random = seeded(5021);
 
-  const sand = linear("#c9b58c");
-  const sandDark = linear("#a8966f");
+  // Seen only through 20 m of water, so already shifted to the blue-green that depth leaves, not the tan of dry sand.
+  const sand = linear("#7f9a92");
+  const sandDark = linear("#647f79");
 
   const addMesh = (geometry, material) => kit.object(new THREE.Mesh(geometry, material));
   const spanU = tile.right - tile.left;

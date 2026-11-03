@@ -284,7 +284,7 @@ export const LOOKS = {
   dark: {
     exposure: 1.18,
     sun: { color: "#ffc9a0", intensity: 1.5, direction: [0.05, -0.95, 0.42] },
-    environment: { intensity: 0.85, zenith: "#2f4a78", horizon: "#a27c78", ground: "#141d2a", key: "#b6c9ee", keyStrength: 3 },
+    environment: { intensity: 0.85, zenith: "#2f4a78", horizon: "#56688a", ground: "#141d2a", key: "#b6c9ee", keyStrength: 3 },
     water: { color: "#163e58", opacity: 0.82, foam: "#b5c4d2", faded: 0.62 },
     beacon: { emissive: 7, glow: 1 },
   },
