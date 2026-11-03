@@ -9,7 +9,7 @@ const SCENE_BUILD_LIMIT_MS = 15000;
 // The card drawings are 1400 x 200 strips. By drawing folder: the x each portrait card centres on, and how far to drop the drawing down the card, in drawing units.
 const SCENE_HEIGHT = 200;
 const SCENE_FRAMES = {
-  battery: { x: 1250, drop: 0 },
+  battery: { x: 1250, drop: 24 },
   cyclone: { x: 1270, drop: 0 },
   wake: { x: 1150, drop: 30 },
   ohmera: { x: 1150, drop: 0 },

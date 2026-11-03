@@ -439,6 +439,12 @@ a:hover { opacity: .72; }
   mask-image: linear-gradient(180deg, transparent, #000 24%);
 }
 
+/* The battery drawing's sky already runs into the base colour, so a short melt keeps the container's roof clear. */
+.card-scene.scene-battery {
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 6%);
+  mask-image: linear-gradient(180deg, transparent, #000 6%);
+}
+
 /* The cyclone's map has no plain sky to melt into, so it fills the whole card instead. */
 .card-scene.scene-cyclone {
   inset: 0;
