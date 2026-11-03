@@ -264,14 +264,15 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
         root.position.set(...displacement(part, state.explode));
         root.visible = !part.revealedBy || state.explode[part.revealedBy] > 0;
       }
-      setFade(fading.base, state.baseFade);
-      // Once it starts to ghost the tower draws after the water, or its depth would punch a hole through the faded sea.
-      for (const mesh of fading.base.meshes) mesh.renderOrder = state.baseFade < 1 ? 7 : 1;
-      for (const twin of fading.base.twins) twin.renderOrder = state.baseFade < 1 ? 6 : 0;
+      // Once a tower ghosts it draws after the water, or its depth would punch a see-through hole in the sea.
+      for (const [group, amount] of [[fading.base, state.baseFade], [fading.farm, state.farmFade]]) {
+        setFade(group, amount);
+        for (const mesh of group.meshes) mesh.renderOrder = amount < 1 ? 7 : 1;
+        for (const twin of group.twins) twin.renderOrder = amount < 1 ? 6 : 0;
+      }
       const seaFade = 1 - state.seaFocus * (1 - seaFaded);
       // The seabed goes faster than the water, so the faded backdrop stays blue instead of sandy.
       setFade(fading.sea, seaFade * seaFade);
-      setFade(fading.farm, state.farmFade);
       shared.uSeaFade.value = seaFade;
       // Exploded parts would throw huge ghost shadows across the faded backdrop as the camera tours them.
       seaSurface.receiveShadow = state.seaFocus < 0.9;
@@ -359,7 +360,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     canvas.classList.add("is-ready");
     request();
 
-    // `rest` is 1 at the top of the page and `frame` the hero's px on screen: the rotor's top, where the water ends and the width of a wide screen.
+    // `rest` is 1 at the top of the page and `frame` the hero's px on screen: the rotor's top, where the water ends and the width of a wide screen, plus `aside`, how far to slide the turbine off centre beside the panel being read.
     return (next, rest = 0, frame = null) => {
       if (!rendered && next > 0) introTime = Infinity;
       rendered = true;
@@ -367,7 +368,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       if (frame) {
         heroFrame = frame;
         fitHero();
-        heroShift = (assembled?.shiftX ?? 0) * rest;
+        heroShift = (assembled?.shiftX ?? 0) * rest + frame.aside;
         heroRest = rest;
       }
       request();

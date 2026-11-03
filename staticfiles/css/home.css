@@ -132,12 +132,6 @@ a:hover { opacity: .72; }
   left: var(--gutter);
   right: var(--gutter);
   bottom: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
   pointer-events: none;
 }
 
@@ -156,21 +150,6 @@ a:hover { opacity: .72; }
   background: var(--accent);
 }
 
-.steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 22px;
-}
-
-.step {
-  color: var(--faint);
-  font-weight: 400;
-}
-
-.step.is-active {
-  color: var(--ink);
-  font-weight: 700;
-}
 
 .content {
   position: relative;
@@ -249,9 +228,10 @@ a:hover { opacity: .72; }
 
 /* The hero fills the screen down to the progress strip, where the water ends. */
 .hero {
-  --foot-h: 62px;
+  --foot-h: 36px;
   min-height: max(560px, calc(100vh - var(--nav-h, 56px) - var(--foot-h)));
-  margin-bottom: var(--foot-h);
+  /* Keeps the first panel just below the fold. */
+  margin-bottom: calc(var(--foot-h) + 28px);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -310,7 +290,8 @@ a:hover { opacity: .72; }
 }
 
 .hero-sub {
-  margin: 0;
+  /* The title's capitals have no descenders, so its line box leaves empty space below them. */
+  margin: -14px 0 0;
   font-size: clamp(17px, 1.6vw, 22px);
   font-weight: 500;
   color: var(--ink);
@@ -366,6 +347,31 @@ a:hover { opacity: .72; }
   gap: 14px;
 }
 
+.track-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.track-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.track-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .panel-num {
   font-family: var(--mono);
   font-size: 11px;
@@ -390,16 +396,27 @@ a:hover { opacity: .72; }
   background: var(--rule);
 }
 
+/* A side-scrolling row: the next card peeks in at the edge so it reads as more to see. */
 .cards {
   display: flex;
-  flex-direction: column;
   gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.cards::-webkit-scrollbar { display: none; }
+
+.cards > * {
+  flex: 0 0 88%;
+  scroll-snap-align: start;
 }
 
 .card {
   display: block;
   position: relative;
-  height: 156px;
+  height: 180px;
   box-sizing: border-box;
   border: 1px solid var(--rule);
   border-radius: 6px;
@@ -478,18 +495,13 @@ a:hover { opacity: .72; }
   color: var(--muted);
 }
 
-.projects {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
 .project {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  min-height: 64px;
-  padding: 0 18px;
+  align-items: flex-start;
+  box-sizing: border-box;
+  min-height: 180px;
+  padding: 18px 22px;
   border: 1px solid var(--rule);
   border-radius: 6px;
   background: var(--card);
@@ -505,7 +517,7 @@ a:hover { opacity: .72; }
 
 .project-name {
   font-weight: 600;
-  font-size: 15px;
+  font-size: 22px;
 }
 
 .project-host {
@@ -593,8 +605,6 @@ a:hover { opacity: .72; }
 
   .card-text { max-width: 80%; }
 
-  .projects { grid-template-columns: minmax(0, 1fr); }
-
   .nav { gap: 0 16px; }
   .nav-links { display: contents; }
   /* Fills the row beside the theme icon so the links always start the next one. */
@@ -602,7 +612,6 @@ a:hover { opacity: .72; }
   .nav-link { order: 1; padding: 14px 0; }
   .theme-btn { margin-left: 0; }
 
-  .step:not(.is-active) { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

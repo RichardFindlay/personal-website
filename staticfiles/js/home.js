@@ -6,15 +6,19 @@ const NARROW_HERO_OFFSET = 22;
 const NARROW_WIDTH = 900;
 const THEME_KEY = 'theme';
 const SCENE_BUILD_LIMIT_MS = 15000;
+// The share of the scroll from one panel's middle to the next that the turbine holds still at each end before crossing.
+const ASIDE_HOLD = 0.3;
+// How far the turbine slides off the middle beside each panel, as a share of the screen's width.
+const ASIDE_SHARE = 0.29;
 
 const root = document.documentElement;
 const figure = document.querySelector('.stage-figure');
 const bar = document.querySelector('.stage-bar-fill');
-const steps = [...document.querySelectorAll('.step')].map((el) => ({ el, from: Number(el.dataset.from) }));
 const nav = document.querySelector('.nav');
 const hero = document.querySelector('.hero');
 const foot = document.querySelector('.stage-foot');
 const themeButton = document.querySelector('.theme-btn');
+const panels = [...document.querySelectorAll('.panel')];
 
 let renderTurbine = () => {};
 let frameQueued = false;
@@ -27,7 +31,28 @@ function heroFrame() {
     top: nav.offsetHeight + 10,
     edge: Math.max(bottom, foot.getBoundingClientRect().top - 12),
     width: window.innerWidth,
+    aside: asideShift(),
   };
+}
+
+// The turbine zigzags down the page behind the panels: left of the first, right of the next and so on while each is near the middle of the screen, crossing over between them, and back in the middle for the finished diagram. A narrow screen keeps it in the middle. Keys are [page y of the screen's middle, shift].
+function asideShift() {
+  const y = window.scrollY;
+  const middle = window.innerHeight / 2;
+  const reach = window.innerWidth < NARROW_WIDTH ? 0 : window.innerWidth * ASIDE_SHARE;
+  const keys = [[middle, 0]];
+  panels.forEach((panel, i) => {
+    const rect = panel.getBoundingClientRect();
+    keys.push([(rect.top + rect.bottom) / 2 + y, i % 2 ? reach : -reach]);
+  });
+  keys.push([keys[keys.length - 1][0] + window.innerHeight * 0.6, 0]);
+  const probe = y + middle;
+  const next = keys.findIndex(([at]) => at > probe);
+  if (next < 0) return 0;
+  if (next === 0) return keys[0][1];
+  const [[a, from], [b, to]] = [keys[next - 1], keys[next]];
+  const t = (probe - a) / (b - a);
+  return from + (to - from) * ease((t - ASIDE_HOLD) / (1 - 2 * ASIDE_HOLD));
 }
 
 function update() {
@@ -44,8 +69,6 @@ function update() {
   figure.style.transform = usingScene ? '' : shift;
   bar.style.width = `${(p * 100).toFixed(1)}%`;
 
-  const active = steps.filter((step) => p >= step.from).at(-1);
-  for (const step of steps) step.el.classList.toggle('is-active', step === active);
 
   renderTurbine(p, rest, usingScene ? heroFrame() : null);
 }
@@ -167,6 +190,27 @@ window.addEventListener('load', () => {
 measureNav();
 update();
 mountFigure();
+
+// The arrows beside a card row step it one card along, and grey out at either end.
+document.querySelectorAll('.panel').forEach((panel) => {
+  const track = panel.querySelector('.cards');
+  const buttons = panel.querySelectorAll('.track-btn');
+  if (!track) return;
+  const sync = () => {
+    const end = track.scrollWidth - track.clientWidth - 1;
+    buttons.forEach((button) => {
+      button.disabled = Number(button.dataset.step) < 0 ? track.scrollLeft <= 1 : track.scrollLeft >= end;
+    });
+  };
+  buttons.forEach((button) => button.addEventListener('click', () => {
+    const step = track.firstElementChild.offsetWidth + parseFloat(getComputedStyle(track).columnGap);
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    track.scrollBy({ left: Number(button.dataset.step) * step, behavior: smooth ? 'smooth' : 'auto' });
+  }));
+  track.addEventListener('scroll', sync, { passive: true });
+  window.addEventListener('resize', sync);
+  sync();
+});
 
 // Each card scene: fetched once the page is up; its script animates the
 // drawing while the card is on screen.

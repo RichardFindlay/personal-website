@@ -18,13 +18,6 @@
     <div class="stage-figure" data-svg="{% static 'image/turbine/turbine.svg' %}"></div>
     <div class="stage-foot">
         <div class="stage-bar"><div class="stage-bar-fill"></div></div>
-        <div class="steps">
-            <span class="step is-active" data-from="0">00 ASSEMBLED</span>
-            <span class="step" data-from="0.12">01 ROTOR OFF</span>
-            <span class="step" data-from="0.3">02 NACELLE OPEN</span>
-            <span class="step" data-from="0.46">03 DRIVETRAIN</span>
-            <span class="step" data-from="0.74">04 EXPLODED</span>
-        </div>
     </div>
 </div>
 
@@ -47,7 +40,7 @@
     <section id="top" class="hero">
         <h1 class="hero-name">Richard Findlay</h1>
         <p class="hero-title">Energy &amp; AI</p>
-        <p class="hero-sub">I like to build things</p>
+        <p class="hero-sub">Technologies, Markets and Policy</p>
         <div class="socials">
             <a href="https://x.com/__RichFind__" target="_blank" rel="noopener" class="social" aria-label="X">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"></path></svg>
@@ -68,6 +61,10 @@
                 <span class="panel-num">01</span>
                 <h2 class="panel-title" aria-label="Blog posts">BL0G P0STS</h2>
                 <div class="panel-rule"></div>
+                <div class="track-nav">
+                    <button type="button" class="track-btn" data-step="-1" aria-label="Scroll back">&larr;</button>
+                    <button type="button" class="track-btn" data-step="1" aria-label="Scroll on">&rarr;</button>
+                </div>
             </div>
             <div class="cards">
                 {% for card in cards %}
@@ -93,17 +90,21 @@
                 <span class="panel-num">02</span>
                 <h2 class="panel-title" aria-label="Other projects">0THER PR0JECTS</h2>
                 <div class="panel-rule"></div>
-            </div>
-            <a class="card bg-ohmera" href="https://ohmera.ai" target="_blank" rel="noopener">
-                <div class="card-scene ohmera-scene" aria-hidden="true" data-svg="{% static 'image/thumbnails/ohmera/offshore-colour.svg' %}" data-js="{% static 'image/thumbnails/ohmera/offshore-colour.js' %}"></div>
-                <div class="card-fade"></div>
-                <div class="card-text">
-                    <span class="card-label">VENTURE</span>
-                    <span class="card-title card-title--venture">ohmera.ai</span>
-                    <span class="card-blurb">New age energy market intelligence</span>
+                <div class="track-nav">
+                    <button type="button" class="track-btn" data-step="-1" aria-label="Scroll back">&larr;</button>
+                    <button type="button" class="track-btn" data-step="1" aria-label="Scroll on">&rarr;</button>
                 </div>
-            </a>
-            <div class="projects">
+            </div>
+            <div class="cards">
+                <a class="card bg-ohmera" href="https://ohmera.ai" target="_blank" rel="noopener">
+                    <div class="card-scene ohmera-scene" aria-hidden="true" data-svg="{% static 'image/thumbnails/ohmera/offshore-colour.svg' %}" data-js="{% static 'image/thumbnails/ohmera/offshore-colour.js' %}"></div>
+                    <div class="card-fade"></div>
+                    <div class="card-text">
+                        <span class="card-label">VENTURE</span>
+                        <span class="card-title card-title--venture">ohmera.ai</span>
+                        <span class="card-blurb">New age energy market intelligence</span>
+                    </div>
+                </a>
                 <a class="project" href="https://www.donder.co.uk" target="_blank" rel="noopener">
                     <span class="project-text"><span class="project-name">donder</span><span class="project-host">donder.co.uk</span></span>
                     <span class="project-arrow" aria-hidden="true">↗</span>
