@@ -6,12 +6,12 @@ const NARROW_HERO_OFFSET = 22;
 const NARROW_WIDTH = 900;
 const THEME_KEY = 'theme';
 const SCENE_BUILD_LIMIT_MS = 15000;
-// The card drawings are 1400 x 200 strips. By drawing folder: the x each portrait card centres on, and how far to drop the drawing down the card, in drawing units.
+// The card drawings are 1400 x 200 strips. By drawing folder: the x each portrait card centres on, how far to drop the drawing down the card, in drawing units, and, for a drawing that fills its whole card, `fill`: the share of the card's height the strip itself takes. The view then reaches up over the strip's top edge into the drawing beyond it, at the same scale and position.
 const SCENE_HEIGHT = 200;
 const SCENE_FRAMES = {
   battery: { x: 1250, drop: 24 },
   cyclone: { x: 1270, drop: 0 },
-  wake: { x: 1150, drop: 30 },
+  wake: { x: 1150, drop: 30, fill: 0.66 },
   ohmera: { x: 1150, drop: 0 },
 };
 
@@ -205,7 +205,8 @@ document.querySelectorAll('.card-scene').forEach((scene) => {
       scene.insertAdjacentHTML('beforeend', svg);
       if (frame) {
         const drawing = scene.querySelector('svg');
-        drawing.setAttribute('viewBox', `${frame.x - SCENE_HEIGHT} ${-frame.drop} ${SCENE_HEIGHT * 2} ${SCENE_HEIGHT}`);
+        const height = SCENE_HEIGHT / (frame.fill ?? 1);
+        drawing.setAttribute('viewBox', `${frame.x - height} ${SCENE_HEIGHT - frame.drop - height} ${height * 2} ${height}`);
         drawing.setAttribute('preserveAspectRatio', 'xMidYMax slice');
       }
       return import(scene.dataset.js);

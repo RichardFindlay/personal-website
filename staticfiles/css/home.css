@@ -439,15 +439,15 @@ a:hover { opacity: .72; }
   mask-image: linear-gradient(180deg, transparent, #000 24%);
 }
 
-/* The battery's sky and the wake's sea already run into their base colours, so a short melt keeps the drawings crisp under the words. */
-.card-scene.scene-battery,
-.card-scene.scene-wake {
+/* The battery's sky already runs into its base colour, so a short melt keeps the drawing crisp under the words. */
+.card-scene.scene-battery {
   -webkit-mask-image: linear-gradient(180deg, transparent, #000 6%);
   mask-image: linear-gradient(180deg, transparent, #000 6%);
 }
 
-/* The cyclone's map has no plain sky to melt into, so it fills the whole card instead. */
-.card-scene.scene-cyclone {
+/* These fill the whole card instead: the cyclone's map has no plain sky to melt into, and the wake's turbine runs its blade on up to the top. */
+.card-scene.scene-cyclone,
+.card-scene.scene-wake {
   inset: 0;
   height: auto;
   -webkit-mask-image: none;
