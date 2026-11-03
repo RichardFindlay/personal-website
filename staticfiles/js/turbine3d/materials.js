@@ -202,7 +202,6 @@ uniform float uFarmFade;
 uniform sampler2D uSeaNoise;
 uniform float uPileRadius;
 flat in vec2 vNearestPile;
-uniform float uSeaFade;
 uniform vec3 uFoamColor;
 varying vec2 vSeaPosition;
 varying vec3 vSeaField;
@@ -222,9 +221,9 @@ float wisps = texture2D(uSeaNoise, skew * vec2(0.083, 0.047) - vec2(0.007, 0.005
 float crest = smoothstep(0.68, 0.98, seaNow.x / 4.2 + (breakup - 0.5) * 1.1) * smoothstep(0.52, 0.68, wisps);
 // Foam rings on the farm's piles go with the turbines; the one in focus keeps its own at the origin.
 float ring = smoothstep(2.4, 0.2, pileDistance + (wisps - 0.5) * 5.0) * (dot(vNearestPile, vNearestPile) < 1.0 ? 1.0 : uFarmFade);
-foam = clamp(crest * 0.72 + ring * 0.85, 0.0, 1.0) * uSeaFade;
+foam = clamp(crest * 0.72 + ring * 0.85, 0.0, 1.0);
 diffuseColor.rgb = mix(diffuseColor.rgb, uFoamColor, foam);
-diffuseColor.a = mix(diffuseColor.a, 0.96, foam) * uSeaFade;`,
+diffuseColor.a = mix(diffuseColor.a, 0.96, foam);`,
       )
       .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.85, foam);")
       .replace(
@@ -265,8 +264,8 @@ float fishRadius = aOrbit.w + 0.35 * sin(uSeaTime * 0.31 + aMotion.w);
 transformed = vec3(aOrbit.xy + fishRadius * vec2(cos(fishAngle), sin(fishAngle)) + fishTurn * fishBody.xy, aOrbit.z + 0.25 * sin(uSeaTime * 0.43 + aMotion.w) + fishBody.z);`,
       );
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nuniform float uSeaFade;\nvarying float vClarity;")
-      .replace("#include <map_fragment>", "#include <map_fragment>\ndiffuseColor.a *= vClarity * uSeaFade;");
+      .replace("#include <common>", "#include <common>\nvarying float vClarity;")
+      .replace("#include <map_fragment>", "#include <map_fragment>\ndiffuseColor.a *= vClarity;");
   };
   return fish;
 }
@@ -277,14 +276,14 @@ export const LOOKS = {
     exposure: 1.02,
     sun: { color: "#fff1dd", intensity: 2.7, direction: [0.28, -0.8, 0.82] },
     environment: { intensity: 0.62, zenith: "#8fb2d0", horizon: "#e0e7ea", ground: "#6a777d", key: "#ffffff", keyStrength: 5 },
-    water: { color: "#1c5f7c", opacity: 0.72, foam: "#f2f7f7", faded: 0.6 },
+    water: { color: "#1c5f7c", opacity: 0.72, foam: "#f2f7f7" },
     beacon: { emissive: 1.1, glow: 0.3 },
   },
   dark: {
     exposure: 1.18,
     sun: { color: "#ffc9a0", intensity: 1.5, direction: [0.05, -0.95, 0.42] },
     environment: { intensity: 0.85, zenith: "#2f4a78", horizon: "#56688a", ground: "#141d2a", key: "#b6c9ee", keyStrength: 3 },
-    water: { color: "#163e58", opacity: 0.82, foam: "#b5c4d2", faded: 0.62 },
+    water: { color: "#163e58", opacity: 0.82, foam: "#b5c4d2" },
     beacon: { emissive: 7, glow: 1 },
   },
 };
@@ -312,7 +311,6 @@ export function createMaterials({ pileRadius, piles }) {
     uWaves: { value: WAVES.map((wave) => new THREE.Vector4(wave.kx, wave.ky, wave.omega, wave.amplitude)) },
     uPileRadius: { value: pileRadius },
     uPiles: { value: piles.map(([x, y]) => new THREE.Vector2(x, y)) },
-    uSeaFade: { value: 1 },
     uFoamColor: { value: new THREE.Color() },
   };
 

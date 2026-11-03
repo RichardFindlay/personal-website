@@ -107,7 +107,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     const spinning = [];
     const rotors = [];
     let seaSurface;
-    const fading = { base: { roots: [], materials: [], twins: [], meshes: [] }, sea: { roots: [], materials: [], twins: [], meshes: [] }, farm: { roots: [], materials: [], twins: [], meshes: [] } };
+    const fading = { base: { roots: [], materials: [], twins: [], meshes: [] }, farm: { roots: [], materials: [], twins: [], meshes: [] } };
     for (const part of PARTS) {
       await nextTask();
       checkpoint();
@@ -141,7 +141,6 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     const applyTheme = () => {
       const name = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
       const look = LOOKS[name];
-      seaFaded = look.water.faded;
       scene.environment = environmentFor(name);
       scene.environmentIntensity = look.environment.intensity;
       renderer.toneMappingExposure = look.exposure;
@@ -151,7 +150,6 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       applyLook(look);
     };
     const sunDirection = new THREE.Vector3();
-    let seaFaded = 1;
     applyTheme();
 
     figure.append(canvas);
@@ -270,12 +268,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
         for (const mesh of group.meshes) mesh.renderOrder = amount < 1 ? 7 : 1;
         for (const twin of group.twins) twin.renderOrder = amount < 1 ? 6 : 0;
       }
-      const seaFade = 1 - state.seaFocus * (1 - seaFaded);
-      // The seabed goes faster than the water, so the faded backdrop stays blue instead of sandy.
-      setFade(fading.sea, seaFade * seaFade);
-      shared.uSeaFade.value = seaFade;
-      // Exploded parts would throw huge ghost shadows across the faded backdrop as the camera tours them.
-      seaSurface.receiveShadow = state.seaFocus < 0.9;
+      seaSurface.receiveShadow = state.seaShadows;
       shared.uFarmFade.value = state.farmFade;
 
 

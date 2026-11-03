@@ -41,5 +41,5 @@ export const PART_TABLE = [
   { key: "blade2", channel: "b", carriedBy: "hub", explode: alongBlade(240, 11) },
   { key: "farm", channel: null, explode: [0, 0, 0], fade: "farm" },
   { key: "tower", channel: null, explode: [0, 0, 0], fade: "base" },
-  { key: "sea", channel: null, explode: [0, 0, 0], fade: "sea" },
+  { key: "sea", channel: null, explode: [0, 0, 0] },
 ];

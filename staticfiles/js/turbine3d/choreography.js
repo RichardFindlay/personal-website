@@ -144,8 +144,8 @@ export function stateAt(progress, assembled = CAMERA.assembled) {
     explode,
     spin: 1 - ease((p - 0.01) / (EXPLODE_START - 0.01)),
     baseFade: 1 - apart(0.22) * 0.85,
-    // How far the sea has faded to its backdrop strength behind the exploded parts, which each theme sets.
-    seaFocus: apart(0.22),
+    // The water stops catching shadows once the parts are well apart, or theirs would sprawl across it as the camera turns.
+    seaShadows: apart(0.22) < 0.9,
     orbit: orbitAt(p),
     // The rest of the farm stays in the background, faded back, as this one comes apart.
     farmFade: 1 - ease(p / 0.16) * (1 - FARM_FADED),

@@ -126,8 +126,8 @@ assert.equal(start.spin, 1);
 assert.equal(end.spin, 0);
 assert.equal(start.baseFade, 1);
 close(end.baseFade, 0.15, 1e-9, "baseFade at p=1");
-assert.equal(start.seaFocus, 0);
-assert.equal(end.seaFocus, 1);
+assert.equal(start.seaShadows, true);
+assert.equal(end.seaShadows, false);
 assert.equal(start.farmFade, 1);
 assert.equal(end.farmFade, FARM_FADED);
 
