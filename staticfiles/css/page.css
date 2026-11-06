@@ -1,0 +1,70 @@
+/* The inner pages built on the homepage's design: the bar, then panels on the plain page (home.css styles the panels). */
+.page .panels {
+  padding-top: 20px;
+  padding-bottom: 64px;
+}
+
+/* The full profile: the words run their whole length beside the photo instead of stopping at its foot. */
+.page .about-copy {
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* Every paragraph in full ink: the homepage greys the later ones only to lead into its fade. */
+.page .about-copy p { color: var(--ink); }
+
+/* The full list: every cover, in as many rows as it takes. */
+.page .book:nth-child(n) { display: block; }
+
+.contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.contact a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+}
+
+.courses {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.course {
+  display: grid;
+  grid-template-columns: 4ch minmax(0, 1fr);
+  gap: 16px;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.course-year {
+  padding-top: 3px;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.course a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+}

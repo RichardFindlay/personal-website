@@ -1,0 +1,260 @@
+/* Shared by every page: the colour tokens and the floating bar. home.css builds the homepage on top of this. */
+
+:root {
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --ink: #1d252c;
+  --muted: #56636e;
+  --faint: #a6b1bc;
+  --rule: rgba(79,93,106,0.18);
+  --card: rgba(255,255,255,0.86);
+  --grid: rgba(79,93,106,0.08);
+  --glass: rgba(255,255,255,0.6);
+
+  --tb-top: #f7f9fa;
+  --tb-paper: #f2f4f5;
+  --tb-s3: #dde3e8;
+  --tb-s2: #c6cfd7;
+  --tb-s1: #a6b1bc;
+  --tb-s0: #8592a0;
+  --tb-hi: #4f5d6a;
+  --tb-lit: #f5b301;
+  --tb-ink: #3c4852;
+  --tb-seaTop: #a9c8e1;
+  --tb-seaL: #7fa7c9;
+  --tb-seaR: #5f8db5;
+  --tb-seaEdge: #4f6f8c;
+  --tb-wave: #ffffff;
+  --tb-beacon: #e0402e;
+  --tb-bg: #ffffff;
+  --tb-beacon-op: 0.85;
+
+  --accent: #d8b750;
+  --on-accent: #1d252c;
+  --mono: 'Space Mono', monospace;
+  --gutter: clamp(20px, 3vw, 40px);
+}
+
+[data-theme=dark] {
+  color-scheme: dark;
+
+  --bg: #000000;
+  --ink: #eef2f5;
+  --muted: #a9b4be;
+  --faint: #5c6873;
+  --rule: rgba(201,210,218,0.16);
+  --card: rgba(8,10,12,0.82);
+  --grid: rgba(201,210,218,0.07);
+  --glass: rgba(0,0,0,0.58);
+
+  --tb-top: #3b444d;
+  --tb-paper: #323a42;
+  --tb-s3: #2a3138;
+  --tb-s2: #222930;
+  --tb-s1: #1b2127;
+  --tb-s0: #14191d;
+  --tb-hi: #9aa7b3;
+  --tb-lit: #f5b301;
+  --tb-ink: #c9d2da;
+  --tb-seaTop: #0e2236;
+  --tb-seaL: #0a1a2a;
+  --tb-seaR: #07131f;
+  --tb-seaEdge: #3d5a75;
+  --tb-wave: #4f7396;
+  --tb-beacon: #ff4d3d;
+  --tb-bg: #000000;
+  --tb-beacon-op: 1;
+}
+
+/* A floating bar: held the same distance off the top and both sides so the animation runs on round it. */
+.nav {
+  --nav-float: 12px;
+  position: sticky;
+  top: var(--nav-float);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: var(--nav-float) var(--nav-float) 0;
+  padding: 6px 22px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  isolation: isolate;
+}
+
+/* The bar's frosted glass, on its own layer so the words can be cut out of it: nav.js draws the name, and on a wide screen the links, into --etch-mask, a canvas the size of this layer, in the page's own font and at their places. */
+.nav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.1);
+}
+
+.nav.is-etched::before {
+  -webkit-mask: linear-gradient(#000 0 0), var(--etch-mask) no-repeat 0 0 / 100% 100%;
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0), var(--etch-mask) no-repeat 0 0 / 100% 100%;
+  mask-composite: exclude;
+}
+
+/* The cut's lower inside edge catches the light: the letters less the same letters raised half a pixel leave a hairline along each one's foot. */
+.nav.is-etched::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.6);
+  -webkit-mask: var(--etch-mask) no-repeat 0 0 / 100% 100%, var(--etch-mask) no-repeat 0 -0.5px / 100% 100%;
+  -webkit-mask-composite: source-out;
+  mask: var(--etch-mask) no-repeat 0 0 / 100% 100%, var(--etch-mask) no-repeat 0 -0.5px / 100% 100%;
+  mask-composite: subtract;
+}
+
+/* Cut through, the words show the sea itself. They stay in the page as text for reading, selecting and clicking. */
+.nav.is-etched .nav-brand { color: transparent; }
+.nav.is-etched-links .nav-link { color: transparent; }
+
+/* Under the pointer a cut word frosts over, a pale wash on the sea, since fading transparent text would show nothing. */
+.nav.is-etched .nav-brand:hover,
+.nav.is-etched-links .nav-link:hover { color: rgba(255, 255, 255, 0.55); opacity: 1; }
+
+/* The dark glass barely differs from the dark sea, so cut words are lost against it; at night they are plain light text again. */
+[data-theme="dark"] .nav.is-etched::before { -webkit-mask: none; mask: none; }
+[data-theme="dark"] .nav.is-etched::after { display: none; }
+[data-theme="dark"] .nav.is-etched .nav-brand { color: var(--ink); }
+[data-theme="dark"] .nav.is-etched-links .nav-link { color: var(--muted); }
+[data-theme="dark"] .nav.is-etched .nav-brand:hover { opacity: 0.72; }
+[data-theme="dark"] .nav.is-etched-links .nav-link:hover { opacity: 0.72; }
+
+.nav-brand {
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 14px 0;
+  transition: color 0.2s;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.nav-tools {
+  display: flex;
+  align-items: center;
+}
+
+.nav-link {
+  text-decoration: none;
+  color: var(--muted);
+  padding: 14px 8px;
+  transition: color 0.2s;
+}
+
+.theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* The extra width is the touch target; this keeps the icon in line with the bar's inner edge. */
+  margin: 0 -13px 0 6px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.theme-btn:hover { color: var(--ink); }
+
+.theme-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The menu button stands in for the links on a phone. */
+.menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin-right: -13px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.menu-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.menu-icon--close,
+.nav[data-open] .menu-icon--open { display: none; }
+.nav[data-open] .menu-icon--close { display: block; }
+
+.theme-icon--sun { display: none; }
+[data-theme="dark"] .theme-icon--sun { display: block; }
+[data-theme="dark"] .theme-icon--moon { display: none; }
+
+/* The bar's own hover dim, so pages without home.css get it too. */
+.nav-brand:hover,
+.nav-link:hover { opacity: 0.72; }
+
+@media (max-width: 899px) {
+  /* The links fold into a menu: a second floating card under the bar, over the page rather than pushing it down. */
+  .nav { flex-wrap: nowrap; }
+  .menu-btn { display: inline-flex; }
+  .theme-btn { margin-right: 0; }
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin: 0;
+    padding: 6px 22px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+  .nav[data-open] .nav-links { display: flex; }
+  .nav-link { padding: 14px 0; }
+  .nav-link + .nav-link { border-top: 1px solid var(--rule); }
+}

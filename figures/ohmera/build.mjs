@@ -271,6 +271,9 @@ const AX = ${JSON.stringify(AX)}, SIDE = [-AX[1], AX[0], 0];
 const stage = document.querySelector("${SCOPE}");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
+// On a page that has found itself slow (html.is-slow) the card moves only under the pointer.
+const host = stage.closest(".card") ?? stage;
+const resting = () => still.matches || (document.documentElement.classList.contains("is-slow") && !host.matches(":hover"));
 const slot = (g, layer, i) => [...g.querySelectorAll('[data-part="' + layer + '"] [data-blade="' + i + '"] [data-solid="blade"] > path')];
 const write = (els, paths) => {
   const values = paths ? [paths.fill, ...paths.shades, paths.top, paths.outline] : els.map(() => "");
@@ -354,14 +357,16 @@ function tick(now) {
     draw((now - t0) / 1000);
     crests((now - t0) / 1000);
   }
-  frame = visible && !still.matches ? requestAnimationFrame(tick) : 0;
+  frame = visible && !resting() ? requestAnimationFrame(tick) : 0;
 }
 draw(0, true);
 crests(0);
+const start = () => { if (visible && !frame && !resting()) frame = requestAnimationFrame(tick); };
 new IntersectionObserver((entries) => {
   visible = entries[entries.length - 1].isIntersecting;
-  if (visible && !frame && !still.matches) frame = requestAnimationFrame(tick);
+  start();
 }, { rootMargin: "120px 0px" }).observe(stage);
+host.addEventListener("pointerenter", start);
 `;
 
 // The scene's own rules, one per line so a backdrop can scope each to its element.

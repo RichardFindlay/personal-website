@@ -1,0 +1,543 @@
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--nav-h, 56px) + 16px);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+a { color: inherit; }
+a:hover { opacity: .72; }
+
+.glass {
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.1);
+}
+
+.stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  margin-bottom: -100vh;
+  z-index: 0;
+  overflow: hidden;
+  background-color: var(--bg);
+  background-image:
+    repeating-linear-gradient(30deg, var(--grid) 0 1px, transparent 1px 30px),
+    repeating-linear-gradient(150deg, var(--grid) 0 1px, transparent 1px 30px);
+}
+
+.stage-figure {
+  position: absolute;
+  top: 56px;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.stage-figure svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* scene.js sets top and height: the canvas runs on up behind the nav. */
+.tb3d-canvas {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  opacity: 0;
+  transition: opacity 0.7s ease;
+}
+
+.tb3d-canvas.is-ready {
+  opacity: 1;
+}
+
+/* Not drawn: home.js measures it as the lowest the hero's water may come. */
+.stage-foot {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  bottom: 22px;
+  height: 2px;
+  pointer-events: none;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+}
+
+/* The hero fills the screen down to the progress strip, where the water ends. */
+.hero {
+  --foot-h: 36px;
+  min-height: max(560px, calc(100vh - var(--nav-h, 56px) - var(--foot-h)));
+  /* Keeps the first panel just below the fold. */
+  margin-bottom: calc(var(--foot-h) + 28px);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 22px;
+  padding: 48px var(--gutter);
+  text-align: center;
+}
+
+/* The hero text sits straight on the water. */
+.sea-ready .hero {
+  --ink: #f7fbfd;
+  --muted: rgba(240, 248, 252, 0.88);
+  text-shadow: 0 1px 14px rgba(8, 34, 48, 0.55);
+}
+
+/* Off screen but still the page's one h1, for screen readers and search; the nav shows the name. */
+.hero-name {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A dot-matrix title, the data half of the page set over the energy half: the glyphs are filled with a grid of dots in the text colour, sized with the type. */
+.hero-title {
+  margin: 0;
+  font-weight: 800;
+  font-size: clamp(40px, 11vw, 200px);
+  line-height: 0.92;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: transparent;
+  background-image: radial-gradient(circle, var(--ink) 0 36%, transparent 40%);
+  background-size: max(3px, 0.045em) max(3px, 0.045em);
+  -webkit-background-clip: text;
+  background-clip: text;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 16px rgba(8, 34, 48, 0.35));
+  /* It scans in from the left once, like a display coming on. */
+  -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  -webkit-mask-size: 300% 100%;
+  mask-size: 300% 100%;
+  -webkit-mask-position: 0 0;
+  mask-position: 0 0;
+  animation: hero-scan 1.6s ease-out 0.2s both;
+}
+
+@keyframes hero-scan {
+  from { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+}
+
+.hero-sub {
+  /* The title's capitals have no descenders, so its line box leaves empty space below them. */
+  margin: -14px 0 0;
+  font-size: clamp(17px, 1.6vw, 22px);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.socials {
+  display: flex;
+  /* Close under the text above; the extra size is the logos' touch target. */
+  margin-top: -22px;
+}
+
+.social {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 44px;
+  color: var(--ink);
+}
+
+.social svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.panels {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+  /* A short run past the last panel, so the page ends with the finished exploded view showing below it. */
+  padding: 0 clamp(16px, 3vw, 40px) 19vh;
+}
+
+.panel {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: clamp(20px, 3vw, 36px);
+  background: var(--glass);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.track-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.track-btn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+/* Drawn, not a text arrow: a glyph sits on the font's baseline, a little below the circle's centre. */
+.track-btn svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.track-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.panel-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--on-accent);
+  background: var(--accent);
+  padding: 3px 7px;
+  border-radius: 3px;
+}
+
+.panel-title {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 19px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.panel-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+/* A side-scrolling row: the next card peeks in at the edge so it reads as more to see. */
+.cards {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.cards::-webkit-scrollbar { display: none; }
+
+/* Portrait cards: the post's scene fills the card, with the words in white over the top of it. */
+.cards > * {
+  flex: 0 0 clamp(240px, 38%, 400px);
+  aspect-ratio: 4 / 5;
+  scroll-snap-align: start;
+}
+
+.card {
+  display: block;
+  position: relative;
+  box-sizing: border-box;
+  border-radius: 6px;
+  overflow: hidden;
+  text-decoration: none;
+  background: var(--card);
+}
+
+/* Each card's base is the colour along the top of its drawing, so the drawing seems to run up the whole card. */
+.card.bg-ohmera { background: #4a82b6; }
+.card.bg-wake { background: #2d74a8; }
+.card.bg-cyclone { background: #1b3a62; }
+.card.bg-battery { background: #6f9fca; }
+/* donder's own teal-to-green, as its site draws it. */
+.card.bg-donder { background: linear-gradient(120deg, #07a3b2 20.08%, #d9ecc7 80.96%); }
+/* Office Tea's own sage. */
+.card.bg-officetea { background: #4f7a6a; }
+
+/* The drawing fills the lower card and its top edge melts into the base. */
+.card-scene {
+  position: absolute;
+  inset: auto 0 0;
+  height: 66%;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 24%);
+  mask-image: linear-gradient(180deg, transparent, #000 24%);
+}
+
+/* The battery's sky already runs into its base colour, so a short melt keeps the drawing crisp under the words. */
+.card-scene.scene-battery {
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 6%);
+  mask-image: linear-gradient(180deg, transparent, #000 6%);
+}
+
+/* These fill the whole card instead: the cyclone's map has no plain sky to melt into, the wake's turbine runs its blade on up to the top, and donder's map and officetea's district are drawn for the whole card. */
+.card-scene.scene-cyclone,
+.card-scene.scene-wake,
+.card-scene.scene-donder,
+.card-scene.scene-officetea {
+  inset: 0;
+  height: auto;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.card-scene svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.card-scene.in svg { opacity: 1; }
+
+/* A page that has found itself slow (home.js adds is-slow) lets a card's drawing move only under the pointer; its script stops too. */
+.is-slow .card:not(:hover) .card-scene * { animation-play-state: paused; }
+
+/* The bar's frosted blur is a full backdrop pass every frame, so a slow page keeps the glass colour and drops the blur. */
+.is-slow .nav::before { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+.card-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-text {
+  position: relative;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  padding: 20px 22px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* A dark wash under the words, fading out below them, so white text reads on the paler cards. */
+  background: linear-gradient(180deg, rgba(8, 22, 34, 0.46), rgba(8, 22, 34, 0.4) 65%, rgba(8, 22, 34, 0));
+}
+
+.card-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #ffffff;
+}
+
+.card-title--venture {
+  font-size: 22px;
+  line-height: normal;
+}
+
+.card-blurb {
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.96);
+}
+
+/* One row of covers across the card, as many as fit at a readable size; the full list holds the rest. */
+.shelf {
+  --per-row: 6;
+  display: grid;
+  grid-template-columns: repeat(var(--per-row), minmax(0, 1fr));
+  gap: 16px;
+}
+
+.book:nth-child(n + 7) {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .shelf { --per-row: 4; }
+  .book:nth-child(n + 5) { display: none; }
+}
+
+@media (max-width: 640px) {
+  .shelf { --per-row: 3; gap: 10px; }
+  .book:nth-child(n + 4) { display: none; }
+}
+
+.book {
+  aspect-ratio: 2 / 3;
+  box-sizing: border-box;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--card);
+}
+
+.book-cover {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.more-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  border-bottom: 1px solid var(--accent);
+}
+
+.more-link--quiet {
+  align-self: flex-end;
+  min-height: 32px;
+  margin-top: -8px;
+  font-size: 11px;
+  color: var(--muted);
+  border-bottom: 0;
+  transition: color 0.2s;
+}
+
+.more-link--quiet:hover,
+.more-link--quiet:focus-visible {
+  color: var(--ink);
+}
+
+/* The photo sets the height: the words stop where it does and fade out, and the full profile link carries on from there. */
+.about-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(180px, 28%, 300px);
+  gap: 28px;
+}
+
+.about-copy {
+  height: 0;
+  min-height: 100%;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 3em), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 3em), transparent);
+}
+
+.about-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+
+.about-copy p {
+  margin: 0 0 1em;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.about-copy p + p { color: var(--muted); }
+
+/* The static fallback drawing stops being offset under this width, so a card keeps the hero text legible on it. */
+@media (max-width: 899px) {
+  .no-sea .hero {
+    min-height: 0;
+    justify-content: flex-start;
+    gap: 16px;
+    margin: 16px var(--gutter) 100vh;
+    padding: 24px;
+    background: var(--glass);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+    backdrop-filter: blur(10px) saturate(1.1);
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-sub { font-size: 15px; }
+
+  .panel-head { gap: 10px; }
+  .panel-title { font-size: 15px; }
+  .panel-num { font-size: 10px; padding: 2px 6px; }
+
+  /* One column: the photo across the panel, and under it a few smaller lines that fade into the full profile link. */
+  .about-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .about-photo {
+    order: -1;
+    aspect-ratio: 4 / 3;
+    object-position: 50% 30%;
+  }
+  .about-copy {
+    height: auto;
+    min-height: 0;
+    max-height: 12em;
+    font-size: 12.5px;
+  }
+  .about-copy p {
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+
+  .cards > * { flex-basis: 84%; }
+  /* Titles take more lines on a narrow card, so the drawing starts lower to keep clear of them. */
+  .card-scene { height: 52%; }
+  .card-title { font-size: 16px; }
+  .card-blurb {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .hero-title { animation: none; }
+  .tb3d-canvas { transition: none; }
+  .card-scene svg { transition: none; }
+}

@@ -40,7 +40,7 @@ else:
     DEBUG = False
 
 # ALLOWED_HOSTS = ['0.0.0.0', '127.0.0.1', '192.168.1.72']
-ALLOWED_HOSTS = ['0.0.0.0', '127.0.0.1', '192.168.1.72', 'www.richardfindlay.co.uk', 'richardfindlay.co.uk', 'personal-website-production-31ce.up.railway.app']
+ALLOWED_HOSTS = ['0.0.0.0', '127.0.0.1', 'localhost', '192.168.1.72', 'www.richardfindlay.co.uk', 'richardfindlay.co.uk', 'personal-website-production-31ce.up.railway.app']
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = False 
@@ -172,6 +172,11 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [ BASE_DIR / 'static' ]
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+# `collectstatic` (run at start-up, see the Procfile) writes hashed copies and the manifest beside the sources; with DEBUG on the plain names are served.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'mysite.staticfiles.HashedStaticFilesStorage'},
+}
 
 
 

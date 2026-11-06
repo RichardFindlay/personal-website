@@ -131,6 +131,9 @@ const DETAIL = ${JSON.stringify(ROTOR_DETAIL)};
 const stage = document.querySelector("${SCOPE}");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
+// On a page that has found itself slow (html.is-slow) the card moves only under the pointer.
+const host = stage.closest(".card") ?? stage;
+const resting = () => still.matches || (document.documentElement.classList.contains("is-slow") && !host.matches(":hover"));
 const yawing = svg.querySelector("[data-yawing]");
 // The phone shift is an SVG transform attribute, not CSS: Safari drops a CSS
 // transform on a <g> from children inserted after it applies, so the redrawn
@@ -178,7 +181,7 @@ function tick(now) {
     last = now; clock += dt;
     draw(dt);
   }
-  frame = visible && !still.matches ? requestAnimationFrame(tick) : 0;
+  frame = visible && !resting() ? requestAnimationFrame(tick) : 0;
 }
 // A still frame (reduced motion) holds the steered pose. The preview sets
 // data-at (seconds into the loop) to show any moment. Each time the card comes
@@ -187,10 +190,12 @@ const START = stage.dataset.at ? Number(stage.dataset.at) : still.matches ? outb
 clock = START;
 angle = 0.7;
 draw(0);
+const start = () => { if (visible && !frame && !resting() && !stage.dataset.hold) { last = -Infinity; clock = START; frame = requestAnimationFrame(tick); } };
 new IntersectionObserver((entries) => {
   visible = entries[entries.length - 1].isIntersecting;
-  if (visible && !frame && !still.matches && !stage.dataset.hold) { last = -Infinity; clock = START; frame = requestAnimationFrame(tick); }
+  start();
 }, { rootMargin: "120px 0px" }).observe(stage);
+host.addEventListener("pointerenter", start);
 `;
 
 // ── Styles: the ohmera.ai card's navy set, every rule scoped to the scene ───
