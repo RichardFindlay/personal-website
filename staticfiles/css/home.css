@@ -397,7 +397,7 @@ a:hover { opacity: .72; }
 .panels {
   display: flex;
   flex-direction: column;
-  gap: 112px;
+  gap: 56px;
   /* A short run past the last panel, so the page ends with the finished exploded view showing below it. */
   padding: 0 clamp(16px, 3vw, 40px) 19vh;
 }
