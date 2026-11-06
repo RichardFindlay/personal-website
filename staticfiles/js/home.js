@@ -17,7 +17,6 @@ const SCENE_FRAMES = {
 
 const root = document.documentElement;
 const figure = document.querySelector('.stage-figure');
-const bar = document.querySelector('.stage-bar-fill');
 const nav = document.querySelector('.nav');
 const hero = document.querySelector('.hero');
 const foot = document.querySelector('.stage-foot');
@@ -52,9 +51,6 @@ function update() {
     : `translateX(${(HERO_OFFSET * rest).toFixed(2)}%)`;
 
   figure.style.transform = usingScene ? '' : shift;
-  bar.style.width = `${(p * 100).toFixed(1)}%`;
-
-
   renderTurbine(p, rest, usingScene ? heroFrame() : null);
 }
 

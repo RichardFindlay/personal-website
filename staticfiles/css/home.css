@@ -125,29 +125,15 @@ a:hover { opacity: .72; }
   opacity: 1;
 }
 
+/* Not drawn: home.js measures it as the lowest the hero's water may come. */
 .stage-foot {
   position: absolute;
   left: var(--gutter);
   right: var(--gutter);
   bottom: 22px;
+  height: 2px;
   pointer-events: none;
 }
-
-.stage-bar {
-  height: 2px;
-  background: var(--rule);
-  position: relative;
-}
-
-.stage-bar-fill {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 0;
-  background: var(--accent);
-}
-
 
 .content {
   position: relative;
@@ -454,18 +440,28 @@ a:hover { opacity: .72; }
 }
 
 .track-btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
   padding: 0;
-  font-family: var(--mono);
-  font-size: 14px;
   color: var(--ink);
   background: var(--card);
   border: 1px solid var(--rule);
   border-radius: 50%;
   cursor: pointer;
+}
+
+/* Drawn, not a text arrow: a glyph sits on the font's baseline, a little below the circle's centre. */
+.track-btn svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .track-btn:disabled {
