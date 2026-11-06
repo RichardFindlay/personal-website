@@ -29,7 +29,7 @@ const CAMERA = {
 const HERO_EDGE = project([ASSUMED.seaTile.heroEdge / 2, -ASSUMED.seaTile.heroEdge / 2, -PUBLISHED.towerTop])[1];
 
 // The pair the hero is composed around is the turbine in focus and its partner in the next row back.
-const [, REAR_V] = ASSUMED.pair;
+const [REAR_U, REAR_V] = ASSUMED.pair;
 // The rear nacelle's highest point on screen, its roof instruments.
 const REAR_NACELLE_TOP = project([ASSUMED.raised.rearTop, 0, ASSUMED.raised.top + ASSUMED.instruments.cups.height])[1] + REAR_V * S;
 // The turbine in focus stands a little right of the middle, with the farm's rows falling away either side. Its size is set by the farm's spacing: grown with the screen, one row's spacing spans 55% of the screen's width, so the view keeps its balance whatever the spacing.
@@ -40,10 +40,24 @@ const WIDTH_SCALE = ROW_SPAN / (ASSUMED.farmGrid.row * C);
 // Below this, on a phone, the pair stops shrinking with the width and lets its outer blades run off the sides.
 const MIN_SCALE = 1.9;
 
+// A narrow screen still shows two whole turbines: the one in focus and its partner up to the left, each rotor's tips
+// (out from its tower by the overhang) kept PAIR_MARGIN inside the screen. Extents are projected units from the focused tower.
+const ROTOR_SPAN = PUBLISHED.tipRadius * C;
+const ROTOR_AHEAD = PUBLISHED.overhang * C;
+const PAIR_LEFT = -REAR_U * C + ROTOR_SPAN - ROTOR_AHEAD;
+const PAIR_RIGHT = ROTOR_SPAN + ROTOR_AHEAD;
+const PAIR_MARGIN = 12;
+
 // The resting camera for a hero frame, in px down the figure: the water's hero line exactly on `edge`, the turbine in focus at MAIN_AT across the screen `width`, and the farm grown with it until the rear nacelle reaches `top`.
+// Where the pair would not fit whole, it shrinks until it does, and the turbine in focus moves right of MAIN_AT as far as its partner needs.
+// The smaller pair also rises off the hero line (by `lift` px), into the tall screen's middle, the more the further it shrank.
+const PAIR_LIFT = 0.45;
 export function heroCamera({ figureHeight, meet, top, edge, width }) {
-  const scale = Math.max(MIN_SCALE, Math.min(width * WIDTH_SCALE, (edge - top) / (HERO_EDGE - REAR_NACELLE_TOP)));
-  return { target: [0, 0, (edge - figureHeight / 2) / scale - HERO_EDGE], zoom: scale / meet, shiftX: width * (MAIN_AT - 0.5) };
+  const grown = Math.max(MIN_SCALE, Math.min(width * WIDTH_SCALE, (edge - top) / (HERO_EDGE - REAR_NACELLE_TOP)));
+  const scale = Math.min(grown, (width - 2 * PAIR_MARGIN) / (PAIR_LEFT + PAIR_RIGHT));
+  const mainX = Math.min(Math.max(width * MAIN_AT, PAIR_MARGIN + PAIR_LEFT * scale), width - PAIR_MARGIN - PAIR_RIGHT * scale);
+  const lift = figureHeight * PAIR_LIFT * (1 - scale / grown);
+  return { target: [0, 0, (edge - lift - figureHeight / 2) / scale - HERO_EDGE], zoom: scale / meet, shiftX: mainX - width / 2, lift };
 }
 
 export function toViewBox(point, camera) {

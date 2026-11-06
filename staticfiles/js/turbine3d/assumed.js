@@ -3,7 +3,7 @@
 // typical 5 MW-class practice and none of them is a published value of this turbine.
 // Positions named `s` run along the shaft axis in metres, 0 where it crosses the yaw axis, positive upwind.
 // The sea, named here so the farm can be laid out inside it (see `seaTile` below).
-const SEA_TILE = { left: -1000, right: 700, back: -920, front: 420, heroEdge: 70, pileEmbed: 4.2, scourRadius: 14.5, scourRocks: 1300 };
+const SEA_TILE = { left: -1000, right: 700, back: -1000, front: 420, heroEdge: 70, pileEmbed: 4.2, scourRadius: 14.5, scourRocks: 1300 };
 
 // The farm is a regular grid: turbines 190 m apart along a row and the rows 250 m apart, the usual 4 by 6 rotor diameters drawn closer so several fit on a screen. The grid is laid out for the site's prevailing wind and stands turned 20 degrees from today's, which every rotor has yawed to face (+x), as a real farm's turbines turn to the wind of the day. The turbine in focus stands in the front row, which runs on to its left towards the camera and away to its right; the other rows lie behind it, reaching off to both sides.
 const FARM_GRID = { row: 250, along: 190, turn: -20 };

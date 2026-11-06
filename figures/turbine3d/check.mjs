@@ -158,7 +158,7 @@ for (const { screenW, figureHeight, top, edge } of [
   const meet = Math.min(screenW / VIEWBOX.width, figureHeight / VIEWBOX.height);
   const camera = heroCamera({ figureHeight, meet, top, edge, width: screenW });
   const screenY = (point) => figureHeight / 2 + meet * (toViewBox(point, camera)[1] - VIEWBOX.height / 2);
-  close(screenY(heroLine), edge, 1e-6, "hero line on the hero edge");
+  close(screenY(heroLine), edge - camera.lift, 1e-6, "hero line on the hero edge, raised by the narrow pair's lift");
   assert.ok(screenY([front / 2, -front / 2, -PUBLISHED.towerTop]) > figureHeight, "sea runs off the bottom of the screen");
   const scale = meet * camera.zoom;
   assert.ok(left * C * scale < -(screenW / 2 + camera.shiftX), "sea reaches the left of the screen");
@@ -174,12 +174,18 @@ for (const [width, height] of [[375, 812], [768, 1024], [943, 798], [1280, 720],
   const screenY = (point) => frame.figureHeight / 2 + frame.meet * (toViewBox(point, camera)[1] - VIEWBOX.height / 2);
   const scale = frame.meet * camera.zoom;
   const mainX = width / 2 + camera.shiftX;
-  close(mainX / width, 0.58, 1e-9, `${width}x${height}: turbine in focus at 58%`);
+  // Both whole rotors of the pair on screen, and the turbine in focus at 58% wherever that leaves them whole.
+  const rotorX = (u) => mainX + (u + PUBLISHED.overhang) * C * scale;
+  const reach = PUBLISHED.tipRadius * C * scale;
+  assert.ok(rotorX(0) + reach <= width - 12 + 1e-6, `${width}x${height}: turbine in focus whole`);
+  assert.ok(rotorX(REAR[0]) - reach >= 12 - 1e-6, `${width}x${height}: its partner whole`);
+  if (width >= 768) close(mainX / width, 0.58, 1e-9, `${width}x${height}: turbine in focus at 58%`);
   if (width >= 768) {
     const towers = ASSUMED.farm.map(([u]) => mainX + u * C * scale).filter((x) => x > 0 && x < width);
     assert.ok(towers.some((x) => x < mainX) && towers.some((x) => x > mainX), `${width}x${height}: farm on both sides of the turbine in focus`);
   }
-  close(screenY(heroLine), frame.edge, 1e-6, `${width}x${height}: hero line on the hero edge`);
+  close(screenY(heroLine), frame.edge - camera.lift, 1e-6, `${width}x${height}: hero line on the hero edge, less the lift`);
+  if (width >= 768) assert.equal(camera.lift, 0, `${width}x${height}: no lift once the pair fits at full size`);
   const [rearX, rearY] = seaPoint(REAR);
   assert.ok(screenY([rearX + ASSUMED.raised.rearTop, rearY, ASSUMED.raised.top + ASSUMED.instruments.cups.height]) >= frame.top - 1e-6, `${width}x${height}: rear nacelle under the top of the frame`);
 }
