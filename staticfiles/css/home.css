@@ -167,14 +167,51 @@ a:hover { opacity: .72; }
   flex-wrap: wrap;
   margin: var(--nav-float) var(--nav-float) 0;
   padding: 6px 22px;
-  background: var(--glass);
   border: 1px solid var(--rule);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   font-family: var(--mono);
   font-size: 12px;
   letter-spacing: 0.08em;
+  isolation: isolate;
 }
+
+/* The bar's frosted glass, on its own layer so the name can be cut out of it: home.js draws the name into --brand-mask, in the page's own font, and places it over the name. */
+.nav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.1);
+}
+
+.nav.is-etched::before {
+  -webkit-mask: linear-gradient(#000 0 0), var(--brand-mask) no-repeat var(--brand-x) var(--brand-y) / var(--brand-w) var(--brand-h);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0), var(--brand-mask) no-repeat var(--brand-x) var(--brand-y) / var(--brand-w) var(--brand-h);
+  mask-composite: exclude;
+}
+
+/* The cut's lower inside edge catches the light: the letters less the same letters raised half a pixel leave a hairline along each one's foot. */
+.nav.is-etched::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.6);
+  -webkit-mask: var(--brand-mask) no-repeat var(--brand-x) var(--brand-y) / var(--brand-w) var(--brand-h), var(--brand-mask) no-repeat var(--brand-x) calc(var(--brand-y) - 0.5px) / var(--brand-w) var(--brand-h);
+  -webkit-mask-composite: source-out;
+  mask: var(--brand-mask) no-repeat var(--brand-x) var(--brand-y) / var(--brand-w) var(--brand-h), var(--brand-mask) no-repeat var(--brand-x) calc(var(--brand-y) - 0.5px) / var(--brand-w) var(--brand-h);
+  mask-composite: subtract;
+}
+
+/* Cut through, the name shows the sea itself. It stays in the page as text for reading and selecting. */
+.nav.is-etched .nav-brand { color: transparent; }
 
 .nav-brand {
   text-decoration: none;

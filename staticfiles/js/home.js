@@ -68,6 +68,39 @@ function measureNav() {
   root.style.setProperty('--nav-h', `${navBottom()}px`);
 }
 
+// The name is cut out of the bar's glass. A CSS mask cannot use the page's web font, so the name is drawn
+// onto a canvas in that font, at its exact size, spacing and place, and the glass layer is masked by it.
+// Until that works the name stays ordinary text.
+const brand = nav.querySelector('.nav-brand');
+async function etchBrand() {
+  await document.fonts.ready;
+  if (!brand.textContent.trim()) return;
+  const range = document.createRange();
+  range.selectNodeContents(brand);
+  const box = range.getBoundingClientRect();
+  const bar = nav.getBoundingClientRect();
+  const style = getComputedStyle(brand);
+  const ratio = Math.ceil(window.devicePixelRatio || 1);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(box.width * ratio) + ratio * 2;
+  canvas.height = Math.ceil(box.height * ratio);
+  const context = canvas.getContext('2d');
+  if (!context || !('letterSpacing' in context)) return;
+  context.scale(ratio, ratio);
+  context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  context.letterSpacing = style.letterSpacing;
+  const metrics = context.measureText(brand.textContent);
+  context.fillText(brand.textContent, 0, metrics.fontBoundingBoxAscent + (box.height - metrics.fontBoundingBoxAscent - metrics.fontBoundingBoxDescent) / 2);
+  // The mask sits in the glass layer's own box, which starts inside the bar's border.
+  const border = parseFloat(getComputedStyle(nav).borderLeftWidth);
+  nav.style.setProperty('--brand-mask', `url(${canvas.toDataURL()})`);
+  nav.style.setProperty('--brand-x', `${box.left - bar.left - border}px`);
+  nav.style.setProperty('--brand-y', `${box.top - bar.top - border}px`);
+  nav.style.setProperty('--brand-w', `${canvas.width / ratio}px`);
+  nav.style.setProperty('--brand-h', `${canvas.height / ratio}px`);
+  nav.classList.add('is-etched');
+}
+
 async function mountSvgFigure() {
   let markup;
   try {
@@ -175,6 +208,7 @@ themeButton.addEventListener('click', () => {
 window.addEventListener('scroll', schedule, { passive: true });
 window.addEventListener('resize', () => {
   measureNav();
+  etchBrand();
   schedule();
 });
 // Layout settles and the browser restores a reloaded scroll position after this module has run.
@@ -184,6 +218,7 @@ window.addEventListener('load', () => {
 });
 
 measureNav();
+etchBrand();
 update();
 mountFigure();
 
