@@ -16,8 +16,12 @@
 /* Every paragraph in full ink: the homepage greys the later ones only to lead into its fade. */
 .page .about-copy p { color: var(--ink); }
 
-/* The full list: every cover, in as many rows as it takes. */
-.page .book:nth-child(n) { display: block; }
+/* The full list: every cover, in as many rows as it takes, so nothing to swipe. */
+.page .shelf {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(var(--per-row), minmax(0, 1fr));
+  overflow-x: visible;
+}
 
 .contact {
   display: flex;
