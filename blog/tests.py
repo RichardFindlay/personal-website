@@ -199,6 +199,13 @@ class SeoTests(TestCase):
 		self.assertEqual(ld['image'], 'https://richardfindlay.co.uk/static/Thumbnail_3.jpg')
 		self.assertEqual(ld['author']['name'], 'Richard Findlay')
 
+	def test_an_error_response_is_never_cached(self):
+		# A 404 for a hashed static address during a bad deploy must not be kept by the CDN or a browser.
+		missing = self.client.get('/static/css/chrome.000000000000.css')
+		self.assertEqual(missing.status_code, 404)
+		self.assertEqual(missing['Cache-Control'], 'no-store')
+		self.assertNotIn('no-store', self.client.get('/robots.txt').get('Cache-Control', ''))
+
 	def test_robots_txt(self):
 		response = self.client.get('/robots.txt')
 		self.assertEqual(response['Content-Type'], 'text/plain')

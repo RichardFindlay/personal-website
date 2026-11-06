@@ -173,7 +173,7 @@ document.querySelectorAll('.panel').forEach((panel) => {
 // drawing while the card is on screen. The drawings are wide strips with the
 // subject towards the right, so a portrait card frames each one on its subject.
 document.querySelectorAll('.card-scene').forEach((scene) => {
-  const frame = SCENE_FRAMES[scene.dataset.svg.split('/').at(-2)];
+  const frame = SCENE_FRAMES[scene.dataset.svg.split('/').slice(-2)[0]];
   fetch(scene.dataset.svg)
     .then((r) => (r.ok ? r.text() : Promise.reject(new Error('scene ' + r.status))))
     .then((svg) => {
