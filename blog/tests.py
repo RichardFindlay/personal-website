@@ -1,10 +1,14 @@
 import json
+import os
 import re
+import shutil
+import tempfile
 from datetime import timedelta
 from unittest import mock
 from urllib.parse import urlparse
 
 from django.conf import settings
+from django.core.management import call_command
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -205,8 +209,24 @@ class SeoTests(TestCase):
 
 
 class HashedStaticTests(PostsData, TestCase):
+	# Collected the way the server does at start-up, into a scratch root, so the addresses the pages hand out are
+	# checked against hashed files that exist. The first deploy handed out addresses for files that were never made.
 
-	def test_every_static_address_on_every_page_carries_a_content_hash(self):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.root = tempfile.mkdtemp()
+		cls.settings = override_settings(STATIC_ROOT=cls.root)
+		cls.settings.enable()
+		call_command('collectstatic', interactive=False, verbosity=0)
+
+	@classmethod
+	def tearDownClass(cls):
+		cls.settings.disable()
+		shutil.rmtree(cls.root, ignore_errors=True)
+		super().tearDownClass()
+
+	def test_every_static_address_on_every_page_is_a_hashed_file_that_exists(self):
 		# A reference the storage cannot hash, because the file is missing or the path is built in pieces,
 		# keeps its plain name and would then be cached stale for hours after a deploy.
 		for path in PAGES:
@@ -216,6 +236,7 @@ class HashedStaticTests(PostsData, TestCase):
 				self.assertTrue(addresses)
 				for address in addresses:
 					self.assertRegex(address, r'\.[0-9a-f]{12}\.[a-z0-9]+$')
+					self.assertTrue(os.path.exists(os.path.join(self.root, address[len('/static/'):])), address)
 
 	def test_the_homepage_hashes_its_module_preloads_and_the_card_drawings(self):
 		html = self.client.get('/').content.decode()

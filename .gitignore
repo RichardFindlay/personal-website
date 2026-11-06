@@ -10,7 +10,5 @@ __pycache__/
 .env
 .DS_Store
 db.sqlite3
-# collectstatic output (hashed copies, compressed copies and the manifest) when run locally
-staticfiles/staticfiles.json
-staticfiles/**/*.gz
-staticfiles/**/*.br
+# collectstatic output: hashed and compressed copies plus the manifest, made at start-up on the server
+collected/
