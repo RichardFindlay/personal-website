@@ -118,16 +118,13 @@ export const FARM_FADED = 0.35;
 // The scroll progress at which the rotor has stopped and the turbine starts coming apart.
 export const EXPLODE_START = 0.08;
 
-// Over this stretch at the foot of the page the whole tour runs back home: the parts go back together, the camera returns to the hero's view of the pair, the farm and tower come back to full strength and the rotor turns again.
-export const RETURN = { from: 0.76, to: 0.98 };
 
 export function stateAt(progress, assembled = CAMERA.assembled) {
   const p = clamp(progress);
   // Every part starts drawing off together once the rotor stops. The shell gets furthest soonest, so the parts inside never pass through it.
-  const home = ease((p - RETURN.from) / (RETURN.to - RETURN.from));
-  const apart = (span) => ease((p - EXPLODE_START) / span) * (1 - home);
+  const apart = (span) => ease((p - EXPLODE_START) / span);
   const channels = {
-    z: ease(p / 0.32) * (1 - home),
+    z: ease(p / 0.32),
     b: apart(0.2),
     c: apart(0.2),
     s: apart(0.22),
@@ -147,14 +144,12 @@ export function stateAt(progress, assembled = CAMERA.assembled) {
   return {
     camera,
     explode,
-    spin: Math.max(1 - ease((p - 0.01) / (EXPLODE_START - 0.01)), home),
+    spin: 1 - ease((p - 0.01) / (EXPLODE_START - 0.01)),
     baseFade: 1 - apart(0.22) * 0.85,
     // The water stops catching shadows once the parts are well apart, or theirs would sprawl across it as the camera turns.
     seaShadows: apart(0.22) < 0.9,
     orbit: orbitAt(p),
     // The rest of the farm stays in the background, faded back, as this one comes apart.
-    farmFade: 1 - ease(p / 0.16) * (1 - FARM_FADED) * (1 - home),
-    // How far the tour has come back to the hero's view, 0 to 1, which also slides the turbine back to where the hero places it.
-    home,
+    farmFade: 1 - ease(p / 0.16) * (1 - FARM_FADED),
   };
 }

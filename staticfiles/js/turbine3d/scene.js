@@ -15,6 +15,10 @@ const CAMERA_DISTANCE = 1400;
 const RESTORE_WAIT_MS = 10000;
 const SPIN_RATE = (SPEC.assumed.spinRpm / 60) * Math.PI * 2;
 const THREE_FOLD = (Math.PI * 2) / 3;
+// Once the turbine is apart its rotor and shaft keep turning, slowly, about the shaft axis (rad/s): about a turn a minute.
+const APART_TURN = 0.1;
+const SHAFT_TILT = (SPEC.published.shaftTilt * Math.PI) / 180;
+const SHAFT_AXIS = new THREE.Vector3(Math.cos(SHAFT_TILT), 0, Math.sin(SHAFT_TILT));
 
 const nextTask = () => new Promise((resolve) => setTimeout(resolve));
 
@@ -186,6 +190,8 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     let introTime = reducedMotion.matches ? Infinity : 0;
     let rendered = false;
     let spinAngle = 0;
+    let apartTurn = 0;
+    const drawnOff = new THREE.Vector3();
     let spinRate = reducedMotion.matches ? 0 : SPIN_RATE;
     let seaTime = 0;
     let lastFrame = 0;
@@ -199,7 +205,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     const place = (state) => {
       const intro = introAmount(introTime) * heroRest;
       const perMetre = view.meet * state.camera.zoom * (1 + (INTRO.zoom - 1) * intro) * CAMERA_SCALE;
-      const centreX = view.width / 2 + heroShift * Math.max(heroRest, state.home);
+      const centreX = view.width / 2 + heroShift * heroRest;
       const centreY = view.figureTop + view.figureHeight / 2;
       axis.set(...viewAxis(intro, reducedMotion.matches ? [0, 0] : state.orbit));
       shared.uWaveSlope.value = waveSlopeFor(axis.z);
@@ -248,7 +254,9 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       }
       // Clockwise seen from upwind. Everything that spins has three-fold symmetry, so the angle settles back to zero before the blades are drawn off along their parked axes.
       const shown = -spinAngle * state.spin;
-      for (const object of spinning) object.rotation.x = shown;
+      // Apart, the rotor and shaft turn on slowly, as far round as they have come since the blades left the hub.
+      if (!reducedMotion.matches) apartTurn = (apartTurn + APART_TURN * state.explode.blade0 * dt) % (Math.PI * 2);
+      for (const object of spinning) object.rotation.x = shown - apartTurn;
       if (state.farmFade > 0) {
         for (const mesh of rotors) {
           mesh.userData.rotors.forEach(({ frame: place, phase }, i) => mesh.setMatrixAt(i, rotorMatrix.copy(place).multiply(rotorTurn.makeRotationX(shown + phase))));
@@ -260,6 +268,11 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       place(state);
       for (const { part, root } of entries) {
         root.position.set(...displacement(part, state.explode));
+        // A blade's own way off the hub turns with the rotor, so the three circle the hub rather than each pivoting where it stands.
+        if (part.carriedBy) {
+          const own = drawnOff.set(...part.explode).multiplyScalar(state.explode[part.key]);
+          root.position.sub(own).add(own.applyAxisAngle(SHAFT_AXIS, -apartTurn));
+        }
         root.visible = !part.revealedBy || state.explode[part.revealedBy] > 0;
       }
       // Once a tower ghosts it draws after the water, or its depth would punch a see-through hole in the sea.
@@ -275,7 +288,11 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       renderer.render(scene, camera);
     };
 
-    const animating = () => !reducedMotion.matches && !document.hidden && (stateAt(progress).spin >= 1 || spinRate > 0.002);
+    const animating = () => {
+      if (reducedMotion.matches || document.hidden) return false;
+      const state = stateAt(progress);
+      return state.spin >= 1 || spinRate > 0.002 || state.explode.blade0 > 0;
+    };
 
     let qualityFrames = 0;
     let qualityTime = 0;
@@ -293,7 +310,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       qualityTime = 0;
     };
 
-    // The rotor is the only thing that moves shadows while the page is still, and at 6.9 rpm every other frame is plenty.
+    // The rotor is the only thing that moves shadows while the page is still, and at 6.9 rpm or less every other frame is plenty.
     let shadowTurn = false;
     const tick = (now) => {
       frame = 0;

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { PUBLISHED } from "../../staticfiles/js/turbine3d/published.js";
 import { ASSUMED, seaPoint, stageRatio, hssOffset, hullHalfWidthAt } from "../../staticfiles/js/turbine3d/assumed.js";
-import { FARM_FADED, INTRO, RETURN, heroCamera, introAmount, orbitAt, stateAt, project, toViewBox, viewAxis, VIEW_DIRECTION, CAMERA_SCALE, VIEWBOX } from "../../staticfiles/js/turbine3d/choreography.js";
+import { FARM_FADED, INTRO, heroCamera, introAmount, orbitAt, stateAt, project, toViewBox, viewAxis, VIEW_DIRECTION, CAMERA_SCALE, VIEWBOX } from "../../staticfiles/js/turbine3d/choreography.js";
 import { PART_TABLE } from "../../staticfiles/js/turbine3d/parts/table.js";
 import { sectionAt, RING_POINTS } from "../../staticfiles/js/turbine3d/parts/loft.js";
 import { WAVES } from "../../staticfiles/js/turbine3d/parts/waves.js";
@@ -118,27 +118,19 @@ for (const { centre, radius, spread, depth, length } of ASSUMED.shoals) {
 const start = stateAt(0);
 const end = stateAt(1);
 assert.deepEqual(Object.keys(start.explode).sort(), PART_TABLE.map((part) => part.key).sort());
-// The page ends where it starts: the turbine whole, the rotor turning, tower and farm at full strength and the hero's view.
+// The page starts on the whole turbine with its rotor turning and ends on the finished exploded diagram, the tower ghosted and the farm faded back.
 for (const part of PART_TABLE) {
   assert.equal(start.explode[part.key], 0, `${part.key} assembled at p=0`);
-  assert.equal(end.explode[part.key], 0, `${part.key} back together at p=1`);
+  assert.equal(end.explode[part.key], part.channel ? 1 : 0, `${part.key} apart at p=1`);
 }
-assert.equal(start.home, 0);
-assert.equal(end.home, 1);
-for (const state of [start, end]) {
-  assert.equal(state.spin, 1);
-  assert.equal(state.baseFade, 1);
-  assert.equal(state.seaShadows, true);
-  assert.equal(state.farmFade, 1);
-  assert.deepEqual(state.camera, stateAt(0).camera);
-}
-// Between the camera getting home and the return, the finished exploded diagram holds.
-const diagram = stateAt((0.72 + RETURN.from) / 2);
-for (const part of PART_TABLE) assert.equal(diagram.explode[part.key], part.channel ? 1 : 0, `${part.key} apart in the finished diagram`);
-assert.equal(diagram.spin, 0);
-close(diagram.baseFade, 0.15, 1e-9, "tower ghosted in the finished diagram");
-assert.equal(diagram.seaShadows, false);
-assert.equal(diagram.farmFade, FARM_FADED);
+assert.equal(start.spin, 1);
+assert.equal(end.spin, 0);
+assert.equal(start.baseFade, 1);
+close(end.baseFade, 0.15, 1e-9, "tower ghosted at p=1");
+assert.equal(start.seaShadows, true);
+assert.equal(end.seaShadows, false);
+assert.equal(start.farmFade, 1);
+assert.equal(end.farmFade, FARM_FADED);
 
 // Every part starts coming apart together just after the rotor stops, and all are fully apart before the bird's eye view.
 const moving = PART_TABLE.filter((part) => part.channel);
@@ -231,7 +223,7 @@ assert.deepEqual(orbitAt(0), [0, 0]);
 assert.deepEqual(orbitAt(0.73), [0, 0]);
 assert.deepEqual(orbitAt(1), [0, 0]);
 assert.ok(Math.asin(viewAxis(0, orbitAt(0.42))[2]) > (80 * Math.PI) / 180, "the tour looks almost straight down from the far side");
-// Above the resting view from the moment it sets off until it is back home: it never drops to a side view.
+// Above the resting view from the moment it sets off until it is back at the resting view: it never drops to a side view.
 for (let p = 0.13; p < 0.72; p += 0.01) {
   assert.ok(viewAxis(0, orbitAt(p))[2] > viewAxis(0)[2], `the tour stays above the resting view at p=${p.toFixed(2)}`);
 }
