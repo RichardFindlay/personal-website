@@ -429,6 +429,8 @@ a:hover { opacity: .72; }
 .card.bg-wake { background: #2d74a8; }
 .card.bg-cyclone { background: #1b3a62; }
 .card.bg-battery { background: #6f9fca; }
+/* donder's own teal-to-green, as its site draws it. */
+.card.bg-donder { background: linear-gradient(120deg, #07a3b2 20.08%, #d9ecc7 80.96%); }
 
 /* The drawing fills the lower card and its top edge melts into the base. */
 .card-scene {
@@ -445,9 +447,10 @@ a:hover { opacity: .72; }
   mask-image: linear-gradient(180deg, transparent, #000 6%);
 }
 
-/* These fill the whole card instead: the cyclone's map has no plain sky to melt into, and the wake's turbine runs its blade on up to the top. */
+/* These fill the whole card instead: the cyclone's map has no plain sky to melt into, the wake's turbine runs its blade on up to the top, and donder's fell is drawn for the whole card. */
 .card-scene.scene-cyclone,
-.card-scene.scene-wake {
+.card-scene.scene-wake,
+.card-scene.scene-donder {
   inset: 0;
   height: auto;
   -webkit-mask-image: none;

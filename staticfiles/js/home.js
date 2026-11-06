@@ -209,7 +209,8 @@ document.querySelectorAll('.card-scene').forEach((scene) => {
         drawing.setAttribute('viewBox', `${frame.x - height} ${SCENE_HEIGHT - frame.drop - height} ${height * 2} ${height}`);
         drawing.setAttribute('preserveAspectRatio', 'xMidYMax slice');
       }
-      return import(scene.dataset.js);
+      // A still drawing, like donder's map, has no script to run.
+      return scene.dataset.js && import(scene.dataset.js);
     })
     .then(() => requestAnimationFrame(() => scene.classList.add('in')))
     .catch(() => {});
