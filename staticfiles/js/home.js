@@ -27,11 +27,14 @@ let renderTurbine = () => {};
 let frameQueued = false;
 let usingScene = false;
 
+// Where the floating nav ends, from the top of the window: its height and the gap it floats in.
+const navBottom = () => nav.offsetHeight + parseFloat(getComputedStyle(nav).marginTop);
+
 // The hero in page px at the top of the page: where the turbine's rotor may start, where the water must end, and the width to compose it to.
 function heroFrame() {
   const bottom = hero.getBoundingClientRect().bottom + window.scrollY;
   return {
-    top: nav.offsetHeight + 10,
+    top: navBottom() + 10,
     edge: Math.max(bottom, foot.getBoundingClientRect().top - 12),
     width: window.innerWidth,
   };
@@ -62,7 +65,7 @@ function schedule() {
 }
 
 function measureNav() {
-  root.style.setProperty('--nav-h', `${nav.offsetHeight}px`);
+  root.style.setProperty('--nav-h', `${navBottom()}px`);
 }
 
 async function mountSvgFigure() {
@@ -149,6 +152,17 @@ function mountFigure() {
 function readTheme() {
   return root.dataset.theme === 'dark' ? 'dark' : 'light';
 }
+
+// The phone menu: opens under the bar, and closes on a link, a tap elsewhere or Escape.
+const menuButton = document.querySelector('.menu-btn');
+function setMenu(open) {
+  nav.toggleAttribute('data-open', open);
+  menuButton.setAttribute('aria-expanded', String(open));
+}
+menuButton.addEventListener('click', () => setMenu(!nav.hasAttribute('data-open')));
+nav.querySelectorAll('.nav-link').forEach((link) => link.addEventListener('click', () => setMenu(false)));
+document.addEventListener('click', (event) => { if (!nav.contains(event.target)) setMenu(false); });
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setMenu(false); });
 
 themeButton.addEventListener('click', () => {
   const theme = readTheme() === 'dark' ? 'light' : 'dark';

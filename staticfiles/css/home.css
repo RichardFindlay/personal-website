@@ -154,18 +154,23 @@ a:hover { opacity: .72; }
   z-index: 1;
 }
 
+/* A floating bar: held the same distance off the top and both sides so the animation runs on round it. */
 .nav {
+  --nav-float: 12px;
   position: sticky;
-  top: 0;
+  top: var(--nav-float);
   z-index: 5;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  padding: 6px var(--gutter);
+  margin: var(--nav-float) var(--nav-float) 0;
+  padding: 6px 22px;
   background: var(--glass);
-  border-bottom: 1px solid var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   font-family: var(--mono);
   font-size: 12px;
   letter-spacing: 0.08em;
@@ -184,6 +189,12 @@ a:hover { opacity: .72; }
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.nav-tools {
+  display: flex;
+  align-items: center;
 }
 
 .nav-link {
@@ -196,7 +207,7 @@ a:hover { opacity: .72; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* The extra width is the touch target; this keeps the icon on the page gutter. */
+  /* The extra width is the touch target; this keeps the icon in line with the bar's inner edge. */
   margin: 0 -13px 0 6px;
   width: 44px;
   height: 44px;
@@ -219,6 +230,35 @@ a:hover { opacity: .72; }
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* The menu button stands in for the links on a phone. */
+.menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin-right: -13px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.menu-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.menu-icon--close,
+.nav[data-open] .menu-icon--open { display: none; }
+.nav[data-open] .menu-icon--close { display: block; }
 
 .theme-icon--sun { display: none; }
 [data-theme="dark"] .theme-icon--sun { display: block; }
@@ -622,12 +662,29 @@ a:hover { opacity: .72; }
     overflow: hidden;
   }
 
-  .nav { gap: 0 16px; }
-  .nav-links { display: contents; }
-  /* Fills the row beside the theme icon so the links always start the next one. */
-  .nav-brand { flex: 1 1 calc(100% - 47px); }
-  .nav-link { order: 1; padding: 14px 0; }
-  .theme-btn { margin-left: 0; }
+  /* The links fold into a menu: a second floating card under the bar, over the page rather than pushing it down. */
+  .nav { flex-wrap: nowrap; }
+  .menu-btn { display: inline-flex; }
+  .theme-btn { margin-right: 0; }
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin: 0;
+    padding: 6px 22px;
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+  .nav[data-open] .nav-links { display: flex; }
+  .nav-link { padding: 14px 0; }
+  .nav-link + .nav-link { border-top: 1px solid var(--rule); }
 
 }
 
