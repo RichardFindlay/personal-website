@@ -1,0 +1,26 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    {% include 'seo_head.html' %}
+    <script>try { var theme = localStorage.getItem('theme'); if (theme === 'dark' || theme === 'light') document.documentElement.dataset.theme = theme; } catch (e) {}</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet"></noscript>
+    <link rel="stylesheet" href="{% static 'css/chrome.css' %}">
+    <link rel="stylesheet" href="{% static 'css/home.css' %}">
+    <link rel="stylesheet" href="{% static 'css/page.css' %}">
+    <script type="module" src="{% static 'js/nav.js' %}"></script>
+</head>
+<body class="page">
+
+<div class="content">
+    {% include 'nav.html' with theme_switch=True %}
+    <main class="panels">
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+</body>
+</html>

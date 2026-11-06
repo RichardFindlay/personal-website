@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { ALONG_Z, BOLT, DEG, Kit, TAU, aim, arc, box, boxAt, chamfer, fromArrays, inShaftFrame, lathe, merge, pipe, rod, seeded, sphere, trs } from "./shapes.js";
+import { ALONG_Z, BOLT, DEG, Kit, TAU, aim, arc, box, boxAt, chamfer, inShaftFrame, lathe, merge, pipe, rod, seeded, sphere, trs } from "./shapes.js";
 import { seaPoint } from "../assumed.js";
 import { simpleNacelle } from "./nacelle.js";
 import { simpleRotor } from "./rotor.js";
@@ -98,11 +98,15 @@ export function buildTower(spec, mats) {
   kit.add("doorGlass", rod(radial(doorAz, rDoor + 0.005, handleZ + 0.56), radial(doorAz, rDoor + 0.022, handleZ + 0.56), 0.13, 16));
   kit.add("steel", lathe([[0, 0.13], [0.01, 0.15], [0.03, 0.15]], { seg: 16 }), aim(radial(doorAz, rDoor, handleZ + 0.56), [Math.cos(doorAz), Math.sin(doorAz), 0]).multiply(trs([0, 0, 0], [0, -Math.PI / 2, 0])));
 
-  buildTransitionPiece(kit, spec);
+  buildTransitionPiece(kit, spec, 96);
   return kit.finish();
 }
 
-function buildTransitionPiece(kit, spec) {
+// The foundation below the tower: the monopile and its yellow sleeve, the platform with its rails, boat landing, ladder, J-tube, davit and stair.
+// `seg` is the lathe's resolution, high for the turbine in focus and lower for the farm's copies, which also leave out the
+// pieces too small to show at their distance: the flange bolts, the ladder's rungs and hoops, and the davit's line.
+function buildTransitionPiece(kit, spec, seg) {
+  const fine = seg >= 96;
   const { published, assumed } = spec;
   const local = (elevation) => elevation - published.towerTop;
   const tp = assumed.transitionPiece;
@@ -110,16 +114,16 @@ function buildTransitionPiece(kit, spec) {
   const pileR = published.monopileDiameter / 2;
   const baseR = published.tower[0].diam / 2;
 
-  kit.add("yellow", lathe(chamfer([[local(tp.darkBelow), R], [local(tp.top - 0.3), R], [local(tp.top - 0.3), R + 0.13], [local(tp.top), R + 0.13], [local(tp.top), baseR + 0.08], [local(tp.top + 0.06), baseR + 0.08], [local(tp.top + 0.06), baseR]], 0.012), { seg: 96 }), ALONG_Z);
-  kit.add("hullDark", lathe([[local(tp.bottom - 0.3), pileR], [local(tp.bottom), R - 0.02], [local(tp.darkBelow), R]], { seg: 96 }), ALONG_Z);
-  kit.add("pile", lathe([[local(published.seabed - spec.assumed.seaTile.pileEmbed), pileR], [local(tp.bottom - 0.3), pileR]], { seg: 96 }), ALONG_Z);
+  kit.add("yellow", lathe(chamfer([[local(tp.darkBelow), R], [local(tp.top - 0.3), R], [local(tp.top - 0.3), R + 0.13], [local(tp.top), R + 0.13], [local(tp.top), baseR + 0.08], [local(tp.top + 0.06), baseR + 0.08], [local(tp.top + 0.06), baseR]], 0.012), { seg }), ALONG_Z);
+  kit.add("hullDark", lathe([[local(tp.bottom - 0.3), pileR], [local(tp.bottom), R - 0.02], [local(tp.darkBelow), R]], { seg }), ALONG_Z);
+  kit.add("pile", lathe([[local(published.seabed - spec.assumed.seaTile.pileEmbed), pileR], [local(tp.bottom - 0.3), pileR]], { seg }), ALONG_Z);
 
   const flangeBolts = [];
   for (let k = 0; k < 120; k++) {
     const a = (k / 120) * TAU;
     flangeBolts.push(aim(radial(a, baseR + 0.04, local(tp.top + 0.06)), [0, 0, 1], 0.03));
   }
-  kit.many("bolt", BOLT, flangeBolts);
+  if (fine) kit.many("bolt", BOLT, flangeBolts);
 
   const anodes = [];
   for (const z of [-16.5, -12]) {
@@ -132,9 +136,9 @@ function buildTransitionPiece(kit, spec) {
 
   const P = assumed.platform;
   const zDeck = local(P.z);
-  kit.add("grating", lathe([[zDeck, R + 0.14], [zDeck, P.radius]].reverse(), { seg: 96 }), ALONG_Z);
-  kit.add("grating", lathe([[zDeck - 0.03, P.radius], [zDeck - 0.03, R + 0.14]].reverse(), { seg: 96 }), ALONG_Z);
-  kit.add("galvanised", lathe(chamfer([[zDeck - 0.18, P.radius], [zDeck + 0.14, P.radius], [zDeck + 0.14, P.radius - 0.02], [zDeck - 0.18, P.radius - 0.02]], 0.002), { seg: 96 }), ALONG_Z);
+  kit.add("grating", lathe([[zDeck, R + 0.14], [zDeck, P.radius]].reverse(), { seg }), ALONG_Z);
+  kit.add("grating", lathe([[zDeck - 0.03, P.radius], [zDeck - 0.03, R + 0.14]].reverse(), { seg }), ALONG_Z);
+  kit.add("galvanised", lathe(chamfer([[zDeck - 0.18, P.radius], [zDeck + 0.14, P.radius], [zDeck + 0.14, P.radius - 0.02], [zDeck - 0.18, P.radius - 0.02]], 0.002), { seg }), ALONG_Z);
   const beams = [];
   const gussets = [];
   for (let k = 0; k < 16; k++) {
@@ -153,7 +157,7 @@ function buildTransitionPiece(kit, spec) {
   for (const [from, to] of rails) {
     const count = 34;
     for (let k = 0; k <= count; k++) posts.push(radial(from + ((to - from) * k) / count, P.radius - 0.04, zDeck));
-    for (const h of [0.55, P.railHeight]) kit.add("galvanised", pipe(arc(P.radius - 0.04, zDeck + h, from, to, 72), 0.028, { seg: 6 }));
+    for (const h of [0.55, P.railHeight]) kit.add("galvanised", pipe(arc(P.radius - 0.04, zDeck + h, from, to, Math.round(seg * 0.75)), 0.028, { seg: 6 }));
   }
   kit.many("galvanised", rod([0, 0, 0], [0, 0, P.railHeight], 0.026, 6), posts.map((p) => trs(p)));
 
@@ -180,8 +184,8 @@ function buildTransitionPiece(kit, spec) {
   }
   const rungs = [];
   for (let z = landing.bottom + 0.1; z < P.z + 0.1; z += 0.3) rungs.push(trs([e[0] * ladderR, e[1] * ladderR, local(z)]));
-  kit.many("galvanised", rod([t[0] * -0.24, t[1] * -0.24, 0], [t[0] * 0.24, t[1] * 0.24, 0], 0.014, 6), rungs);
-  for (let k = 0; k < 5; k++) {
+  if (fine) kit.many("galvanised", rod([t[0] * -0.24, t[1] * -0.24, 0], [t[0] * 0.24, t[1] * 0.24, 0], 0.014, 6), rungs);
+  for (let k = 0; k < (fine ? 5 : 0); k++) {
     const hoop = (z) => Array.from({ length: 13 }, (_, i) => {
       const f = (i / 12) * Math.PI;
       return [e[0] * ladderR + t[0] * 0.38 * Math.cos(f) + e[0] * 0.38 * Math.sin(f), e[1] * ladderR + t[1] * 0.38 * Math.cos(f) + e[1] * 0.38 * Math.sin(f), local(z)];
@@ -212,7 +216,7 @@ function buildTransitionPiece(kit, spec) {
   const dp = radial(davitAz, P.radius - 0.7, zDeck);
   kit.add("yellow", rod(dp, [dp[0], dp[1], zDeck + 3.1], [0.11, 0.08], 12));
   kit.add("yellow", rod([dp[0], dp[1], zDeck + 3.05], [dp[0] + 1.9 * Math.cos(davitAz), dp[1] + 1.9 * Math.sin(davitAz), zDeck + 3.5], [0.07, 0.04], 8));
-  kit.add("steel", rod([dp[0] + 1.9 * Math.cos(davitAz), dp[1] + 1.9 * Math.sin(davitAz), zDeck + 3.5], [dp[0] + 1.9 * Math.cos(davitAz), dp[1] + 1.9 * Math.sin(davitAz), zDeck + 2.1], 0.012, 5));
+  if (fine) kit.add("steel", rod([dp[0] + 1.9 * Math.cos(davitAz), dp[1] + 1.9 * Math.sin(davitAz), zDeck + 3.5], [dp[0] + 1.9 * Math.cos(davitAz), dp[1] + 1.9 * Math.sin(davitAz), zDeck + 2.1], 0.012, 5));
   kit.add("yellow", rod([dp[0], dp[1], zDeck], [dp[0], dp[1], zDeck + 0.06], 0.34, 16));
   const lockerAz = -118 * DEG;
   const lp = radial(lockerAz, P.radius - 1.1, zDeck + 0.42);
@@ -254,136 +258,47 @@ const linear = (hex) => {
   return [c.r, c.g, c.b];
 };
 
-// A unit-length fish, nose on +x: a tapered body with a dark back, then a forked tail and dorsal fin as flat plates.
-function fishGeometry() {
-  const RINGS = 14;
-  const AROUND = 10;
-  const BODY = 0.86;
-  const positions = [];
-  const normals = [];
-  const colours = [];
-  const indices = [];
-  const shade = (up) => {
-    const c = 1 - 0.68 * Math.min(1, Math.max(0, up * 0.8 + 0.45));
-    colours.push(c, c, c);
-  };
-  for (let k = 0; k <= RINGS; k++) {
-    const u = k / RINGS;
-    const girth = Math.pow(Math.sin(Math.PI * Math.pow(u, 0.62)), 0.9) + 0.06;
-    const height = 0.1 * girth;
-    const width = 0.045 * girth;
-    for (let j = 0; j < AROUND; j++) {
-      const a = (j / AROUND) * TAU;
-      const length = Math.hypot(Math.cos(a) / width, Math.sin(a) / height);
-      positions.push(0.5 - BODY * u, width * Math.cos(a), height * Math.sin(a));
-      normals.push(0, Math.cos(a) / width / length, Math.sin(a) / height / length);
-      shade(Math.sin(a));
-      if (k < RINGS) {
-        const v = k * AROUND + j;
-        const next = k * AROUND + ((j + 1) % AROUND);
-        indices.push(v, v + AROUND, next, next, v + AROUND, next + AROUND);
-      }
-    }
+// Collects a builder's parts as one geometry a finish, so the same detail can be stood at many places as one draw call a finish.
+class Merged {
+  constructor() {
+    this.byKey = new Map();
   }
-  for (const plate of [
-    [[-0.34, 0], [-0.5, 0.14], [-0.44, 0]],
-    [[-0.34, 0], [-0.44, 0], [-0.5, -0.14]],
-    [[0.14, 0.09], [-0.02, 0.17], [-0.1, 0.075]],
-  ]) {
-    const base = positions.length / 3;
-    for (const [x, z] of plate) {
-      positions.push(x, 0, z);
-      normals.push(0, 1, 0);
-      shade(1);
-    }
-    indices.push(base, base + 1, base + 2);
-  }
-  return withColours(fromArrays(positions, normals, indices), colours);
-}
 
-function addShoals(kit, spec, mats) {
-  const { shoals } = spec.assumed;
-  const seaZ = -spec.published.towerTop;
-  const random = seeded(7741);
-  const count = shoals.reduce((sum, shoal) => sum + shoal.count, 0);
-  const geometry = fishGeometry();
-  const orbit = new Float32Array(count * 4);
-  const motion = new Float32Array(count * 4);
-  const clarity = new Float32Array(count);
-  const mesh = new THREE.InstancedMesh(geometry, mats.fish, count);
-  const identity = new THREE.Matrix4();
-  const colour = new THREE.Color();
-  let i = 0;
-  for (const shoal of shoals) {
-    for (let k = 0; k < shoal.count; k++, i++) {
-      orbit.set([shoal.centre[0], shoal.centre[1], seaZ - shoal.depth + (random() - 0.5) * shoal.spread[1], shoal.radius + (random() - 0.5) * shoal.spread[0]], i * 4);
-      motion.set([random() * shoal.arc, shoal.rate, shoal.length * (0.85 + 0.3 * random()), random() * TAU], i * 4);
-      clarity[i] = 0.95 - (0.5 * (seaZ - orbit[i * 4 + 2])) / -spec.published.seabed;
-      mesh.setMatrixAt(i, identity);
-      mesh.setColorAt(i, colour.set(shoal.tone).multiplyScalar(0.9 + 0.2 * random()));
-    }
+  list(key) {
+    if (!this.byKey.has(key)) this.byKey.set(key, []);
+    return this.byKey.get(key);
   }
-  geometry.setAttribute("aOrbit", new THREE.InstancedBufferAttribute(orbit, 4));
-  geometry.setAttribute("aMotion", new THREE.InstancedBufferAttribute(motion, 4));
-  geometry.setAttribute("aClarity", new THREE.InstancedBufferAttribute(clarity, 1));
-  mesh.renderOrder = 6;
-  mesh.frustumCulled = false;
-  kit.object(mesh);
-}
 
-const rockShape = (detail) => {
-  const geometry = new THREE.IcosahedronGeometry(1, detail);
-  geometry.deleteAttribute("uv");
-  return geometry;
-};
-
-// Scour rocks around each foundation in `spots`.
-function scatterRocks(kit, spec, mats, random, geometry, spots, reach, sizeMin, sizeMax) {
-  const pileR = spec.published.monopileDiameter / 2;
-  const bedZ = -spec.published.towerTop + spec.published.seabed;
-  const rockColor = new THREE.Color();
-  const count = spots.reduce((sum, spot) => sum + spot.count, 0);
-  const mesh = new THREE.InstancedMesh(geometry, mats.rock, count);
-  const matrix = new THREE.Matrix4();
-  let i = 0;
-  for (const { at: [cx, cy], count: rocks } of spots) {
-    for (let k = 0; k < rocks; k++, i++) {
-      const a = random() * TAU;
-      const r = pileR + 0.15 + reach * Math.pow(random(), 0.7);
-      const x = cx + r * Math.cos(a);
-      const y = cy + r * Math.sin(a);
-      const edgeFade = 1 - Math.min(1, (r - pileR) / (reach + 0.1));
-      const s = sizeMin + (sizeMax - sizeMin) * random() * (0.35 + 0.65 * edgeFade);
-      const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(random() * TAU, random() * TAU, random() * TAU));
-      matrix.compose(new THREE.Vector3(x, y, bedZ + seabedHeight(x, y) + s * 0.3), q, new THREE.Vector3(s * (0.8 + random() * 0.5), s * (0.8 + random() * 0.5), s * (0.55 + random() * 0.4)));
-      mesh.setMatrixAt(i, matrix);
-      const v = 0.42 + random() * 0.32;
-      mesh.setColorAt(i, rockColor.setRGB(v, v * 0.97, v * 0.9));
-    }
+  add(key, geometry, matrix) {
+    if (matrix) geometry.applyMatrix4(matrix);
+    this.list(key).push(geometry);
+    return this;
   }
-  mesh.frustumCulled = false;
-  kit.object(mesh);
+
+  many(key, geometry, matrices) {
+    for (const matrix of matrices) this.list(key).push(geometry.clone().applyMatrix4(matrix));
+    return this;
+  }
+
+  standAt(kit, places) {
+    for (const [key, geometries] of this.byKey) kit.many(key, merge(geometries), places);
+  }
 }
 
 // Every other turbine in the farm, one draw call a finish: one rotor spins in `userData.rotors`, all else is fixed.
 export function buildFarm(spec, mats) {
   const kit = new Kit(mats);
-  const { published, assumed } = spec;
-  const local = (elevation) => elevation - published.towerTop;
-  const tp = assumed.transitionPiece;
-  const pileR = published.monopileDiameter / 2;
-  const R = tp.radius;
+  const { assumed } = spec;
   const places = assumed.farm.map((point) => trs([...seaPoint(point), 0]));
   const shell = simpleNacelle(spec);
   kit.many("paint", merge([lathe(towerProfile(spec), { seg: 28, smooth: 0.98 }).applyMatrix4(ALONG_Z), ...shell.paint]), places);
   kit.many("glass", merge(shell.glass), places);
-  kit.many("yellow", lathe([[local(tp.darkBelow), R], [local(tp.top), R], [local(tp.top), published.tower[0].diam / 2]], { seg: 28 }).applyMatrix4(ALONG_Z), places);
-  kit.many("hullDark", lathe([[local(tp.bottom), pileR], [local(tp.bottom), R - 0.02], [local(tp.darkBelow), R]], { seg: 28 }).applyMatrix4(ALONG_Z), places);
-  kit.many("pile", lathe([[local(published.seabed - assumed.seaTile.pileEmbed), pileR], [local(tp.bottom), pileR]], { seg: 28 }).applyMatrix4(ALONG_Z), places);
-  kit.many("grating", lathe([[local(assumed.platform.z), assumed.platform.radius], [local(assumed.platform.z), R]], { seg: 28 }).applyMatrix4(ALONG_Z), places);
+  // The same foundation as the turbine in focus, at fewer segments, stood at every place.
+  const foundation = new Merged();
+  buildTransitionPiece(foundation, spec, 28);
+  foundation.standAt(kit, places);
 
   const random = seeded(2207);
-  scatterRocks(kit, spec, mats, random, rockShape(1), assumed.farm.map((point) => ({ at: seaPoint(point), count: 70 })), assumed.seaTile.scourRadius * 0.62, 0.35, 0.95);
   const rotors = new THREE.InstancedMesh(simpleRotor(spec), mats.paint, places.length);
   rotors.castShadow = true;
   rotors.receiveShadow = true;
@@ -439,11 +354,6 @@ export function buildSea(spec, mats) {
   }).geometry;
   bed.computeVertexNormals();
   addMesh(withColours(bed, colours), mats.sand);
-
-  scatterRocks(kit, spec, mats, random, rockShape(1), [{ at: [0, 0], count: Math.round(tile.scourRocks * 0.2) }], tile.scourRadius * 0.62, 0.35, 0.95);
-  scatterRocks(kit, spec, mats, random, rockShape(0), [{ at: [0, 0], count: Math.round(tile.scourRocks * 0.8) }], tile.scourRadius, 0.14, 0.42);
-
-  addShoals(kit, spec, mats);
 
   const { geometry: surface, count: surfaceCount } = sheet(5, tile.front, () => seaZ);
   surface.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(surfaceCount * 3).map((_, i) => (i % 3 === 2 ? 1 : 0)), 3));

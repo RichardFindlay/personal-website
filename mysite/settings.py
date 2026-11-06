@@ -172,6 +172,11 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [ BASE_DIR / 'static' ]
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+# `collectstatic` (run at start-up, see the Procfile) writes hashed copies and the manifest beside the sources; with DEBUG on the plain names are served.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'mysite.staticfiles.HashedStaticFilesStorage'},
+}
 
 
 

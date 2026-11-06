@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from . import views
@@ -18,8 +18,15 @@ BATTERY_POST = '/deep-reinforcement-learning-for-grid-scale-lithium-ion-battery-
 FORECASTING_POST = '/probabilistic-forecasting-of-renewable-generation-and-wholesale-prices-with-quantile-regression-2'
 WAKE_POST = '/reinforcement-learning-for-offshore-wind-farm-optimisation-1'
 
+# Production serves static files under content-hashed names (mysite.staticfiles). Tests that read the
+# page's addresses run on the plain storage, so they can name a file; HashedStaticTests covers the hashing.
+PLAIN_STATIC = {
+	'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+	'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+}
 
-class HomepageTests(TestCase):
+
+class PostsData:
 
 	@classmethod
 	def setUpTestData(cls):
@@ -32,6 +39,10 @@ class HomepageTests(TestCase):
 		for title, slug, days_ago in rows:
 			post = Post.objects.create(title=title, slug=slug, author=author, content=f'{slug} content', status=1, date_manual=slug)
 			Post.objects.filter(pk=post.pk).update(created_on=timezone.now() - timedelta(days=days_ago))
+
+
+@override_settings(STORAGES=PLAIN_STATIC)
+class HomepageTests(PostsData, TestCase):
 
 	def home(self):
 		return self.client.get('/').content.decode()
@@ -81,14 +92,16 @@ class HomepageTests(TestCase):
 		self.assertIn('<span class="card-blurb">battery content</span>', html)
 		self.assertNotIn('scene-battery', html)
 
-	def test_shelf_has_nine_covers_linking_out_with_alt_text(self):
-		html = self.home()
-		covers = re.findall(r'<a class="book" href="([^"]*)" target="_blank" rel="noopener"><img class="book-cover" src="/static/image/books/([^"]*)" alt="([^"]*)"', html)
+	def test_shelf_and_reading_page_share_the_covers_linking_out_with_alt_text(self):
+		pattern = r'<a class="book" href="([^"]*)" target="_blank" rel="noopener"><img class="book-cover" src="/static/image/books/([^"]*)" alt="([^"]*)"'
+		covers = re.findall(pattern, self.home())
 		self.assertEqual(
-			[file for _, file, _ in covers],
-			['book_0.jpg', 'book_1.jpg', 'book_00.jpg', 'book_2.jpg', 'book_3.jpg', 'book_4.jpg', 'book_5.jpg', 'book_7.jpg', 'book_8.jpg'],
+			[file for _, file, _ in covers][:9],
+			['book_0.jpg', 'book_1.jpg', 'book_00.jpg', 'book_2.jpg', 'book_3.jpg', 'book_4.jpg', 'book_5.jpg', 'book_6.jpeg', 'book_7.jpg'],
 		)
+		self.assertEqual(len(covers), 18)
 		self.assertEqual(covers[3][0], 'https://www.amazon.co.uk/Energy-Trading-Risk-Management-Diversification/dp/1118339339')
+		self.assertEqual(re.findall(pattern, self.client.get('/reading').content.decode()), covers)
 		for url, file, alt in covers:
 			with self.subTest(file=file):
 				self.assertRegex(url, r'^https://www\.amazon\.co\.uk/[\w-]+/dp/\w+$')
@@ -103,9 +116,24 @@ class HomepageTests(TestCase):
 			with self.subTest(legacy=legacy):
 				self.assertNotIn(legacy, html)
 
-	def test_other_pages_keep_the_old_chrome(self):
-		self.assertIn('navbar-brand', self.client.get('/about').content.decode())
-		self.assertIn('navbar-brand', self.client.get('/reading').content.decode())
+	def test_every_page_shares_the_bar_and_the_posts_keep_their_old_chrome(self):
+		for path in ['/about', '/reading', BATTERY_POST]:
+			with self.subTest(path=path):
+				html = self.client.get(path).content.decode()
+				self.assertIn('<nav aria-label="Primary" class="nav">', html)
+				self.assertIn('<a href="/#writing" class="nav-link">WRITING</a>', html)
+		for path in ['/about', '/reading']:
+			with self.subTest(path=path):
+				html = self.client.get(path).content.decode()
+				self.assertIn('theme-btn', html)
+				self.assertIn('css/page.css', html)
+				self.assertNotIn('bootstrap', html)
+		post = self.client.get(BATTERY_POST).content.decode()
+		self.assertNotIn('theme-btn', post)
+		self.assertIn('bootstrap', post)
+		home = self.home()
+		self.assertIn('<nav aria-label="Primary" class="nav" data-etch>', home)
+		self.assertIn('theme-btn', home)
 
 	def test_import_map_pins_three_before_the_module_that_needs_it(self):
 		html = self.home()
@@ -125,6 +153,7 @@ class HomepageTests(TestCase):
 		self.assertNotIn('{{', svg)
 
 
+@override_settings(STORAGES=PLAIN_STATIC)
 class SeoTests(TestCase):
 
 	def test_every_page_returns_200(self):
@@ -173,3 +202,23 @@ class SeoTests(TestCase):
 			response.content.decode(),
 			'User-agent: *\nAllow: /\nDisallow: /admin/\n\nSitemap: https://richardfindlay.co.uk/sitemap.xml\n',
 		)
+
+
+class HashedStaticTests(PostsData, TestCase):
+
+	def test_every_static_address_on_every_page_carries_a_content_hash(self):
+		# A reference the storage cannot hash, because the file is missing or the path is built in pieces,
+		# keeps its plain name and would then be cached stale for hours after a deploy.
+		for path in PAGES:
+			html = self.client.get(path).content.decode()
+			addresses = re.findall(r'["\'](/static/[^"\']+)["\']', html)
+			with self.subTest(path=path):
+				self.assertTrue(addresses)
+				for address in addresses:
+					self.assertRegex(address, r'\.[0-9a-f]{12}\.[a-z0-9]+$')
+
+	def test_the_homepage_hashes_its_module_preloads_and_the_card_drawings(self):
+		html = self.client.get('/').content.decode()
+		preloads = re.findall(r'<link rel="modulepreload" href="(/static/[^"]+)">', html)
+		self.assertEqual(len(preloads), 16)
+		self.assertRegex(re.search(r'data-js="(/static/image/thumbnails/battery/[^"]+)"', html).group(1), r'scene-colour\.[0-9a-f]{12}\.js$')

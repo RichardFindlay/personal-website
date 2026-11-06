@@ -67,7 +67,7 @@ export function toViewBox(point, camera) {
 }
 
 // The opening move: the camera starts higher and to the right, looking at open water further out, and settles on the resting view. Angles in radians, `pan` in sea axes.
-export const INTRO = { seconds: 4.5, waveSlope: 0.3, azimuth: (18 * Math.PI) / 180, elevation: (22 * Math.PI) / 180, zoom: 0.85, pan: seaPoint([40, -200]) };
+export const INTRO = { seconds: 4.5, azimuth: (18 * Math.PI) / 180, elevation: (22 * Math.PI) / 180, zoom: 0.85, pan: seaPoint([40, -200]) };
 
 // How much of the opening move is left, 1 to 0, at a time since the scene appeared.
 export const introAmount = (elapsed) => 1 - ease(elapsed / INTRO.seconds);
@@ -116,9 +116,6 @@ export function viewAxis(amount, [orbitAzimuth, orbitElevation] = [0, 0]) {
   const elevation = REST_ELEVATION + INTRO.elevation * amount + orbitElevation;
   return [Math.cos(elevation) * Math.cos(azimuth), Math.cos(elevation) * Math.sin(azimuth), Math.sin(elevation)];
 }
-
-// Away from the resting height the crossing waves misbehave, reading as a woven lattice from high up and as heavy bands of sheen from low down, so their slopes soften there.
-export const waveSlopeFor = (axisZ) => lerp(1, INTRO.waveSlope, clamp(Math.abs(Math.asin(axisZ) - REST_ELEVATION) / (15 * DEGREES)));
 
 const CARRIERS = Object.fromEntries(PART_TABLE.map((part) => [part.key, part]));
 

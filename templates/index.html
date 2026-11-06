@@ -6,10 +6,31 @@
     <script>try { var theme = localStorage.getItem('theme'); if (theme === 'dark' || theme === 'light') document.documentElement.dataset.theme = theme; } catch (e) {}</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+    <!-- The font stylesheet loads off the render path; the text shows in the fallback face until the fonts swap in. -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet"></noscript>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="stylesheet" href="{% static 'css/chrome.css' %}">
     <link rel="stylesheet" href="{% static 'css/home.css' %}">
     <script type="importmap">{"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js"}}</script>
+    <!-- The scene's modules import each other four deep; preloading them, and three.js, fetches all of them at once. -->
+    <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js" crossorigin>
+    <link rel="modulepreload" href="{% static 'js/nav.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/scene.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/choreography.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/assumed.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/published.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/materials.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/index.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/table.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/shapes.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/loft.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/waves.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/rotor.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/drivetrain.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/nacelle.js' %}">
+    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/support.js' %}">
     <script type="module" src="{% static 'js/home.js' %}"></script>
 </head>
 <body>
@@ -21,25 +42,8 @@
 
 <div class="content">
 
-    <nav aria-label="Primary" class="nav">
-        <a href="#top" class="nav-brand">RICHARD FINDLAY</a>
-        <div class="nav-links" id="nav-links">
-            <a href="#writing" class="nav-link">WRITING</a>
-            <a href="#projects" class="nav-link" aria-label="Projects">PR0JECTS</a>
-            <a href="#about" class="nav-link" aria-label="About">AB0UT</a>
-            <a href="#reading" class="nav-link">READING</a>
-        </div>
-        <div class="nav-tools">
-            <button type="button" class="theme-btn" aria-label="Switch between day and night mode">
-                <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z"></path></svg>
-                <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3 7 7M17 17l1.7 1.7M5.3 18.7 7 17M17 7l1.7-1.7"></path></svg>
-            </button>
-            <button type="button" class="menu-btn" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
-                <svg class="menu-icon menu-icon--open" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
-                <svg class="menu-icon menu-icon--close" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
-            </button>
-        </div>
-    </nav>
+
+    {% include 'nav.html' with theme_switch=True etch=True %}
 
     <section id="top" class="hero">
         <h1 class="hero-name">Richard Findlay</h1>
@@ -74,7 +78,7 @@
                 {% for card in cards %}
                 <a class="card{% if card.scene %} bg-{{ card.scene }}{% endif %}" href="{{ card.href }}">
                     {% if card.scene %}
-                    <div class="card-scene scene-{{ card.scene }}" aria-hidden="true" data-svg="{% static 'image/thumbnails/' %}{{ card.scene }}/scene-colour.svg" data-js="{% static 'image/thumbnails/' %}{{ card.scene }}/scene-colour.js"></div>
+                    <div class="card-scene scene-{{ card.scene }}" aria-hidden="true" data-svg="{% static 'image/thumbnails/'|add:card.scene|add:'/scene-colour.svg' %}" data-js="{% static 'image/thumbnails/'|add:card.scene|add:'/scene-colour.js' %}"></div>
                     {% else %}
                     <img class="card-photo" src="{% static card.thumbnail %}" alt="">
                     {% endif %}

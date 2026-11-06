@@ -653,6 +653,9 @@ const SPH = ${SECONDS_PER_HOUR}, STILL_HOUR = ${STILL_HOUR};
 const stage = document.querySelector("${SCOPE}");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
+// On a page that has found itself slow (html.is-slow) the card moves only under the pointer.
+const host = stage.closest(".card") ?? stage;
+const resting = () => still.matches || (document.documentElement.classList.contains("is-slow") && !host.matches(":hover"));
 // each lamp is restyled only when its own size can show the change: 60 steps of
 // charge up close, 10 far off, so the far lamps cost little while the plant moves
 const lamps = [...svg.querySelectorAll(".bt-lamp")].map((el) => ({ el, steps: +el.dataset.steps, shown: -1 }));
@@ -686,14 +689,16 @@ function tick(now) {
     prev = now; last = now; clock += dt;
     draw(clock / SPH, dt);
   }
-  frame = visible && !still.matches ? requestAnimationFrame(tick) : 0;
+  frame = visible && !resting() ? requestAnimationFrame(tick) : 0;
 }
 draw(fixed !== undefined ? +fixed : still.matches ? STILL_HOUR : 0, null);
+const start = () => { if (visible && !frame && !resting()) frame = requestAnimationFrame(tick); };
 if (fixed === undefined) new IntersectionObserver((entries) => {
   visible = entries[entries.length - 1].isIntersecting;
   if (!visible) prev = 0;
-  if (visible && !frame && !still.matches) frame = requestAnimationFrame(tick);
+  start();
 }, { rootMargin: "120px 0px" }).observe(stage);
+host.addEventListener("pointerenter", start);
 `;
 
 mkdirSync(OUT, { recursive: true });

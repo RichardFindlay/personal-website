@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CAMERA_SCALE, INTRO, VIEWBOX, displacement, heroCamera, introAmount, stateAt, viewAxis, waveSlopeFor } from "./choreography.js";
+import { CAMERA_SCALE, INTRO, VIEWBOX, displacement, heroCamera, introAmount, stateAt, viewAxis } from "./choreography.js";
 import { PARTS, SPEC } from "./parts/index.js";
 import { seaPoint } from "./assumed.js";
 import { LOOKS, createMaterials } from "./materials.js";
@@ -13,8 +13,8 @@ const PIXEL_RATIO_STEPS = [1.5, 1.25];
 const CAMERA_DISTANCE = 1400;
 // How long to wait for the browser to hand back a lost GPU context before falling back to the static drawing.
 const RESTORE_WAIT_MS = 10000;
-// The rotors are drawn turning at three quarters of the turbine's cut-in speed, calmer behind the hero's words (rad/s).
-const SPIN_PACE = 0.75;
+// The rotors are drawn turning at half the turbine's cut-in speed, calm behind the hero's words (rad/s).
+const SPIN_PACE = 0.5;
 const SPIN_RATE = (SPEC.assumed.spinRpm / 60) * Math.PI * 2 * SPIN_PACE;
 const THREE_FOLD = (Math.PI * 2) / 3;
 // Once the turbine is apart its rotor and shaft keep turning, slowly, about the shaft axis (rad/s): about a turn a minute.
@@ -77,7 +77,7 @@ function fadeInPlace(root, fadeCopy) {
   return { materials: [...faded], twins, meshes };
 }
 
-export async function mountTurbine3D(figure, { signal, onLost }) {
+export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
   const checkpoint = () => {
     if (signal.aborted) throw new Error("turbine build timed out");
   };
@@ -212,7 +212,6 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       const centreX = view.width / 2 + heroShift * heroRest;
       const centreY = view.figureTop + view.figureHeight / 2;
       axis.set(...viewAxis(intro, reducedMotion.matches ? [0, 0] : state.orbit));
-      shared.uWaveSlope.value = waveSlopeFor(axis.z);
       target.set(...state.camera.target);
       target.x += INTRO.pan[0] * intro;
       target.y += INTRO.pan[1] * intro;
@@ -303,15 +302,22 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
 
     let qualityFrames = 0;
     let qualityTime = 0;
+    let toldSlow = false;
     const watchQuality = (now) => {
       if (!lastFrame) return;
       qualityFrames++;
       qualityTime += now - lastFrame;
       if (qualityFrames < QUALITY_WINDOW) return;
-      const next = PIXEL_RATIO_STEPS.find((ratio) => ratio < renderer.getPixelRatio());
-      if (qualityTime / qualityFrames > SLOW_FRAME_MS && next) {
-        pixelRatioLimit = next;
-        resize();
+      if (qualityTime / qualityFrames > SLOW_FRAME_MS) {
+        const next = PIXEL_RATIO_STEPS.find((ratio) => ratio < renderer.getPixelRatio());
+        if (next) {
+          pixelRatioLimit = next;
+          resize();
+        } else if (!toldSlow) {
+          // As small as the canvas may go and still slow: the page is told once, so it can rest what else moves.
+          toldSlow = true;
+          onSlow?.();
+        }
       }
       qualityFrames = 0;
       qualityTime = 0;

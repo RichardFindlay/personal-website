@@ -156,10 +156,12 @@ const FINISHES = {
   label: { standard: { color: "#efefe9", roughness: 0.55 } },
   edgeTape: { physical: { color: "#9ca2a2", roughness: 0.3, clearcoat: 0.6 } },
   caliper: { physical: { color: "#b23020", roughness: 0.4, metalness: 0.2, clearcoat: 0.4 } },
-  rock: { lambert: { color: "#d4d0c6" } },
   sand: { lambert: { color: "#ffffff", vertexColors: true } },
   beacon: { standard: { color: "#5e120c", emissive: "#ff2a18", emissiveIntensity: 1, roughness: 0.25 } },
 };
+
+// How much of the swell's slope tilts the water's shading, 0 to 1. At 1 every wave's sunward face drew a warm band across the sea; this keeps a hint of the swell.
+const SWELL_SHADE = 0.3;
 
 const SEA_GLSL = `
 uniform float uSeaTime;
@@ -197,7 +199,6 @@ for (int i = 1; i < ${pileCount}; i++) if (distance(position.xy, uPiles[i]) < di
         "#include <common>",
         `#include <common>
 uniform float uSeaTime;
-uniform float uWaveSlope;
 uniform float uFarmFade;
 uniform sampler2D uSeaNoise;
 uniform float uPileRadius;
@@ -205,20 +206,18 @@ flat in vec2 vNearestPile;
 uniform vec3 uFoamColor;
 varying vec2 vSeaPosition;
 varying vec3 vSeaField;
-vec3 seaNow;
 float foam;`,
       )
       .replace(
         "#include <map_fragment>",
         `#include <map_fragment>
-seaNow = vSeaField;
 vec2 rippleA = texture2D(uSeaNoise, vSeaPosition * 0.11 + vec2(0.022, 0.013) * uSeaTime).gb - 0.5;
 vec2 rippleB = texture2D(uSeaNoise, vSeaPosition * 0.37 - vec2(0.041, 0.031) * uSeaTime).gb - 0.5;
 float pileDistance = length(vSeaPosition - vNearestPile) - uPileRadius;
 float breakup = texture2D(uSeaNoise, vSeaPosition * 0.031 + vec2(0.004, -0.005) * uSeaTime).r;
 vec2 skew = mat2(0.83, 0.56, -0.56, 0.83) * vSeaPosition;
 float wisps = texture2D(uSeaNoise, skew * vec2(0.083, 0.047) - vec2(0.007, 0.005) * uSeaTime).g;
-float crest = smoothstep(0.68, 0.98, seaNow.x / 4.2 + (breakup - 0.5) * 1.1) * smoothstep(0.52, 0.68, wisps);
+float crest = smoothstep(0.68, 0.98, vSeaField.x / 4.2 + (breakup - 0.5) * 1.1) * smoothstep(0.52, 0.68, wisps);
 // Foam rings on the farm's piles go with the turbines; the one in focus keeps its own at the origin.
 float ring = smoothstep(2.4, 0.2, pileDistance + (wisps - 0.5) * 5.0) * (dot(vNearestPile, vNearestPile) < 1.0 ? 1.0 : uFarmFade);
 foam = clamp(crest * 0.72 + ring * 0.85, 0.0, 1.0);
@@ -229,45 +228,12 @@ diffuseColor.a = mix(diffuseColor.a, 0.96, foam);`,
       .replace(
         "#include <normal_fragment_maps>",
         `#include <normal_fragment_maps>
-vec3 seaNormal = normalize(vec3(-seaNow.yz * uWaveSlope - (rippleA + rippleB * 0.8) * 0.26, 1.0));
+vec3 seaNormal = normalize(vec3(-vSeaField.yz * ${SWELL_SHADE.toFixed(2)} - (rippleA + rippleB * 0.8) * 0.26, 1.0));
 normal = normalize(mat3(viewMatrix) * seaNormal);`,
       );
   };
 
   return surface;
-}
-
-// Fish swim in the vertex shader off the sea clock, so they cost no per-frame work and hold still under reduced motion.
-// Under the near-opaque water they vanish, so they draw after it and `aClarity` stands in for the water above them.
-function createFish(shared) {
-  const fish = new THREE.MeshStandardMaterial({ color: "#ffffff", vertexColors: true, roughness: 0.32, metalness: 0.35, transparent: true, side: THREE.DoubleSide });
-  fish.userData.selfFading = true;
-  fish.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, shared);
-    shader.vertexShader = shader.vertexShader
-      .replace("#include <common>", "#include <common>\nuniform float uSeaTime;\nattribute vec4 aOrbit;\nattribute vec4 aMotion;\nattribute float aClarity;\nvarying float vClarity;")
-      .replace(
-        "#include <beginnormal_vertex>",
-        `#include <beginnormal_vertex>
-vClarity = aClarity;
-float fishAngle = aMotion.x + aMotion.y * uSeaTime;
-float fishHeading = fishAngle + sign(aMotion.y) * PI / 2.0;
-mat2 fishTurn = mat2(cos(fishHeading), sin(fishHeading), -sin(fishHeading), cos(fishHeading));
-objectNormal.xy = fishTurn * objectNormal.xy;`,
-      )
-      .replace(
-        "#include <begin_vertex>",
-        `#include <begin_vertex>
-float fishSway = 0.09 * smoothstep(0.3, -0.5, position.x) * sin(aMotion.w + uSeaTime * 7.0 - position.x * 6.0);
-vec3 fishBody = (position + vec3(0.0, fishSway, 0.0)) * aMotion.z;
-float fishRadius = aOrbit.w + 0.35 * sin(uSeaTime * 0.31 + aMotion.w);
-transformed = vec3(aOrbit.xy + fishRadius * vec2(cos(fishAngle), sin(fishAngle)) + fishTurn * fishBody.xy, aOrbit.z + 0.25 * sin(uSeaTime * 0.43 + aMotion.w) + fishBody.z);`,
-      );
-    shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", "#include <common>\nvarying float vClarity;")
-      .replace("#include <map_fragment>", "#include <map_fragment>\ndiffuseColor.a *= vClarity;");
-  };
-  return fish;
 }
 
 // Theme looks: everything the lighting and sea need to switch between day and dusk.
@@ -306,7 +272,6 @@ export function createMaterials({ pileRadius, piles }) {
   const noise = noiseTexture();
   const shared = {
     uSeaTime: { value: 0 },
-    uWaveSlope: { value: 1 },
     uFarmFade: { value: 1 },
     uWaves: { value: WAVES.map((wave) => new THREE.Vector4(wave.kx, wave.ky, wave.omega, wave.amplitude)) },
     uPileRadius: { value: pileRadius },
@@ -320,7 +285,7 @@ export function createMaterials({ pileRadius, piles }) {
     material.userData.surface = surface;
     mats[key] = patchSurface(material, surface, noise);
   }
-  Object.assign(mats, { water: createWater(noise, shared, piles.length), fish: createFish(shared) });
+  Object.assign(mats, { water: createWater(noise, shared, piles.length) });
   mats.beaconGlow = new THREE.SpriteMaterial({ map: glowTexture(), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false });
 
   // A copy for fading parts: three.js does not carry onBeforeCompile across clone().

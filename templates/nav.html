@@ -1,0 +1,19 @@
+{% load static %}<nav aria-label="Primary" class="nav"{% if etch %} data-etch{% endif %}>
+    <a href="{% url 'home' %}#top" class="nav-brand">RICHARD FINDLAY</a>
+    <div class="nav-links" id="nav-links">
+        <a href="{% url 'home' %}#writing" class="nav-link">WRITING</a>
+        <a href="{% url 'home' %}#projects" class="nav-link">PROJECTS</a>
+        <a href="{% url 'home' %}#about" class="nav-link">ABOUT</a>
+        <a href="{% url 'home' %}#reading" class="nav-link">READING</a>
+    </div>
+    <div class="nav-tools">
+        {% if theme_switch %}<button type="button" class="theme-btn" aria-label="Switch between day and night mode">
+            <svg class="theme-icon theme-icon--moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z"></path></svg>
+            <svg class="theme-icon theme-icon--sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3 7 7M17 17l1.7 1.7M5.3 18.7 7 17M17 7l1.7-1.7"></path></svg>
+        </button>{% endif %}
+        <button type="button" class="menu-btn" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
+            <svg class="menu-icon menu-icon--open" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+            <svg class="menu-icon menu-icon--close" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+        </button>
+    </div>
+</nav>

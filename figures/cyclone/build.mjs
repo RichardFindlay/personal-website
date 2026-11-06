@@ -158,20 +158,25 @@ function draw(t) {
 }
 const START = Number(stage.dataset.at ?? 50);
 const frozen = still.matches || "frozen" in stage.dataset;
+// On a page that has found itself slow (html.is-slow) the card moves only under the pointer.
+const host = stage.closest(".card") ?? stage;
+const resting = () => frozen || (document.documentElement.classList.contains("is-slow") && !host.matches(":hover"));
 const GAP = 1000 / 30 - 2;
 let frame = 0, visible = false, t0 = 0, last = -Infinity, clock = frozen && !("at" in stage.dataset) ? STILL : START;
 function tick(now) {
   if (!t0) t0 = now - (clock - START) * 1000;
   if (now - last >= GAP) { last = now; clock = START + (now - t0) / 1000; draw(clock % PERIOD); }
-  frame = visible && !frozen ? requestAnimationFrame(tick) : 0;
+  frame = visible && !resting() ? requestAnimationFrame(tick) : 0;
 }
 size();
 draw(clock);
 if (layer) new ResizeObserver(() => { size(); draw(clock % PERIOD); }).observe(stage);
+const start = () => { if (visible && !frame && !resting()) { t0 = 0; last = -Infinity; frame = requestAnimationFrame(tick); } };
 new IntersectionObserver((entries) => {
   visible = entries[entries.length - 1].isIntersecting;
-  if (visible && !frame && !frozen) { t0 = 0; last = -Infinity; frame = requestAnimationFrame(tick); }
+  start();
 }, { rootMargin: "120px 0px" }).observe(stage);
+host.addEventListener("pointerenter", start);
 `;
 
 mkdirSync(OUT, { recursive: true });

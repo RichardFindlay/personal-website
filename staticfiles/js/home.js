@@ -1,11 +1,14 @@
 import { ease, mount } from './turbine.js';
+import { navBottom } from './nav.js';
 
 const SCROLL_GAIN = 1.15;
 const HERO_OFFSET = 24;
 const NARROW_HERO_OFFSET = 22;
 const NARROW_WIDTH = 900;
-const THEME_KEY = 'theme';
 const SCENE_BUILD_LIMIT_MS = 15000;
+// The hero's view of the farm holds all the way down, the cards passing over it. `?explode` on the address brings back the
+// scroll-driven tour instead: the turbine comes apart and the camera orbits it as the page scrolls.
+const STILL_SCENE = !new URLSearchParams(window.location.search).has('explode');
 // The card drawings are 1400 x 200 strips. By drawing folder: the x each portrait card centres on, how far to drop the drawing down the card, in drawing units, and, for a drawing that fills its whole card, `fill`: the share of the card's height the strip itself takes. The view then reaches up over the strip's top edge into the drawing beyond it, at the same scale and position.
 const SCENE_HEIGHT = 200;
 const SCENE_FRAMES = {
@@ -17,17 +20,12 @@ const SCENE_FRAMES = {
 
 const root = document.documentElement;
 const figure = document.querySelector('.stage-figure');
-const nav = document.querySelector('.nav');
 const hero = document.querySelector('.hero');
 const foot = document.querySelector('.stage-foot');
-const themeButton = document.querySelector('.theme-btn');
 
 let renderTurbine = () => {};
 let frameQueued = false;
 let usingScene = false;
-
-// Where the floating nav ends, from the top of the window: its height and the gap it floats in.
-const navBottom = () => nav.offsetHeight + parseFloat(getComputedStyle(nav).marginTop);
 
 // The hero in page px at the top of the page: where the turbine's rotor may start, where the water must end, and the width to compose it to.
 function heroFrame() {
@@ -43,8 +41,8 @@ function update() {
   frameQueued = false;
   const y = window.scrollY;
   const max = root.scrollHeight - window.innerHeight;
-  const p = max > 0 ? Math.min(1, Math.max(0, (y / max) * SCROLL_GAIN)) : 0;
-  const rest = 1 - ease(y / (window.innerHeight * 0.7));
+  const p = !STILL_SCENE && max > 0 ? Math.min(1, Math.max(0, (y / max) * SCROLL_GAIN)) : 0;
+  const rest = STILL_SCENE ? 1 : 1 - ease(y / (window.innerHeight * 0.7));
   // The static fallback drawing sits beside the hero text when wide and below it when narrow.
   const shift = window.innerWidth < NARROW_WIDTH
     ? `translateY(${(NARROW_HERO_OFFSET * rest).toFixed(2)}%)`
@@ -58,43 +56,6 @@ function schedule() {
   if (frameQueued) return;
   frameQueued = true;
   requestAnimationFrame(update);
-}
-
-function measureNav() {
-  root.style.setProperty('--nav-h', `${navBottom()}px`);
-}
-
-// The name is cut out of the bar's glass. A CSS mask cannot use the page's web font, so the name is drawn
-// onto a canvas in that font, at its exact size, spacing and place, and the glass layer is masked by it.
-// Until that works the name stays ordinary text.
-const brand = nav.querySelector('.nav-brand');
-async function etchBrand() {
-  await document.fonts.ready;
-  if (!brand.textContent.trim()) return;
-  const range = document.createRange();
-  range.selectNodeContents(brand);
-  const box = range.getBoundingClientRect();
-  const bar = nav.getBoundingClientRect();
-  const style = getComputedStyle(brand);
-  const ratio = Math.ceil(window.devicePixelRatio || 1);
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.ceil(box.width * ratio) + ratio * 2;
-  canvas.height = Math.ceil(box.height * ratio);
-  const context = canvas.getContext('2d');
-  if (!context || !('letterSpacing' in context)) return;
-  context.scale(ratio, ratio);
-  context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-  context.letterSpacing = style.letterSpacing;
-  const metrics = context.measureText(brand.textContent);
-  context.fillText(brand.textContent, 0, metrics.fontBoundingBoxAscent + (box.height - metrics.fontBoundingBoxAscent - metrics.fontBoundingBoxDescent) / 2);
-  // The mask sits in the glass layer's own box, which starts inside the bar's border.
-  const border = parseFloat(getComputedStyle(nav).borderLeftWidth);
-  nav.style.setProperty('--brand-mask', `url(${canvas.toDataURL()})`);
-  nav.style.setProperty('--brand-x', `${box.left - bar.left - border}px`);
-  nav.style.setProperty('--brand-y', `${box.top - bar.top - border}px`);
-  nav.style.setProperty('--brand-w', `${canvas.width / ratio}px`);
-  nav.style.setProperty('--brand-h', `${canvas.height / ratio}px`);
-  nav.classList.add('is-etched');
 }
 
 async function mountSvgFigure() {
@@ -158,7 +119,8 @@ async function mountSceneFigure() {
   });
   const load = async () => {
     const { mountTurbine3D } = await import('./turbine3d/scene.js');
-    return mountTurbine3D(figure, { signal: limit.signal, onLost: () => fallBack('WebGL context lost') });
+    // On a machine the scene already runs slowly on, the card drawings rest until the pointer is over them.
+    return mountTurbine3D(figure, { signal: limit.signal, onLost: () => fallBack('WebGL context lost'), onSlow: () => root.classList.add('is-slow') });
   };
   try {
     renderTurbine = await Promise.race([load(), timedOut]);
@@ -178,99 +140,11 @@ function mountFigure() {
   else fallBack('no capable WebGL2');
 }
 
-function readTheme() {
-  return root.dataset.theme === 'dark' ? 'dark' : 'light';
-}
-
-// The phone menu: opens under the bar, and closes on a link, a tap elsewhere or Escape.
-const menuButton = document.querySelector('.menu-btn');
-function setMenu(open) {
-  nav.toggleAttribute('data-open', open);
-  menuButton.setAttribute('aria-expanded', String(open));
-}
-menuButton.addEventListener('click', () => setMenu(!nav.hasAttribute('data-open')));
-nav.querySelectorAll('.nav-link').forEach((link) => link.addEventListener('click', () => setMenu(false)));
-document.addEventListener('click', (event) => { if (!nav.contains(event.target)) setMenu(false); });
-document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setMenu(false); });
-
-// Resting on the scene itself for a few seconds, with a still mouse or a held thumb, fades the words away to show it whole.
-// They come back the moment the mouse moves or the thumb lifts. A scroll under a still mouse keeps the view clear.
-const REVEAL_AFTER_MS = 3000;
-const TOUCH_SLOP = 10;
-const words = [...document.querySelectorAll('.panel, .hero-title, .hero-sub, .socials')];
-let revealTimer = 0;
-let touchStart = null;
-let lastMouse = null;
-
-const setRevealed = (on) => root.classList.toggle('is-revealed', on);
-const holdOff = () => {
-  clearTimeout(revealTimer);
-  revealTimer = 0;
-};
-const cover = () => {
-  holdOff();
-  setRevealed(false);
-};
-const waitToReveal = () => {
-  holdOff();
-  revealTimer = setTimeout(() => setRevealed(true), REVEAL_AFTER_MS);
-};
-// Measured, not hit-tested: faded words take no pointer, so they would never be under it.
-const overWords = (x, y) => nav.contains(document.elementFromPoint(x, y)) || words.some((el) => {
-  const box = el.getBoundingClientRect();
-  return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
-});
-
-document.addEventListener('pointermove', (event) => {
-  if (event.pointerType === 'touch') {
-    if (touchStart && Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y) > TOUCH_SLOP) holdOff();
-    return;
-  }
-  // The browser repeats the last position when the page scrolls under a still mouse; only a real move counts.
-  if (lastMouse && event.clientX === lastMouse.x && event.clientY === lastMouse.y) return;
-  lastMouse = { x: event.clientX, y: event.clientY };
-  cover();
-  if (!overWords(event.clientX, event.clientY)) waitToReveal();
-});
-document.documentElement.addEventListener('pointerleave', cover);
-document.addEventListener('pointerdown', (event) => {
-  if (event.pointerType !== 'touch' || overWords(event.clientX, event.clientY)) return;
-  touchStart = { x: event.clientX, y: event.clientY };
-  waitToReveal();
-});
-const endTouch = (event) => {
-  if (event.pointerType !== 'touch') return;
-  touchStart = null;
-  cover();
-};
-document.addEventListener('pointerup', endTouch);
-document.addEventListener('pointercancel', endTouch);
-// A long press would otherwise open the browser's menu partway through the hold.
-document.addEventListener('contextmenu', (event) => { if (touchStart) event.preventDefault(); });
-document.addEventListener('keydown', cover);
-
-themeButton.addEventListener('click', () => {
-  const theme = readTheme() === 'dark' ? 'light' : 'dark';
-  root.dataset.theme = theme;
-  try {
-    localStorage.setItem(THEME_KEY, theme);
-  } catch {}
-});
-
 window.addEventListener('scroll', schedule, { passive: true });
-window.addEventListener('resize', () => {
-  measureNav();
-  etchBrand();
-  schedule();
-});
+window.addEventListener('resize', schedule);
 // Layout settles and the browser restores a reloaded scroll position after this module has run.
-window.addEventListener('load', () => {
-  measureNav();
-  update();
-});
+window.addEventListener('load', update);
 
-measureNav();
-etchBrand();
 update();
 mountFigure();
 

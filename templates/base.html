@@ -12,6 +12,9 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
         <link rel="stylesheet" href= "{% static 'css/particlestyle.css' %}" />
         <link rel="stylesheet" href="{% static 'css/tomorrow-night.css' %}" /> 
+        <link rel="stylesheet" href="{% static 'css/chrome.css' %}">
+        <link rel="preload" href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&amp;display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet"></noscript>
         <script src="https://d3js.org/d3.v4.js"></script>
         <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
         <script src="https://d3js.org/d3-selection-multi.v0.4.min.js"></script>
@@ -32,15 +35,6 @@
             background-color: #ccc;
             border-color: #ccc;
         }
-        .masthead {
-            background: #fdfdfd;
-            height: 50px;
-            padding-bottom: 0px;
-            padding-top: 0px;
-            z-index:-1;
-            position: relative;
-        }
-
         .fa {
             padding: 0px;
             text-decoration: none;
@@ -79,10 +73,6 @@
 
         }
 
-        .nav-item a:hover {
-            font-weight: 600;
-        }
-
         .about-circle {
             height: 200px;
             width: 200px;
@@ -104,53 +94,14 @@
             z-index: 1;
 
         }
-/*
-        .navbar .navbar-nav {
-          display: inline-block;
-          float: none;
-          vertical-align: top;
-        }
-*/
-        .navbar .navbar-collapse {
-          text-align: center;
-        }
 
         
 
     </style>
     <!-- <div id="particles-js"></div> -->
-        <!-- Navigation -->
-        <nav class="navbar sticky-top navbar-expand-lg navbar-light bg-light shadow" id="mainNav">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="{% url 'home' %}">RICHARD <strong>FINDLAY</strong></a>
-                <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarResponsive"
-                    aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarResponsive">
-                    <ul class="navbar-nav ms-auto w-100 justify-content-end">
-                        <li class="nav-item dropdown text-black">
-                            <a class="navbar-brand" style="padding-left: 10px; font-size: 0.9em;" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                Other Projects
-                            </a>
-                            <div class="dropdown-menu" aria-labelledby="navbarDropdown" style="text-align: center;">
-                                <a class="dropdown-item" href="https://www.donder.co.uk" target="_blank">🏔️ donder</a>
-                                <a class="dropdown-item" href="https://officetea.co/" target="_blank">☕ officetea</a>
-                            </div>
-                        </li>
-                        <li class="nav-item text-black">
-                            <a class="navbar-brand" style="padding-left: 10px; font-size: 0.9em;" href="{% url 'reading' %}">Reading List</a>
-                       </li>
-                        <li class="nav-item text-black">
-                             <a class="navbar-brand" style="padding-left: 10px; font-size: 0.9em;" href="{% url 'about' %}">About Me</a>
-                        </li>
-                        <li class="nav-item text-black">
-                            <!-- <a href=https://github.com/richfind92 class="fa fa-github" target="_blank"> </a> -->
-                        </li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
+
+        {% include 'nav.html' %}
+        <script type="module" src="{% static 'js/nav.js' %}"></script>
 
 <!-- 
 <nav class="navbar navbar-expand-sm navbar-dark">
@@ -191,7 +142,6 @@
         {% endblock content %}
         <!-- Footer -->
         <footer class="py-3" style="">
-            <!-- <img src="{% static '/image/WindTurbine.gif' %}" style="display: block; margin-left: auto; margin-right: auto;"> -->
             <div id="windturbines_hype_container" class="HYPE_document" style="margin:auto;position:relative;width:300px;height:250px;overflow:hidden;">
             <script type="text/javascript" charset="utf-8" src="{% static 'js/WindTurbines.hyperesources/windturbines_hype_generated_script.js' %}"></script></div>
             <p style="font-size:15px; text-align:center; margin-bottom: 0.75rem;">Richard Findlay</p>
@@ -204,9 +154,9 @@
 
 
 
-        <script src="{% static '/js/particles.js' %}"></script>
-        <script>particlesJS.load('particles-js2', "{% static '/js/particles.json' %}" , function(){console.log('particles loaded')})</script>
-        <script src="{% static '/js/highlight.pack.js' %}" ></script>
+        <script src="{% static 'js/particles.js' %}"></script>
+        <script>particlesJS.load('particles-js2', "{% static 'js/particles.json' %}" , function(){console.log('particles loaded')})</script>
+        <script src="{% static 'js/highlight.pack.js' %}" ></script>
         <script>hljs.highlightAll();</script>
         <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
         <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
@@ -288,9 +238,9 @@
         </script>
         
         
-        <script type="text/javascript" src="{% static '/js/Post_2/forecasting_graph1.js' %}"></script>
-        <script type="text/javascript" src="{% static '/js/Post_2/Context_graph2.js' %}"></script>
-        <script type="text/javascript" src="{% static '/js/Post_3/battery_timeseries_graph.js' %}"></script>
+        <script type="text/javascript" src="{% static 'js/Post_2/forecasting_graph1.js' %}"></script>
+        <script type="text/javascript" src="{% static 'js/Post_2/Context_graph2.js' %}"></script>
+        <script type="text/javascript" src="{% static 'js/Post_3/battery_timeseries_graph.js' %}"></script>
 
 
 

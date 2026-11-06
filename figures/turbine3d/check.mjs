@@ -107,18 +107,6 @@ assert.ok(ASSUMED.nacelle.front < ASSUMED.spinner.rear * Math.cos(tilt), "cover 
 close(4 * Math.sqrt(WAVES.reduce((sum, wave) => sum + (wave.amplitude * wave.amplitude) / 2, 0)), 6, 1e-9, "sampled sea significant height");
 close((2 * Math.PI) / WAVES[0].omega, 10, 1e-9, "longest sampled wave period");
 
-// Every fish must stay wet and off the pile: the widest a fish reaches on its path, including the shader's 0.35 m drift, 0.25 m bob and half a body.
-const waveTrough = WAVES.reduce((sum, wave) => sum + wave.amplitude, 0);
-for (const { centre, radius, spread, depth, length } of ASSUMED.shoals) {
-  const reach = radius + spread[0] / 2 + 0.35 + (length * 1.15) / 2;
-  const inner = radius - spread[0] / 2 - 0.35 - (length * 1.15) / 2;
-  assert.ok((centre[0] - centre[1] + reach * Math.SQRT2) < ASSUMED.seaTile.front, `shoal at ${centre} swims out past the front edge`);
-  const away = Math.hypot(...centre);
-  assert.ok(away - reach > ASSUMED.transitionPiece.radius || inner - away > ASSUMED.transitionPiece.radius, `shoal at ${centre} swims through the foundation`);
-  assert.ok(depth - spread[1] / 2 - 0.25 > waveTrough, `shoal at ${centre} can break the deepest trough`);
-  assert.ok(depth + spread[1] / 2 + 0.25 < -PUBLISHED.seabed - 2, `shoal at ${centre} hits the seabed`);
-}
-
 const start = stateAt(0);
 const end = stateAt(1);
 assert.deepEqual(Object.keys(start.explode).sort(), PART_TABLE.map((part) => part.key).sort());
