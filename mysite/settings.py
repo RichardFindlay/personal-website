@@ -169,10 +169,11 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-STATICFILES_DIRS = [ BASE_DIR / 'static' ]
+# The site's own static files live in `staticfiles/`, tracked in the repository. `collectstatic`, run at start-up (see the
+# Procfile), copies them and Django's into `collected/` under hashed names with the manifest; with DEBUG on the plain sources are served.
+STATICFILES_DIRS = [ BASE_DIR / 'staticfiles' ]
 
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-# `collectstatic` (run at start-up, see the Procfile) writes hashed copies and the manifest beside the sources; with DEBUG on the plain names are served.
+STATIC_ROOT = BASE_DIR / 'collected'
 STORAGES = {
     'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
     'staticfiles': {'BACKEND': 'mysite.staticfiles.HashedStaticFilesStorage'},
