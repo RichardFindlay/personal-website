@@ -44,7 +44,7 @@ class HomepageTests(TestCase):
 		)
 		self.assertEqual(
 			re.findall(r'<span class="card-label">([^<]*)</span>', html),
-			['OCT 10, 2022', 'JUN 15, 2022', 'APR 30, 2022', 'VENTURE', 'DONDER.CO.UK', 'OFFICETEA.CO'],
+			['OCT 10, 2022', 'JUN 15, 2022', 'APR 30, 2022', 'OHMERA.AI', 'DONDER.CO.UK', 'OFFICETEA.CO'],
 		)
 		self.assertEqual(
 			re.findall(r'<span class="card-title">([^<]*)</span>', html),

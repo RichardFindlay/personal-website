@@ -417,7 +417,6 @@ a:hover { opacity: .72; }
   display: block;
   position: relative;
   box-sizing: border-box;
-  border: 1px solid var(--rule);
   border-radius: 6px;
   overflow: hidden;
   text-decoration: none;
