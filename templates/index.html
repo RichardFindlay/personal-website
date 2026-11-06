@@ -28,8 +28,8 @@
         <div class="nav-links" id="nav-links">
             <a href="#writing" class="nav-link">WRITING</a>
             <a href="#projects" class="nav-link" aria-label="Projects">PR0JECTS</a>
-            <a href="#reading" class="nav-link">READING</a>
             <a href="#about" class="nav-link" aria-label="About">AB0UT</a>
+            <a href="#reading" class="nav-link">READING</a>
         </div>
         <div class="nav-tools">
             <button type="button" class="theme-btn" aria-label="Switch between day and night mode">
@@ -128,23 +128,9 @@
             </div>
         </section>
 
-        <section id="reading" class="panel glass">
-            <div class="panel-head">
-                <span class="panel-num">03</span>
-                <h2 class="panel-title">READING LIST</h2>
-                <div class="panel-rule"></div>
-            </div>
-            <div class="shelf">
-                {% for book in shelf %}
-                <a class="book" href="{{ book.url }}" target="_blank" rel="noopener"><img class="book-cover" src="{% static 'image/books/'|add:book.file %}" alt="{{ book.title }}" width="120" height="180" loading="lazy"></a>
-                {% endfor %}
-            </div>
-            <a href="{% url 'reading' %}" class="more-link">FULL LIST →</a>
-        </section>
-
         <section id="about" class="panel glass">
             <div class="panel-head">
-                <span class="panel-num">04</span>
+                <span class="panel-num">03</span>
                 <h2 class="panel-title" aria-label="About me">AB0UT ME</h2>
                 <div class="panel-rule"></div>
             </div>
@@ -156,6 +142,20 @@
                 <img class="about-photo" src="{% static 'image/Profile_Image.jpeg' %}" alt="Richard Findlay" width="1000" height="1000" loading="lazy">
             </div>
             <a href="{% url 'about' %}" class="more-link">FULL PROFILE →</a>
+        </section>
+
+        <section id="reading" class="panel glass">
+            <div class="panel-head">
+                <span class="panel-num">04</span>
+                <h2 class="panel-title">READING LIST</h2>
+                <div class="panel-rule"></div>
+            </div>
+            <div class="shelf">
+                {% for book in shelf %}
+                <a class="book" href="{{ book.url }}" target="_blank" rel="noopener"><img class="book-cover" src="{% static 'image/books/'|add:book.file %}" alt="{{ book.title }}" width="120" height="180" loading="lazy"></a>
+                {% endfor %}
+            </div>
+            <a href="{% url 'reading' %}" class="more-link more-link--quiet">FULL LIST →</a>
         </section>
 
     </div>

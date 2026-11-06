@@ -213,6 +213,11 @@ a:hover { opacity: .72; }
 /* Cut through, the name shows the sea itself. It stays in the page as text for reading and selecting. */
 .nav.is-etched .nav-brand { color: transparent; }
 
+/* The dark glass barely differs from the dark sea, so a cut name is lost against it; at night the name is plain light text again. */
+[data-theme="dark"] .nav.is-etched::before { -webkit-mask: none; mask: none; }
+[data-theme="dark"] .nav.is-etched::after { display: none; }
+[data-theme="dark"] .nav.is-etched .nav-brand { color: var(--ink); }
+
 .nav-brand {
   text-decoration: none;
   font-weight: 700;
@@ -588,16 +593,30 @@ a:hover { opacity: .72; }
   color: rgba(255, 255, 255, 0.88);
 }
 
+/* One row of covers across the card, as many as fit at a readable size; the full list holds the rest. */
 .shelf {
-  display: flex;
+  --per-row: 6;
+  display: grid;
+  grid-template-columns: repeat(var(--per-row), minmax(0, 1fr));
   gap: 16px;
-  overflow-x: auto;
-  padding-bottom: 10px;
+}
+
+.book:nth-child(n + 7) {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .shelf { --per-row: 4; }
+  .book:nth-child(n + 5) { display: none; }
+}
+
+@media (max-width: 640px) {
+  .shelf { --per-row: 3; gap: 10px; }
+  .book:nth-child(n + 4) { display: none; }
 }
 
 .book {
-  flex: 0 0 120px;
-  height: 180px;
+  aspect-ratio: 2 / 3;
   box-sizing: border-box;
   border: 1px solid var(--rule);
   border-radius: 4px;
@@ -623,6 +642,21 @@ a:hover { opacity: .72; }
   letter-spacing: 0.08em;
   color: var(--ink);
   border-bottom: 1px solid var(--accent);
+}
+
+.more-link--quiet {
+  align-self: flex-end;
+  min-height: 32px;
+  margin-top: -8px;
+  font-size: 11px;
+  color: var(--muted);
+  border-bottom: 0;
+  transition: color 0.2s;
+}
+
+.more-link--quiet:hover,
+.more-link--quiet:focus-visible {
+  color: var(--ink);
 }
 
 /* The photo sets the height: the words stop where it does and fade out, and the full profile link carries on from there. */
