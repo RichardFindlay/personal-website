@@ -197,6 +197,62 @@ nav.querySelectorAll('.nav-link').forEach((link) => link.addEventListener('click
 document.addEventListener('click', (event) => { if (!nav.contains(event.target)) setMenu(false); });
 document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setMenu(false); });
 
+// Resting on the scene itself for a few seconds, with a still mouse or a held thumb, fades the words away to show it whole.
+// They come back the moment the mouse moves or the thumb lifts. A scroll under a still mouse keeps the view clear.
+const REVEAL_AFTER_MS = 3000;
+const TOUCH_SLOP = 10;
+const words = [...document.querySelectorAll('.panel, .hero-title, .hero-sub, .socials')];
+let revealTimer = 0;
+let touchStart = null;
+let lastMouse = null;
+
+const setRevealed = (on) => root.classList.toggle('is-revealed', on);
+const holdOff = () => {
+  clearTimeout(revealTimer);
+  revealTimer = 0;
+};
+const cover = () => {
+  holdOff();
+  setRevealed(false);
+};
+const waitToReveal = () => {
+  holdOff();
+  revealTimer = setTimeout(() => setRevealed(true), REVEAL_AFTER_MS);
+};
+// Measured, not hit-tested: faded words take no pointer, so they would never be under it.
+const overWords = (x, y) => nav.contains(document.elementFromPoint(x, y)) || words.some((el) => {
+  const box = el.getBoundingClientRect();
+  return x >= box.left && x <= box.right && y >= box.top && y <= box.bottom;
+});
+
+document.addEventListener('pointermove', (event) => {
+  if (event.pointerType === 'touch') {
+    if (touchStart && Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y) > TOUCH_SLOP) holdOff();
+    return;
+  }
+  // The browser repeats the last position when the page scrolls under a still mouse; only a real move counts.
+  if (lastMouse && event.clientX === lastMouse.x && event.clientY === lastMouse.y) return;
+  lastMouse = { x: event.clientX, y: event.clientY };
+  cover();
+  if (!overWords(event.clientX, event.clientY)) waitToReveal();
+});
+document.documentElement.addEventListener('pointerleave', cover);
+document.addEventListener('pointerdown', (event) => {
+  if (event.pointerType !== 'touch' || overWords(event.clientX, event.clientY)) return;
+  touchStart = { x: event.clientX, y: event.clientY };
+  waitToReveal();
+});
+const endTouch = (event) => {
+  if (event.pointerType !== 'touch') return;
+  touchStart = null;
+  cover();
+};
+document.addEventListener('pointerup', endTouch);
+document.addEventListener('pointercancel', endTouch);
+// A long press would otherwise open the browser's menu partway through the hold.
+document.addEventListener('contextmenu', (event) => { if (touchStart) event.preventDefault(); });
+document.addEventListener('keydown', cover);
+
 themeButton.addEventListener('click', () => {
   const theme = readTheme() === 'dark' ? 'light' : 'dark';
   root.dataset.theme = theme;
