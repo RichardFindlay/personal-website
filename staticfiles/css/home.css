@@ -322,7 +322,7 @@ a:hover { opacity: .72; }
   flex-direction: column;
   gap: 112px;
   /* A short run past the last panel, so the page ends with the finished exploded view showing below it. */
-  padding: 0 clamp(16px, 3vw, 40px) 35vh;
+  padding: 0 clamp(16px, 3vw, 40px) 55vh;
 }
 
 .panel {
@@ -575,7 +575,7 @@ a:hover { opacity: .72; }
 
 .about-copy p {
   margin: 0 0 1em;
-  font-size: 16px;
+  font-size: 14.5px;
   line-height: 1.7;
   color: var(--ink);
 }
