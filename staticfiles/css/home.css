@@ -431,6 +431,8 @@ a:hover { opacity: .72; }
 .card.bg-battery { background: #6f9fca; }
 /* donder's own teal-to-green, as its site draws it. */
 .card.bg-donder { background: linear-gradient(120deg, #07a3b2 20.08%, #d9ecc7 80.96%); }
+/* Office Tea's own sage. */
+.card.bg-officetea { background: #4f7a6a; }
 
 /* The drawing fills the lower card and its top edge melts into the base. */
 .card-scene {
@@ -447,10 +449,11 @@ a:hover { opacity: .72; }
   mask-image: linear-gradient(180deg, transparent, #000 6%);
 }
 
-/* These fill the whole card instead: the cyclone's map has no plain sky to melt into, the wake's turbine runs its blade on up to the top, and donder's fell is drawn for the whole card. */
+/* These fill the whole card instead: the cyclone's map has no plain sky to melt into, the wake's turbine runs its blade on up to the top, and donder's map and officetea's district are drawn for the whole card. */
 .card-scene.scene-cyclone,
 .card-scene.scene-wake,
-.card-scene.scene-donder {
+.card-scene.scene-donder,
+.card-scene.scene-officetea {
   inset: 0;
   height: auto;
   -webkit-mask-image: none;
@@ -508,38 +511,6 @@ a:hover { opacity: .72; }
   line-height: 1.45;
   color: rgba(255, 255, 255, 0.88);
 }
-
-.project {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  box-sizing: border-box;
-  padding: 20px 22px;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  background: var(--card);
-  text-decoration: none;
-  color: var(--ink);
-}
-
-.project-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.project-name {
-  font-weight: 600;
-  font-size: 22px;
-}
-
-.project-host {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.project-arrow { font-family: var(--mono); }
 
 .shelf {
   display: flex;
