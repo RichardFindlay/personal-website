@@ -2,7 +2,7 @@
 // Run: node check.mjs
 import assert from "node:assert/strict";
 import { PUBLISHED } from "../../staticfiles/js/turbine3d/published.js";
-import { ASSUMED, seaPoint, stageRatio, hssOffset, hullHalfWidthAt } from "../../staticfiles/js/turbine3d/assumed.js";
+import { ASSUMED, gearTrain, seaPoint, stageRatio, hssOffset, hullHalfWidthAt } from "../../staticfiles/js/turbine3d/assumed.js";
 import { FARM_FADED, INTRO, heroCamera, introAmount, orbitAt, stateAt, project, toViewBox, viewAxis, VIEW_DIRECTION, CAMERA_SCALE, VIEWBOX } from "../../staticfiles/js/turbine3d/choreography.js";
 import { PART_TABLE } from "../../staticfiles/js/turbine3d/parts/table.js";
 import { sectionAt, RING_POINTS } from "../../staticfiles/js/turbine3d/parts/loft.js";
@@ -74,6 +74,10 @@ close(ASSUMED.stages.reduce((n, stage) => n * stageRatio(stage), 1), 97, 1e-9, "
 close(hssOffset(), 0.62, 1e-9, "high speed shaft offset");
 close(97 * 12.1, 1173.7, 1e-9, "generator speed");
 assert.equal(ASSUMED.spinRpm, 6.9);
+// The exploded drivetrain turns through its gear train: the high-speed shaft 97 times the rotor's turn, the other way, and that is the product of the three stages' ratios.
+const turns = gearTrain();
+close(turns.highSpeed, -97, 0.5, "high-speed shaft at about 97 times the rotor");
+close(-turns.highSpeed, ASSUMED.stages.map(stageRatio).reduce((a, b) => a * b, 1), 1e-9, "gear train agrees with the stage ratios");
 assert.equal((120 * 50) / ASSUMED.generator.poles, 1500, "four poles at 50 Hz");
 
 // The cover must wrap what it hides. These are outermost corners measured off the built parts, not values derived from the envelope.

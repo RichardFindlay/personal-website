@@ -161,6 +161,23 @@ export const seaPoint = ([u, v]) => [(u + v) / 2, (u - v) / 2];
 
 export const stageRatio = (stage) => (stage.kind === "planetary" ? 1 + stage.ring / stage.sun : stage.wheel / stage.pinion);
 
+// How far each turning part goes for one turn of the rotor, from the tooth counts. Both planetary stages hold their ring still and drive the carrier, so each sun runs 1 + ring / sun times its carrier and each planet spins on its pin -ring / planet times its carrier's turn; the helical stage's pinion runs wheel / pinion times the wheel, the other way. A planet's figure is relative to its carrier, which carries it.
+export function gearTrain() {
+  const [one, two, three] = ASSUMED.stages;
+  const sun1 = 1 + one.ring / one.sun;
+  const sun2 = sun1 * (1 + two.ring / two.sun);
+  return {
+    carrier1: 1,
+    sun1,
+    planet1: -one.ring / one.planet,
+    carrier2: sun1,
+    sun2,
+    planet2: (-two.ring / two.planet) * sun1,
+    wheel: sun2,
+    highSpeed: (-sun2 * three.wheel) / three.pinion,
+  };
+}
+
 export const hssOffset = () => {
   const { pinion, wheel, module } = ASSUMED.stages[2];
   return (module * (pinion + wheel)) / 2;

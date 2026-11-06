@@ -111,6 +111,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
 
     const entries = [];
     const spinning = [];
+    const drivetrain = [];
     const rotors = [];
     let seaSurface;
     const fading = { base: { roots: [], materials: [], twins: [], meshes: [] }, farm: { roots: [], materials: [], twins: [], meshes: [] } };
@@ -121,6 +122,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       root.add(part.build(SPEC, mats));
       root.traverse((object) => {
         if (object.userData.spins) spinning.push(object);
+        if (object.userData.turn !== undefined) drivetrain.push(object);
         if (object.userData.rotors) rotors.push(object);
         if (object.userData.seaSurface) seaSurface = object;
       });
@@ -256,9 +258,12 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       }
       // Clockwise seen from upwind. Everything that spins has three-fold symmetry, so the angle settles back to zero before the blades are drawn off along their parked axes.
       const shown = -spinAngle * state.spin;
-      // Apart, the rotor and shaft turn on slowly, as far round as they have come since the blades left the hub.
-      if (!reducedMotion.matches) apartTurn = (apartTurn + APART_TURN * state.explode.blade0 * dt) % (Math.PI * 2);
-      for (const object of spinning) object.rotation.x = shown - apartTurn;
+      // Apart, the rotor and shaft turn on slowly, as far round as they have come since the blades left the hub. The angle is never wrapped: the gears behind turn at uneven multiples of it and would jump.
+      if (!reducedMotion.matches) apartTurn += APART_TURN * state.explode.blade0 * dt;
+      const rotorAngle = shown - apartTurn;
+      for (const object of spinning) object.rotation.x = rotorAngle;
+      // The gearbox, brake and generator follow the rotor through the gear train, each at its own ratio.
+      for (const object of drivetrain) object.rotation.x = object.userData.turn * rotorAngle;
       if (state.farmFade > 0) {
         for (const mesh of rotors) {
           mesh.userData.rotors.forEach(({ frame: place, phase }, i) => mesh.setMatrixAt(i, rotorMatrix.copy(place).multiply(rotorTurn.makeRotationX(shown + phase))));

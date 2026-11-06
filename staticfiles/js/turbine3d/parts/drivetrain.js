@@ -1,9 +1,17 @@
-import { hssOffset } from "../assumed.js";
+import { gearTrain, hssOffset } from "../assumed.js";
 import { BOLT, DEG, Kit, TAU, aim, boltCircle, box, boxAt, chamfer, gear, inShaftFrame, lathe, pipe, prism, rod, section, trs } from "./shapes.js";
 
 // The casing is cut away on the side the isometric camera looks from: 135 deg about the shaft, between -y and +z.
 const WINDOW = { from: 76 * DEG, to: 194 * DEG };
 const REST = { from: WINDOW.to, to: WINDOW.from + TAU };
+
+// A part that turns with the drivetrain: its own kit, standing at `at` in the shaft frame, which scene.js turns about its own x axis `ratio` times as far as the rotor.
+function turning(mats, ratio, at = [0, 0, 0]) {
+  const kit = new Kit(mats);
+  kit.group.position.set(...at);
+  kit.group.userData.turn = ratio;
+  return kit;
+}
 
 function cutaway(kit, key, profile, { seg = 72, rest = REST, smooth } = {}) {
   kit.add(key, lathe(profile, { seg, from: rest.from, to: rest.to, closed: true, smooth }));
@@ -51,7 +59,7 @@ export function buildBearing(spec, mats) {
   return kit.finish();
 }
 
-function planetaryStage(kit, stage, { radius, carrier, bore }) {
+function planetaryStage(kit, stage, { radius, carrier, bore }, ratios) {
   // One planet clear on each side of the window's centre, so the sun shows between them.
   const planetsAt = Array.from({ length: stage.planets }, (_, k) => (75 * DEG) + (k * TAU) / stage.planets);
   const m = stage.module;
@@ -62,8 +70,12 @@ function planetaryStage(kit, stage, { radius, carrier, bore }) {
   const sunStep = TAU / stage.sun;
   const planetStep = TAU / stage.planet;
   const ringStep = TAU / stage.ring;
-  kit.add("gearSteel", gear({ teeth: stage.sun, module: m, width: planetWidth, bore: bore.sun }), trs([stage.s, 0, 0]));
+  const sun = turning(kit.mats, ratios.sun);
+  sun.add("gearSteel", gear({ teeth: stage.sun, module: m, width: planetWidth, bore: bore.sun }), trs([stage.s, 0, 0]));
+  kit.object(sun.finish());
 
+  // The planets ride on the carrier, which turns them round the sun, and spin on their own pins as they go.
+  const orbit = turning(kit.mats, ratios.carrier);
   planetsAt.forEach((angle) => {
     // Puts a planet tooth gap where the sun presents a tooth along the line of centres.
     const nearest = Math.round(angle / sunStep) * sunStep;
@@ -72,10 +84,13 @@ function planetaryStage(kit, stage, { radius, carrier, bore }) {
     const planet = gear({ teeth: stage.planet, module: m, width: planetWidth, bore: bore.planet, phase });
     const px = centre * Math.cos(angle);
     const py = centre * Math.sin(angle);
-    kit.add("gearSteel", planet, trs([stage.s, px, py]));
-    kit.add("steel", lathe(chamfer([[-planetWidth / 2 - carrier.gap, 0], [-planetWidth / 2 - carrier.gap, bore.planet], [planetWidth / 2 + carrier.gap, bore.planet], [planetWidth / 2 + carrier.gap, 0]], 0.008), { seg: 24 }), trs([stage.s, px, py]));
-    kit.add("bearingPaint", lathe([[-planetWidth / 2 - 0.002, bore.planet], [-planetWidth / 2 - 0.002, bore.planet + 0.02], [planetWidth / 2 + 0.002, bore.planet + 0.02], [planetWidth / 2 + 0.002, bore.planet]], { seg: 24 }), trs([stage.s, px, py]));
+    const spinning = turning(kit.mats, ratios.planet, [stage.s, px, py]);
+    spinning.add("gearSteel", planet);
+    spinning.add("steel", lathe(chamfer([[-planetWidth / 2 - carrier.gap, 0], [-planetWidth / 2 - carrier.gap, bore.planet], [planetWidth / 2 + carrier.gap, bore.planet], [planetWidth / 2 + carrier.gap, 0]], 0.008), { seg: 24 }));
+    spinning.add("bearingPaint", lathe([[-planetWidth / 2 - 0.002, bore.planet], [-planetWidth / 2 - 0.002, bore.planet + 0.02], [planetWidth / 2 + 0.002, bore.planet + 0.02], [planetWidth / 2 + 0.002, bore.planet]], { seg: 24 }));
+    orbit.object(spinning.finish());
   });
+  kit.object(orbit.finish());
 
   const planet0 = planetsAt[0];
   const sunNearest = Math.round(planet0 / sunStep) * sunStep;
@@ -104,6 +119,7 @@ export function buildGearbox(spec, mats) {
   const { gearbox: g, stages } = spec.assumed;
   const [one, two, three] = stages;
   const offset = hssOffset();
+  const turns = gearTrain();
 
   const stage1Profile = chamfer(
     [
@@ -177,21 +193,25 @@ export function buildGearbox(spec, mats) {
     radius: { rim: 1.27 },
     bore: { sun: 0.12, planet: 0.11 },
     carrier: { radius: 0.98, plate: 0.09, gap: 0.03, hub: 0.28, nose: 0.1 },
-  });
+  }, { carrier: turns.carrier1, sun: turns.sun1, planet: turns.planet1 });
   planetaryStage(kit, two, {
     radius: { rim: 0.93 },
     bore: { sun: 0.09, planet: 0.075 },
     carrier: { radius: 0.66, plate: 0.06, gap: 0.02, hub: 0.17, nose: 0.1 },
-  });
+  }, { carrier: turns.carrier2, sun: turns.sun2, planet: turns.planet2 });
 
   const sun1Shaft = [one.s - 0.3, 0.095];
   kit.add("steel", lathe(chamfer([[two.s + two.width / 2, 0], [two.s + two.width / 2, sun1Shaft[1]], [one.s + 0.34, sun1Shaft[1]], [one.s + 0.34, 0]], 0.01), { seg: 24 }));
   kit.add("steel", lathe(chamfer([[three.s - 0.36, 0], [three.s - 0.36, 0.07], [two.s + two.width / 2 - 0.04, 0.07], [two.s + two.width / 2 - 0.04, 0]], 0.01), { seg: 20 }));
 
-  kit.add("gearSteel", gear({ teeth: three.wheel, module: three.module, width: three.width, helix: three.helix * DEG, bore: 0.09, slices: 4 }), trs([three.s, 0, 0]));
+  const wheel = turning(kit.mats, turns.wheel);
+  wheel.add("gearSteel", gear({ teeth: three.wheel, module: three.module, width: three.width, helix: three.helix * DEG, bore: 0.09, slices: 4 }), trs([three.s, 0, 0]));
+  kit.object(wheel.finish());
   const pinionPhase = Math.PI / 2 + Math.PI - (TAU / three.pinion) / 2;
-  kit.add("gearSteel", gear({ teeth: three.pinion, module: three.module, width: three.width + 0.05, helix: -three.helix * DEG, bore: 0.05, slices: 4, phase: pinionPhase }), trs([three.s, 0, offset]));
-  kit.add("steel", lathe(chamfer([[g.rear - 0.3, 0], [g.rear - 0.3, 0.085], [three.s + 0.3, 0.085], [three.s + 0.3, 0]], 0.008), { seg: 20 }), trs([0, 0, offset]));
+  const pinion = turning(kit.mats, turns.highSpeed, [0, 0, offset]);
+  pinion.add("gearSteel", gear({ teeth: three.pinion, module: three.module, width: three.width + 0.05, helix: -three.helix * DEG, bore: 0.05, slices: 4, phase: pinionPhase }), trs([three.s, 0, 0]));
+  pinion.add("steel", lathe(chamfer([[g.rear - 0.3, 0], [g.rear - 0.3, 0.085], [three.s + 0.3, 0.085], [three.s + 0.3, 0]], 0.008), { seg: 20 }));
+  kit.object(pinion.finish());
   kit.add("bearingPaint", lathe(chamfer([[-0.05, 0.085], [-0.05, 0.15], [0.05, 0.15], [0.05, 0.085]], 0.006), { seg: 24 }), trs([three.s + 0.32, 0, offset]));
   kit.add("bearingPaint", lathe(chamfer([[-0.05, 0.08], [-0.05, 0.14], [0.05, 0.14], [0.05, 0.08]], 0.006), { seg: 24 }), trs([g.rear + 0.15, 0, offset]));
 
@@ -252,22 +272,23 @@ export function buildBrake(spec, mats) {
   const kit = new Kit(mats, inShaftFrame(spec));
   const { brake, couplingS } = spec.assumed;
   const offset = hssOffset();
-  const axis = trs([0, 0, offset]);
+  // The shaft, disc and coupling turn with the high-speed shaft; the caliper holds still.
+  const shaft = turning(mats, gearTrain().highSpeed, [0, 0, offset]);
 
-  kit.add("steel", lathe(chamfer([[couplingS[0] + 0.02, 0], [couplingS[0] + 0.02, 0.09], [-2.82, 0.09], [-2.82, 0]], 0.008), { seg: 20 }), axis);
+  shaft.add("steel", lathe(chamfer([[couplingS[0] + 0.02, 0], [couplingS[0] + 0.02, 0.09], [-2.82, 0.09], [-2.82, 0]], 0.008), { seg: 20 }));
 
   const half = brake.discThickness / 2;
-  kit.add("brakeDisc", lathe(chamfer([[brake.s - half, 0.11], [brake.s - half, brake.discRadius], [brake.s + half, brake.discRadius], [brake.s + half, 0.11]], 0.004), { seg: 96 }), axis);
-  kit.add("steel", lathe(chamfer([[brake.s - 0.08, 0.09], [brake.s - 0.08, 0.17], [brake.s + 0.08, 0.17], [brake.s + 0.08, 0.09]], 0.008), { seg: 32 }), axis);
+  shaft.add("brakeDisc", lathe(chamfer([[brake.s - half, 0.11], [brake.s - half, brake.discRadius], [brake.s + half, brake.discRadius], [brake.s + half, 0.11]], 0.004), { seg: 96 }));
+  shaft.add("steel", lathe(chamfer([[brake.s - 0.08, 0.09], [brake.s - 0.08, 0.17], [brake.s + 0.08, 0.17], [brake.s + 0.08, 0.09]], 0.008), { seg: 32 }));
   const drillings = [];
   for (const [radius, count, phase] of [[0.24, 18, 0], [0.31, 22, 0.08], [0.38, 26, 0.03]]) {
     for (let k = 0; k < count; k++) {
       const a = phase + (k / count) * TAU;
-      drillings.push(axis.clone().multiply(aim([brake.s + half, radius * Math.cos(a), radius * Math.sin(a)], [1, 0, 0])));
+      drillings.push(aim([brake.s + half, radius * Math.cos(a), radius * Math.sin(a)], [1, 0, 0]));
     }
   }
-  kit.many("darkMetal", rod([0, 0, -0.001], [0, 0, 0.0015], 0.009, 8), drillings);
-  kit.many("bolt", BOLT, boltCircle(8, 0.14, brake.s + 0.08, 1, 0.014).map((matrix) => axis.clone().multiply(matrix)));
+  shaft.many("darkMetal", rod([0, 0, -0.001], [0, 0, 0.0015], 0.009, 8), drillings);
+  shaft.many("bolt", BOLT, boltCircle(8, 0.14, brake.s + 0.08, 1, 0.014));
 
   const y = -0.08;
   const z = offset + brake.discRadius - 0.1;
@@ -289,12 +310,13 @@ export function buildBrake(spec, mats) {
   // Flexible coupling: disc packs at each end of a composite spacer that isolates the generator electrically.
   const [c0, c1] = couplingS;
   for (const s of [c0, c1 + 0.08]) {
-    kit.add("steel", lathe(chamfer([[s - 0.06, 0.04], [s - 0.06, 0.25], [s, 0.25], [s, 0.04]], 0.006), { seg: 36 }), axis);
-    kit.add("darkMetal", lathe([[s - 0.088, 0.04], [s - 0.088, 0.24], [s - 0.06, 0.24], [s - 0.06, 0.04]], { seg: 36 }), axis);
-    kit.add("steel", lathe(chamfer([[s - 0.145, 0.04], [s - 0.145, 0.25], [s - 0.088, 0.25], [s - 0.088, 0.04]], 0.006), { seg: 36 }), axis);
-    kit.many("bolt", BOLT, boltCircle(6, 0.195, s, 1, 0.02).map((matrix) => axis.clone().multiply(matrix)));
+    shaft.add("steel", lathe(chamfer([[s - 0.06, 0.04], [s - 0.06, 0.25], [s, 0.25], [s, 0.04]], 0.006), { seg: 36 }));
+    shaft.add("darkMetal", lathe([[s - 0.088, 0.04], [s - 0.088, 0.24], [s - 0.06, 0.24], [s - 0.06, 0.04]], { seg: 36 }));
+    shaft.add("steel", lathe(chamfer([[s - 0.145, 0.04], [s - 0.145, 0.25], [s - 0.088, 0.25], [s - 0.088, 0.04]], 0.006), { seg: 36 }));
+    shaft.many("bolt", BOLT, boltCircle(6, 0.195, s, 1, 0.02));
   }
-  kit.add("composite", lathe(chamfer([[c1 + 0.08, 0.04], [c1 + 0.08, 0.13], [c0 - 0.145, 0.13], [c0 - 0.145, 0.04]], 0.01), { seg: 32 }), axis);
+  shaft.add("composite", lathe(chamfer([[c1 + 0.08, 0.04], [c1 + 0.08, 0.13], [c0 - 0.145, 0.13], [c0 - 0.145, 0.04]], 0.01), { seg: 32 }));
+  kit.object(shaft.finish());
   return kit.finish();
 }
 
@@ -340,10 +362,12 @@ export function buildGenerator(spec, mats) {
 
   const coreFrom = g.rear + 0.32;
   const coreTo = g.front - 0.32;
-  kit.add("steel", lathe(chamfer([[g.front - 0.16, 0.03], [g.front - 0.16, 0.08], [g.rear + 0.16, 0.08], [g.rear + 0.16, 0.03]].reverse(), 0.006), { seg: 24 }), axis);
+  // The rotor turns with the high-speed shaft. Its end-ring bars run all the way round, so they pass the window as it turns.
+  const rotor = turning(mats, gearTrain().highSpeed, [0, 0, offset]);
+  rotor.add("steel", lathe(chamfer([[g.front - 0.16, 0.03], [g.front - 0.16, 0.08], [g.rear + 0.16, 0.08], [g.rear + 0.16, 0.03]].reverse(), 0.006), { seg: 24 }));
   const rotorFrom = g.rear + 0.38;
   const rotorTo = g.front - 0.38;
-  kit.add("electricalSteel", lathe(chamfer([[rotorFrom, 0.08], [rotorFrom, 0.44], [rotorTo, 0.44], [rotorTo, 0.08]], 0.01), { seg: 56 }), axis);
+  rotor.add("electricalSteel", lathe(chamfer([[rotorFrom, 0.08], [rotorFrom, 0.44], [rotorTo, 0.44], [rotorTo, 0.08]], 0.01), { seg: 56 }));
   const bars = [];
   const slotCount = 22;
   for (let k = 0; k < slotCount; k++) {
@@ -360,12 +384,13 @@ export function buildGenerator(spec, mats) {
   }
   kit.many("copper", box(0.1, 0.1, 0.016, 0.004), overhang);
   const ringBars = [];
-  for (let k = 0; k < 16; k++) {
-    const a = window.from - 0.01 + ((window.to - window.from + 0.02) * k) / 15;
-    ringBars.push(axis.clone().multiply(trs([rotorTo + 0.04, 0.38 * Math.cos(a), 0.38 * Math.sin(a)], [a, 0, 0])));
-    ringBars.push(axis.clone().multiply(trs([rotorFrom - 0.04, 0.38 * Math.cos(a), 0.38 * Math.sin(a)], [a, 0, 0])));
+  for (let k = 0; k < 40; k++) {
+    const a = (k / 40) * TAU;
+    ringBars.push(trs([rotorTo + 0.04, 0.38 * Math.cos(a), 0.38 * Math.sin(a)], [a, 0, 0]));
+    ringBars.push(trs([rotorFrom - 0.04, 0.38 * Math.cos(a), 0.38 * Math.sin(a)], [a, 0, 0]));
   }
-  kit.many("copper", box(0.06, 0.1, 0.018, 0.004), ringBars);
+  rotor.many("copper", box(0.06, 0.1, 0.018, 0.004), ringBars);
+  kit.object(rotor.finish());
 
   const footDrop = 0.72;
   for (const side of [-1, 1]) {
