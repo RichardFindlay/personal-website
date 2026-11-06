@@ -28,21 +28,22 @@ const CAMERA = {
 
 const HERO_EDGE = project([ASSUMED.seaTile.heroEdge / 2, -ASSUMED.seaTile.heroEdge / 2, -PUBLISHED.towerTop])[1];
 
-// The pair the hero is composed around is the turbine in focus and the one behind it, the farm's second.
-const [REAR_U, REAR_V] = ASSUMED.farm[1];
+// The pair the hero is composed around is the turbine in focus and its partner in the next row back.
+const [, REAR_V] = ASSUMED.pair;
 // The rear nacelle's highest point on screen, its roof instruments.
 const REAR_NACELLE_TOP = project([ASSUMED.raised.rearTop, 0, ASSUMED.raised.top + ASSUMED.instruments.cups.height])[1] + REAR_V * S;
-// Measured off the 943 px layout that balanced them: px per projected unit for each px of screen width, and the middle of the pair as a share of the width.
-const WIDTH_SCALE = 3.44 / 943;
-const PAIR_CENTRE = 0.425;
+// The turbine in focus stands a little right of the middle, with the farm's rows falling away either side. Its size is set by the farm's spacing: grown with the screen, one row's spacing spans 55% of the screen's width, so the view keeps its balance whatever the spacing.
+const MAIN_AT = 0.58;
+const ROW_SPAN = 0.55;
+// px per projected unit for each px of screen width
+const WIDTH_SCALE = ROW_SPAN / (ASSUMED.farmGrid.row * C);
 // Below this, on a phone, the pair stops shrinking with the width and lets its outer blades run off the sides.
 const MIN_SCALE = 1.9;
 
-// The resting camera for a hero frame, in px down the figure: the water's hero line exactly on `edge`, and the pair grown with the screen `width`, centred on PAIR_CENTRE, until the rear nacelle reaches `top`.
+// The resting camera for a hero frame, in px down the figure: the water's hero line exactly on `edge`, the turbine in focus at MAIN_AT across the screen `width`, and the farm grown with it until the rear nacelle reaches `top`.
 export function heroCamera({ figureHeight, meet, top, edge, width }) {
   const scale = Math.max(MIN_SCALE, Math.min(width * WIDTH_SCALE, (edge - top) / (HERO_EDGE - REAR_NACELLE_TOP)));
-  const shiftX = width * (PAIR_CENTRE - 0.5) - (REAR_U * C * scale) / 2;
-  return { target: [0, 0, (edge - figureHeight / 2) / scale - HERO_EDGE], zoom: scale / meet, shiftX };
+  return { target: [0, 0, (edge - figureHeight / 2) / scale - HERO_EDGE], zoom: scale / meet, shiftX: width * (MAIN_AT - 0.5) };
 }
 
 export function toViewBox(point, camera) {
@@ -117,12 +118,16 @@ export const FARM_FADED = 0.35;
 // The scroll progress at which the rotor has stopped and the turbine starts coming apart.
 export const EXPLODE_START = 0.08;
 
+// Over this stretch at the foot of the page the whole tour runs back home: the parts go back together, the camera returns to the hero's view of the pair, the farm and tower come back to full strength and the rotor turns again.
+export const RETURN = { from: 0.76, to: 0.98 };
+
 export function stateAt(progress, assembled = CAMERA.assembled) {
   const p = clamp(progress);
   // Every part starts drawing off together once the rotor stops. The shell gets furthest soonest, so the parts inside never pass through it.
-  const apart = (span) => ease((p - EXPLODE_START) / span);
+  const home = ease((p - RETURN.from) / (RETURN.to - RETURN.from));
+  const apart = (span) => ease((p - EXPLODE_START) / span) * (1 - home);
   const channels = {
-    z: ease(p / 0.32),
+    z: ease(p / 0.32) * (1 - home),
     b: apart(0.2),
     c: apart(0.2),
     s: apart(0.22),
@@ -142,12 +147,14 @@ export function stateAt(progress, assembled = CAMERA.assembled) {
   return {
     camera,
     explode,
-    spin: 1 - ease((p - 0.01) / (EXPLODE_START - 0.01)),
+    spin: Math.max(1 - ease((p - 0.01) / (EXPLODE_START - 0.01)), home),
     baseFade: 1 - apart(0.22) * 0.85,
     // The water stops catching shadows once the parts are well apart, or theirs would sprawl across it as the camera turns.
     seaShadows: apart(0.22) < 0.9,
     orbit: orbitAt(p),
     // The rest of the farm stays in the background, faded back, as this one comes apart.
-    farmFade: 1 - ease(p / 0.16) * (1 - FARM_FADED),
+    farmFade: 1 - ease(p / 0.16) * (1 - FARM_FADED) * (1 - home),
+    // How far the tour has come back to the hero's view, 0 to 1, which also slides the turbine back to where the hero places it.
+    home,
   };
 }

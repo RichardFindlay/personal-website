@@ -2,6 +2,29 @@
 // envelope, bearing, gearbox stage, brake, generator or converter geometry. These values are sized from
 // typical 5 MW-class practice and none of them is a published value of this turbine.
 // Positions named `s` run along the shaft axis in metres, 0 where it crosses the yaw axis, positive upwind.
+// The sea, named here so the farm can be laid out inside it (see `seaTile` below).
+const SEA_TILE = { left: -1000, right: 700, back: -920, front: 420, heroEdge: 70, pileEmbed: 4.2, scourRadius: 14.5, scourRocks: 1300 };
+
+// The farm is a regular grid: turbines 190 m apart along a row and the rows 250 m apart, the usual 4 by 6 rotor diameters drawn closer so several fit on a screen. The grid is laid out for the site's prevailing wind and stands turned 20 degrees from today's, which every rotor has yawed to face (+x), as a real farm's turbines turn to the wind of the day. The turbine in focus stands in the front row, which runs on to its left towards the camera and away to its right; the other rows lie behind it, reaching off to both sides.
+const FARM_GRID = { row: 250, along: 190, turn: -20 };
+// The grid point `r` rows back and `j` places along the row, as [u, v] from the turbine in focus.
+export function gridPoint({ row, along, turn }, r, j) {
+  const angle = (turn * Math.PI) / 180;
+  const [c, s] = [Math.cos(angle), Math.sin(angle)];
+  const [gx, gy] = [-r * row, j * along];
+  const [x, y] = [gx * c - gy * s, gx * s + gy * c];
+  return [x + y, x - y];
+}
+// Each grid point in the front row or behind it, kept where its whole rotor is well inside the sea, nearest first.
+function gridFarm(grid, tile) {
+  const points = [];
+  for (let r = 0; r <= 8; r++) for (let j = -8; j <= 8; j++) {
+    const [u, v] = gridPoint(grid, r, j);
+    if ((r || j) && u > tile.left + 80 && u < tile.right - 60 && v > tile.back + 140 && v < tile.front - 140) points.push([u, v]);
+  }
+  return points.sort((p, q) => Math.hypot(...p) - Math.hypot(...q));
+}
+
 export const ASSUMED = {
   // Cut-in rotor speed as remembered from NREL TP-500-38060; the report was unreachable and the deck holds only the 12.1 rpm rated value.
   spinRpm: 6.9,
@@ -116,12 +139,12 @@ export const ASSUMED = {
   ],
 
   // Sea in view axes: `u` runs across the screen (x + y) and `v` up and down it (x - y). Far bigger than any screen shows, its edges included: the water runs off the bottom of the page at rest and fills the screen all the way round the camera's tour. `heroEdge` is the level line across the water that the hero's bottom edge is fitted to, which sets the size of the opening view, and `pileEmbed` is how far the piles run on below the seabed (m).
-  seaTile: { left: -820, right: 700, back: -920, front: 240, heroEdge: 70, pileEmbed: 4.2, scourRadius: 14.5, scourRocks: 1300 },
-  // The rest of the wind farm as [u, v] from the foundation in focus: far closer than the usual seven rotor diameters, so more than one fits on a screen.
-  farm: [
-    [120, -150], [-174, -79], [320, -110], [260, -300], [60, -350], [-230, -310], [-420, -300],
-    [-610, -280], [-800, -300], [470, -280], [200, -480], [-40, -530], [-300, -500], [-520, -490], [-740, -490],
-  ],
+  seaTile: SEA_TILE,
+  // The rest of the wind farm as [u, v] from the foundation in focus, on the grid above.
+  farmGrid: FARM_GRID,
+  farm: gridFarm(FARM_GRID, SEA_TILE),
+  // The hero is composed round the turbine in focus and this one, the nearest in the next row back.
+  pair: gridPoint(FARM_GRID, 1, 0),
   // Wave periods around the deck's 10 s peak, sharing the deck's significant height with these weights; the deck has a spectrum, this samples it by eye.
   waves: [
     { period: 10, weight: 1, heading: 12 },

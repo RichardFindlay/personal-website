@@ -199,7 +199,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
     const place = (state) => {
       const intro = introAmount(introTime) * heroRest;
       const perMetre = view.meet * state.camera.zoom * (1 + (INTRO.zoom - 1) * intro) * CAMERA_SCALE;
-      const centreX = view.width / 2 + heroShift;
+      const centreX = view.width / 2 + heroShift * Math.max(heroRest, state.home);
       const centreY = view.figureTop + view.figureHeight / 2;
       axis.set(...viewAxis(intro, reducedMotion.matches ? [0, 0] : state.orbit));
       shared.uWaveSlope.value = waveSlopeFor(axis.z);
@@ -361,7 +361,7 @@ export async function mountTurbine3D(figure, { signal, onLost }) {
       if (frame) {
         heroFrame = frame;
         fitHero();
-        heroShift = (assembled?.shiftX ?? 0) * rest;
+        heroShift = assembled?.shiftX ?? 0;
         heroRest = rest;
       }
       request();

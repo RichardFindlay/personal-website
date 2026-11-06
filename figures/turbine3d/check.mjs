@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { PUBLISHED } from "../../staticfiles/js/turbine3d/published.js";
 import { ASSUMED, seaPoint, stageRatio, hssOffset, hullHalfWidthAt } from "../../staticfiles/js/turbine3d/assumed.js";
-import { FARM_FADED, INTRO, heroCamera, introAmount, orbitAt, stateAt, project, toViewBox, viewAxis, VIEW_DIRECTION, CAMERA_SCALE, VIEWBOX } from "../../staticfiles/js/turbine3d/choreography.js";
+import { FARM_FADED, INTRO, RETURN, heroCamera, introAmount, orbitAt, stateAt, project, toViewBox, viewAxis, VIEW_DIRECTION, CAMERA_SCALE, VIEWBOX } from "../../staticfiles/js/turbine3d/choreography.js";
 import { PART_TABLE } from "../../staticfiles/js/turbine3d/parts/table.js";
 import { sectionAt, RING_POINTS } from "../../staticfiles/js/turbine3d/parts/loft.js";
 import { WAVES } from "../../staticfiles/js/turbine3d/parts/waves.js";
@@ -118,18 +118,27 @@ for (const { centre, radius, spread, depth, length } of ASSUMED.shoals) {
 const start = stateAt(0);
 const end = stateAt(1);
 assert.deepEqual(Object.keys(start.explode).sort(), PART_TABLE.map((part) => part.key).sort());
+// The page ends where it starts: the turbine whole, the rotor turning, tower and farm at full strength and the hero's view.
 for (const part of PART_TABLE) {
   assert.equal(start.explode[part.key], 0, `${part.key} assembled at p=0`);
-  assert.equal(end.explode[part.key], part.channel ? 1 : 0, `${part.key} at p=1`);
+  assert.equal(end.explode[part.key], 0, `${part.key} back together at p=1`);
 }
-assert.equal(start.spin, 1);
-assert.equal(end.spin, 0);
-assert.equal(start.baseFade, 1);
-close(end.baseFade, 0.15, 1e-9, "baseFade at p=1");
-assert.equal(start.seaShadows, true);
-assert.equal(end.seaShadows, false);
-assert.equal(start.farmFade, 1);
-assert.equal(end.farmFade, FARM_FADED);
+assert.equal(start.home, 0);
+assert.equal(end.home, 1);
+for (const state of [start, end]) {
+  assert.equal(state.spin, 1);
+  assert.equal(state.baseFade, 1);
+  assert.equal(state.seaShadows, true);
+  assert.equal(state.farmFade, 1);
+  assert.deepEqual(state.camera, stateAt(0).camera);
+}
+// Between the camera getting home and the return, the finished exploded diagram holds.
+const diagram = stateAt((0.72 + RETURN.from) / 2);
+for (const part of PART_TABLE) assert.equal(diagram.explode[part.key], part.channel ? 1 : 0, `${part.key} apart in the finished diagram`);
+assert.equal(diagram.spin, 0);
+close(diagram.baseFade, 0.15, 1e-9, "tower ghosted in the finished diagram");
+assert.equal(diagram.seaShadows, false);
+assert.equal(diagram.farmFade, FARM_FADED);
 
 // Every part starts coming apart together just after the rotor stops, and all are fully apart before the bird's eye view.
 const moving = PART_TABLE.filter((part) => part.channel);
@@ -160,27 +169,50 @@ for (const { screenW, figureHeight, top, edge } of [
   assert.ok(right * C * scale > screenW / 2 - camera.shiftX, "sea reaches the right of the screen");
   assert.ok(screenY(seaPoint([0, back]).concat(-PUBLISHED.towerTop)) < -56, "sea reaches behind the nav");
 }
-// Every screen keeps the balance of the 943 px layout: both nacelles in frame, the pair of turbines centred at 42.5% of the width, and at that layout the main one at 70%.
+// Every screen keeps its balance: the turbine in focus at 58% of the width, the partner's nacelle in frame, and from a tablet up the farm's towers standing on both sides of it.
 const heroAt = (width, height) => ({ figureHeight: height - 56, meet: Math.min(width / VIEWBOX.width, (height - 56) / VIEWBOX.height), top: 14, edge: height - 62 - 56, width });
-const REAR = ASSUMED.farm[1];
-close((943 / 2 + heroCamera(heroAt(943, 798)).shiftX) / 943, 0.7, 0.01, "main turbine at 70% of the 943 px layout");
+const REAR = ASSUMED.pair;
 for (const [width, height] of [[375, 812], [768, 1024], [943, 798], [1280, 720], [1440, 900], [1920, 1080], [2560, 1300], [3440, 1440], [5120, 1440]]) {
   const frame = heroAt(width, height);
   const camera = heroCamera(frame);
   const screenY = (point) => frame.figureHeight / 2 + frame.meet * (toViewBox(point, camera)[1] - VIEWBOX.height / 2);
   const scale = frame.meet * camera.zoom;
   const mainX = width / 2 + camera.shiftX;
-  close((mainX + (mainX + REAR[0] * C * scale)) / 2 / width, 0.425, 1e-9, `${width}x${height}: pair centred`);
+  close(mainX / width, 0.58, 1e-9, `${width}x${height}: turbine in focus at 58%`);
+  if (width >= 768) {
+    const towers = ASSUMED.farm.map(([u]) => mainX + u * C * scale).filter((x) => x > 0 && x < width);
+    assert.ok(towers.some((x) => x < mainX) && towers.some((x) => x > mainX), `${width}x${height}: farm on both sides of the turbine in focus`);
+  }
   close(screenY(heroLine), frame.edge, 1e-6, `${width}x${height}: hero line on the hero edge`);
   const [rearX, rearY] = seaPoint(REAR);
   assert.ok(screenY([rearX + ASSUMED.raised.rearTop, rearY, ASSUMED.raised.top + ASSUMED.instruments.cups.height]) >= frame.top - 1e-6, `${width}x${height}: rear nacelle under the top of the frame`);
 }
 
-// The widest screen the block is sized for, 32:9, with its turbine right of centre.
+// The widest screen the block is sized for, 32:9, with its turbine a little right of the middle.
 const wide = { screenW: 5120, figureHeight: 1384, top: 10, edge: 1310 };
 const wideScale = heroCamera({ figureHeight: wide.figureHeight, meet: wide.figureHeight / VIEWBOX.height, top: wide.top, edge: wide.edge, width: wide.screenW }).zoom * (wide.figureHeight / VIEWBOX.height);
-assert.ok(left * C * wideScale < -(wide.screenW * 0.7), "sea reaches the left of a 32:9 screen");
-assert.ok(right * C * wideScale > wide.screenW * 0.3, "sea reaches the right of a 32:9 screen");
+assert.ok(left * C * wideScale < -wide.screenW * 0.58, "sea reaches the left of a 32:9 screen");
+assert.ok(right * C * wideScale > wide.screenW * 0.42, "sea reaches the right of a 32:9 screen");
+
+// The farm is a regular grid: turned back by the grid's turn, every turbine stands on a whole row and place in its row, the rows further apart than the places along them and turned no more than 20 degrees off today's wind (every rotor faces +x); the turbine in focus in the front row, no turbine standing on screen in front of its rotor, rows reaching off to both sides of it, and the hero's partner the nearest in the next row back.
+const { row, along, turn } = ASSUMED.farmGrid;
+assert.ok(row > along, "rows further apart than turbines along a row");
+assert.ok(Math.abs(turn) <= 20, "the grid within 20 degrees of facing today's wind");
+const unturn = ([u, v]) => {
+  const [x, y] = seaPoint([u, v]);
+  const a = (-turn * Math.PI) / 180;
+  return [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
+};
+for (const point of ASSUMED.farm) {
+  const [gx, gy] = unturn(point);
+  close(-gx / row, Math.round(-gx / row), 1e-9, `turbine at ${point} on a row`);
+  close(gy / along, Math.round(gy / along), 1e-9, `turbine at ${point} in its place along the row`);
+  assert.ok(gx <= 1e-9, `turbine at ${point} in the front row or behind it`);
+  if (point[1] > 0) assert.ok(Math.abs(point[0]) * C > 2 * PUBLISHED.tipRadius, `turbine at ${point} stands in front of the rotor in focus`);
+}
+assert.ok(ASSUMED.farm.some(([u, v]) => u === REAR[0] && v === REAR[1]), "the hero's partner is in the farm");
+unturn(REAR).forEach((value, i) => close(value, [-row, 0][i], 1e-9, "the partner is the nearest in the next row back"));
+assert.ok(ASSUMED.farm.some(([u]) => u < REAR[0]) && ASSUMED.farm.some(([u]) => u > 0), "the farm reaches past the pair on both sides");
 
 // The farm's rotors must not sweep through each other or the one in focus, and every turbine stands on the sea.
 const turbines = [[0, 0], ...ASSUMED.farm];
@@ -252,7 +284,6 @@ for (const { screenW, screenH, nav, edge } of [
   const figureHeight = screenH - 56;
   const meet = Math.min(screenW / VIEWBOX.width, figureHeight / VIEWBOX.height);
   const rest = heroCamera({ figureHeight, meet, top: nav + 10 - 56, edge: edge - 56, width: screenW });
-  const shiftX = rest.shiftX;
   for (let step = 0; step <= 40; step++) {
     const amount = step / 40;
     const [ax, ay, az] = viewAxis(amount);
@@ -261,7 +292,7 @@ for (const { screenW, screenH, nav, edge } of [
     const up = [-az * ax / flat, -az * ay / flat, flat];
     const perMetre = meet * rest.zoom * (1 + (INTRO.zoom - 1) * amount) * CAMERA_SCALE;
     const middle = [rest.target[0] + INTRO.pan[0] * amount, rest.target[1] + INTRO.pan[1] * amount, rest.target[2]];
-    const centreX = screenW / 2 + shiftX;
+    const centreX = screenW / 2 + rest.shiftX;
     const centreY = 56 + figureHeight / 2;
     const onWater = (px, py) => {
       const point = [0, 1, 2].map((i) => middle[i] + sideways[i] * ((px - centreX) / perMetre) + up[i] * ((centreY - py) / perMetre));
