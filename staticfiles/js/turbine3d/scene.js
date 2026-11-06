@@ -13,7 +13,9 @@ const PIXEL_RATIO_STEPS = [1.5, 1.25];
 const CAMERA_DISTANCE = 1400;
 // How long to wait for the browser to hand back a lost GPU context before falling back to the static drawing.
 const RESTORE_WAIT_MS = 10000;
-const SPIN_RATE = (SPEC.assumed.spinRpm / 60) * Math.PI * 2;
+// The rotors are drawn turning at three quarters of the turbine's cut-in speed, calmer behind the hero's words (rad/s).
+const SPIN_PACE = 0.75;
+const SPIN_RATE = (SPEC.assumed.spinRpm / 60) * Math.PI * 2 * SPIN_PACE;
 const THREE_FOLD = (Math.PI * 2) / 3;
 // Once the turbine is apart its rotor and shaft keep turning, slowly, about the shaft axis (rad/s): about a turn a minute.
 const APART_TURN = 0.1;
