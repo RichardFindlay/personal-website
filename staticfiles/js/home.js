@@ -119,7 +119,7 @@ async function mountSceneFigure() {
   });
   const load = async () => {
     const { mountTurbine3D } = await import('./turbine3d/scene.js');
-    // On a machine the scene already runs slowly on, the card drawings rest until the pointer is over them.
+    // On a machine the scene already runs slowly on, the bar drops its blur.
     return mountTurbine3D(figure, { signal: limit.signal, onLost: () => fallBack('WebGL context lost'), onSlow: () => root.classList.add('is-slow') });
   };
   try {
@@ -170,7 +170,7 @@ document.querySelectorAll('.panel').forEach((panel) => {
 });
 
 // Each card scene: fetched once the page is up; its script animates the
-// drawing while the card is on screen. The drawings are wide strips with the
+// drawing while the card is selected. The drawings are wide strips with the
 // subject towards the right, so a portrait card frames each one on its subject.
 document.querySelectorAll('.card-scene').forEach((scene) => {
   const frame = SCENE_FRAMES[scene.dataset.svg.split('/').at(-2)];

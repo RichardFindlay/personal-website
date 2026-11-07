@@ -328,8 +328,8 @@ a:hover { opacity: .72; }
 
 .card-scene.in svg { opacity: 1; }
 
-/* A page that has found itself slow (home.js adds is-slow) lets a card's drawing move only under the pointer; its script stops too. */
-.is-slow .card:not(:hover) .card-scene * { animation-play-state: paused; }
+/* A card's drawing moves only while the card is selected, under the pointer or holding focus; its script stops too. */
+.card:not(:hover):not(:focus-within) .card-scene * { animation-play-state: paused; }
 
 /* The bar's frosted blur is a full backdrop pass every frame, so a slow page keeps the glass colour and drops the blur. */
 .is-slow .nav::before { -webkit-backdrop-filter: none; backdrop-filter: none; }

@@ -147,9 +147,9 @@ function draw(t) {
 }
 const START = Number(stage.dataset.at ?? 50);
 const frozen = still.matches || "frozen" in stage.dataset;
-// On a page that has found itself slow (html.is-slow) the card moves only under the pointer.
+// The drawing moves only while its card is selected: under the pointer or holding keyboard focus.
 const host = stage.closest(".card") ?? stage;
-const resting = () => frozen || (document.documentElement.classList.contains("is-slow") && !host.matches(":hover"));
+const resting = () => frozen || !host.matches(":hover, :focus-within");
 const GAP = 1000 / 30 - 2;
 let frame = 0, visible = false, t0 = 0, last = -Infinity, clock = frozen && !("at" in stage.dataset) ? STILL : START;
 function tick(now) {
@@ -166,5 +166,6 @@ new IntersectionObserver((entries) => {
   start();
 }, { rootMargin: "120px 0px" }).observe(stage);
 host.addEventListener("pointerenter", start);
+host.addEventListener("focusin", start);
 
 requestAnimationFrame(() => stage.classList.add("in"));</script></body></html>

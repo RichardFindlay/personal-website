@@ -653,9 +653,9 @@ const SPH = ${SECONDS_PER_HOUR}, STILL_HOUR = ${STILL_HOUR};
 const stage = document.querySelector("${SCOPE}");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
-// On a page that has found itself slow (html.is-slow) the card moves only under the pointer.
+// The drawing moves only while its card is selected: under the pointer or holding keyboard focus.
 const host = stage.closest(".card") ?? stage;
-const resting = () => still.matches || (document.documentElement.classList.contains("is-slow") && !host.matches(":hover"));
+const resting = () => still.matches || !host.matches(":hover, :focus-within");
 // each lamp is restyled only when its own size can show the change: 60 steps of
 // charge up close, 10 far off, so the far lamps cost little while the plant moves
 const lamps = [...svg.querySelectorAll(".bt-lamp")].map((el) => ({ el, steps: +el.dataset.steps, shown: -1 }));
@@ -699,6 +699,7 @@ if (fixed === undefined) new IntersectionObserver((entries) => {
   start();
 }, { rootMargin: "120px 0px" }).observe(stage);
 host.addEventListener("pointerenter", start);
+host.addEventListener("focusin", start);
 `;
 
 mkdirSync(OUT, { recursive: true });

@@ -271,9 +271,9 @@ const AX = ${JSON.stringify(AX)}, SIDE = [-AX[1], AX[0], 0];
 const stage = document.querySelector("${SCOPE}");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
-// On a page that has found itself slow (html.is-slow) the card moves only under the pointer.
+// The drawing moves only while its card is selected: under the pointer or holding keyboard focus.
 const host = stage.closest(".card") ?? stage;
-const resting = () => still.matches || (document.documentElement.classList.contains("is-slow") && !host.matches(":hover"));
+const resting = () => still.matches || !host.matches(":hover, :focus-within");
 const slot = (g, layer, i) => [...g.querySelectorAll('[data-part="' + layer + '"] [data-blade="' + i + '"] [data-solid="blade"] > path')];
 const write = (els, paths) => {
   const values = paths ? [paths.fill, ...paths.shades, paths.top, paths.outline] : els.map(() => "");
@@ -367,6 +367,7 @@ new IntersectionObserver((entries) => {
   start();
 }, { rootMargin: "120px 0px" }).observe(stage);
 host.addEventListener("pointerenter", start);
+host.addEventListener("focusin", start);
 `;
 
 // The scene's own rules, one per line so a backdrop can scope each to its element.

@@ -171,6 +171,9 @@ const AX = [0,-1,0], SIDE = [-AX[1], AX[0], 0];
 const stage = document.querySelector(".ohmera-scene");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
+// The drawing moves only while its card is selected: under the pointer or holding keyboard focus.
+const host = stage.closest(".card") ?? stage;
+const resting = () => still.matches || !host.matches(":hover, :focus-within");
 const slot = (g, layer, i) => [...g.querySelectorAll('[data-part="' + layer + '"] [data-blade="' + i + '"] [data-solid="blade"] > path')];
 const write = (els, paths) => {
   const values = paths ? [paths.fill, ...paths.shades, paths.top, paths.outline] : els.map(() => "");
@@ -254,11 +257,14 @@ function tick(now) {
     draw((now - t0) / 1000);
     crests((now - t0) / 1000);
   }
-  frame = visible && !still.matches ? requestAnimationFrame(tick) : 0;
+  frame = visible && !resting() ? requestAnimationFrame(tick) : 0;
 }
 draw(0, true);
 crests(0);
+const start = () => { if (visible && !frame && !resting()) frame = requestAnimationFrame(tick); };
 new IntersectionObserver((entries) => {
   visible = entries[entries.length - 1].isIntersecting;
-  if (visible && !frame && !still.matches) frame = requestAnimationFrame(tick);
+  start();
 }, { rootMargin: "120px 0px" }).observe(stage);
+host.addEventListener("pointerenter", start);
+host.addEventListener("focusin", start);

@@ -320,9 +320,9 @@ const DETAIL = {"sections":22,"arc":10,"bisect":10,"facets":8};
 const stage = document.querySelector(".scene-wake");
 const svg = stage.querySelector("svg");
 const still = matchMedia("(prefers-reduced-motion: reduce)");
-// On a page that has found itself slow (html.is-slow) the card moves only under the pointer.
+// The drawing moves only while its card is selected: under the pointer or holding keyboard focus.
 const host = stage.closest(".card") ?? stage;
-const resting = () => still.matches || (document.documentElement.classList.contains("is-slow") && !host.matches(":hover"));
+const resting = () => still.matches || !host.matches(":hover, :focus-within");
 const yawing = svg.querySelector("[data-yawing]");
 // The phone shift is an SVG transform attribute, not CSS: Safari drops a CSS
 // transform on a <g> from children inserted after it applies, so the redrawn
@@ -385,3 +385,4 @@ new IntersectionObserver((entries) => {
   start();
 }, { rootMargin: "120px 0px" }).observe(stage);
 host.addEventListener("pointerenter", start);
+host.addEventListener("focusin", start);
