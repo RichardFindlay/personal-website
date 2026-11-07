@@ -149,6 +149,75 @@ window.addEventListener('load', update);
 update();
 mountFigure();
 
+// The title is a dot-matrix sign: its letters are lit as whole dots on a fine grid, a dot wherever a letter covers the
+// middle of the dot's cell, so no dot is cut by a letter's edge. The text stays in the page, see-through, for reading and
+// search; the dots are drawn over it, and the CSS dot pattern shows until they are.
+const TITLE_PITCH_EM = 0.03;
+const TITLE_MIN_PITCH = 2.5;
+const TITLE_DOT = 0.66; // a dot's width, as a share of the pitch
+
+function dotTitle(title) {
+  const text = title.firstChild;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'hero-title-dots';
+  canvas.setAttribute('aria-hidden', 'true');
+  title.append(canvas);
+  const letters = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+
+  const draw = () => {
+    const style = getComputedStyle(title);
+    const size = parseFloat(style.fontSize);
+    const box = title.getBoundingClientRect();
+    const width = Math.ceil(box.width);
+    const height = Math.ceil(box.height);
+    if (!width || !height) return;
+
+    // The letters, white on clear, each where the page set it.
+    letters.canvas.width = width;
+    letters.canvas.height = height;
+    letters.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    letters.fillStyle = '#fff';
+    const ascent = letters.measureText('E').fontBoundingBoxAscent;
+    const range = document.createRange();
+    for (let i = 0; i < text.length; i++) {
+      range.setStart(text, i);
+      range.setEnd(text, i + 1);
+      const at = range.getBoundingClientRect();
+      letters.fillText(text.data[i].toUpperCase(), at.left - box.left, at.top - box.top + ascent);
+    }
+    const coverage = letters.getImageData(0, 0, width, height).data;
+
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * ratio);
+    canvas.height = Math.round(height * ratio);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    const dots = canvas.getContext('2d');
+    dots.scale(ratio, ratio);
+    dots.fillStyle = style.getPropertyValue('--ink');
+    const pitch = Math.max(TITLE_MIN_PITCH, size * TITLE_PITCH_EM);
+    const radius = (pitch * TITLE_DOT) / 2;
+    dots.beginPath();
+    for (let y = pitch / 2; y < height; y += pitch) {
+      for (let x = pitch / 2; x < width; x += pitch) {
+        if (coverage[(Math.floor(y) * width + Math.floor(x)) * 4 + 3] < 128) continue;
+        dots.moveTo(x + radius, y);
+        dots.arc(x, y, radius, 0, Math.PI * 2);
+      }
+    }
+    dots.fill();
+    title.classList.add('is-dotted');
+  };
+
+  document.fonts.ready.then(draw);
+  new ResizeObserver(draw).observe(title);
+  // The ink changes with the theme, and over the sea once it is ready.
+  new MutationObserver(draw).observe(root, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+}
+
+const heroTitle = document.querySelector('.hero-title');
+if (heroTitle) dotTitle(heroTitle);
+
 // The arrows beside a card row step it one card along, and grey out at either end.
 document.querySelectorAll('.panel').forEach((panel) => {
   const track = panel.querySelector('.cards');

@@ -132,6 +132,19 @@ a:hover { opacity: .72; }
   animation: hero-scan 1.6s ease-out 0.2s both;
 }
 
+/* home.js draws the letters as whole dots over the see-through text, and the CSS pattern above stands down. */
+.hero-title.is-dotted {
+  position: relative;
+  background-image: none;
+}
+
+.hero-title-dots {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
 @keyframes hero-scan {
   from { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
 }
