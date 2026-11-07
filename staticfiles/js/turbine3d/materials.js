@@ -117,7 +117,6 @@ const FINISHES = {
   yellow: { physical: { color: "#f2b90a", roughness: 0.36, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.2 }, surface: { ...PAINT, tint: 0.05, rough: 0.14 } },
   hullDark: { standard: { color: "#2c2a26", roughness: 0.62, metalness: 0.1 }, surface: { scale: 2.4, rough: 0.22, bump: 0.05, tint: 0.5 } },
   pile: { standard: { color: "#3b3f3f", roughness: 0.7, metalness: 0.15 }, surface: { scale: 3, rough: 0.2, bump: 0.05, tint: 0.45 } },
-  anode: { standard: { color: "#8c9498", roughness: 0.85, metalness: 0.4 }, surface: STEEL },
   towerInner: { standard: { color: "#5e6462", roughness: 0.8 } },
   doorPaint: { physical: { color: "#b9bfbc", roughness: 0.42, clearcoat: 0.3 }, surface: PAINT },
   doorGlass: { physical: { color: "#2a3640", roughness: 0.08, metalness: 0.2, clearcoat: 1 } },

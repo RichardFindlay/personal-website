@@ -103,6 +103,7 @@ export function buildTower(spec, mats) {
 }
 
 // The foundation below the tower: the monopile and its yellow sleeve, the platform with its rails, boat landing, ladder, J-tube, davit and stair.
+// Below the sleeve the pile is left plain: what the water shows of it reads as clutter.
 // `seg` is the lathe's resolution, high for the turbine in focus and lower for the farm's copies, which also leave out the
 // pieces too small to show at their distance: the flange bolts, the ladder's rungs and hoops, and the davit's line.
 function buildTransitionPiece(kit, spec, seg) {
@@ -124,15 +125,6 @@ function buildTransitionPiece(kit, spec, seg) {
     flangeBolts.push(aim(radial(a, baseR + 0.04, local(tp.top + 0.06)), [0, 0, 1], 0.03));
   }
   if (fine) kit.many("bolt", BOLT, flangeBolts);
-
-  const anodes = [];
-  for (const z of [-16.5, -12]) {
-    for (let k = 0; k < 8; k++) {
-      const a = ((k + (z < -13 ? 0.5 : 0)) / 8) * TAU;
-      anodes.push(trs(radial(a, pileR + 0.2, local(z)), [0, 0, a]));
-    }
-  }
-  kit.many("anode", box(0.3, 0.26, 1.9, 0.03), anodes);
 
   const P = assumed.platform;
   const zDeck = local(P.z);
@@ -195,21 +187,9 @@ function buildTransitionPiece(kit, spec, seg) {
 
   const jAz = assumed.jTube.azimuth * DEG;
   const jr = assumed.jTube.radius;
-  const seabed = published.seabed;
-  const jPath = [];
   const outer = R + jr + 0.14;
-  const pileOuter = pileR + jr + 0.14;
-  jPath.push(radial(jAz, outer, local(P.z - 0.1)), radial(jAz, outer, local(tp.bottom + 0.4)), radial(jAz, (outer + pileOuter) / 2, local(tp.bottom - 0.4)), radial(jAz, pileOuter, local(tp.bottom - 1.4)), radial(jAz, pileOuter, local(seabed + 3.2)));
-  for (let k = 1; k <= 10; k++) {
-    const f = (k / 10) * (Math.PI / 2);
-    jPath.push(radial(jAz, pileOuter + 2.6 * (1 - Math.cos(f)), local(seabed + 3.2 - 2.6 * Math.sin(f))));
-  }
-  jPath.push(radial(jAz, pileOuter + 4.4, local(seabed + 0.5)));
-  const jGeo = pipe(jPath, jr, { seg: 12 });
-  kit.add("hullDark", jGeo);
-  const clamps = [];
-  for (const z of [8, 4, 0, -3.5]) clamps.push(trs(radial(jAz, R + 0.02, local(z)), [0, 0, jAz]));
-  for (const z of [-9, -14, -18]) clamps.push(trs(radial(jAz, pileR + 0.02, local(z)), [0, 0, jAz]));
+  kit.add("hullDark", pipe([radial(jAz, outer, local(P.z - 0.1)), radial(jAz, outer, local(tp.bottom + 0.4))], jr, { seg: 12 }));
+  const clamps = [8, 4, 0, -3.5].map((z) => trs(radial(jAz, R + 0.02, local(z)), [0, 0, jAz]));
   kit.many("yellow", box(0.68, 0.58, 0.24, 0.012), clamps);
 
   const davitAz = 10 * DEG;
