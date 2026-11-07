@@ -95,6 +95,7 @@ function visibleTimeout(ms, expire) {
   let started = 0;
   let timer = 0;
   const run = () => {
+    clearTimeout(timer);
     started = performance.now();
     timer = setTimeout(expire, left);
   };
