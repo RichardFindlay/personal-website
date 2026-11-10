@@ -23,6 +23,12 @@ const figure = document.querySelector('.stage-figure');
 const hero = document.querySelector('.hero');
 const foot = document.querySelector('.stage-foot');
 
+// Settles once the hero's background (the 3D scene, or the static drawing in its place) has drawn: the hero text comes in then, and
+// the rest of the page's downloads start then, so nothing else competes with the background for the connection.
+let markBackground;
+const backgroundReady = new Promise((resolve) => { markBackground = resolve; });
+backgroundReady.then(() => root.classList.remove('bg-wait'));
+
 let renderTurbine = () => {};
 let frameQueued = false;
 let usingScene = false;
@@ -62,19 +68,22 @@ async function mountSvgFigure() {
   let markup;
   try {
     const response = await fetch(figure.dataset.svg);
-    if (!response.ok) return;
+    if (!response.ok) return markBackground();
     markup = await response.text();
   } catch {
-    return;
+    return markBackground();
   }
   figure.insertAdjacentHTML('beforeend', markup);
   const svg = figure.querySelector('svg');
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) svg.pauseAnimations();
   renderTurbine = mount(svg);
   update();
+  markBackground();
 }
 
 function hasCapableWebGL() {
+  // The page's head has already asked, to preload only the background this machine will show.
+  if (typeof window.webgl2Capable === 'boolean') return window.webgl2Capable;
   const context = document.createElement('canvas').getContext('webgl2', { failIfMajorPerformanceCaveat: true });
   context?.getExtension('WEBGL_lose_context')?.loseContext();
   return Boolean(context);
@@ -128,6 +137,7 @@ async function mountSceneFigure() {
     usingScene = true;
     root.classList.add('sea-ready');
     update();
+    markBackground();
   } catch (error) {
     limit.abort();
     fallBack(error.message);
@@ -239,10 +249,10 @@ document.querySelectorAll('.panel').forEach((panel) => {
   sync();
 });
 
-// Each card scene: fetched once the page is up; its script animates the
+// Each card scene: fetched once the hero's background has drawn; its script animates the
 // drawing while the card is selected. The drawings are wide strips with the
 // subject towards the right, so a portrait card frames each one on its subject.
-document.querySelectorAll('.card-scene').forEach((scene) => {
+backgroundReady.then(() => document.querySelectorAll('.card-scene').forEach((scene) => {
   const frame = SCENE_FRAMES[scene.dataset.svg.split('/').at(-2)];
   fetch(scene.dataset.svg)
     .then((r) => (r.ok ? r.text() : Promise.reject(new Error('scene ' + r.status))))
@@ -259,4 +269,10 @@ document.querySelectorAll('.card-scene').forEach((scene) => {
     })
     .then(() => requestAnimationFrame(() => scene.classList.add('in')))
     .catch(() => {});
-});
+}));
+
+// The photo and the book covers get their sources after the background too.
+backgroundReady.then(() => document.querySelectorAll('img[data-src]').forEach((img) => {
+  img.src = img.dataset.src;
+  img.removeAttribute('data-src');
+}));

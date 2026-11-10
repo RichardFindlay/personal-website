@@ -89,6 +89,13 @@ a:hover { opacity: .72; }
   text-align: center;
 }
 
+/* The hero text holds back until the background has drawn, then comes in over it in its final colour. */
+.hero > * { transition: opacity 0.6s ease; }
+.bg-wait .hero > * { opacity: 0; }
+.bg-wait .hero-title { animation-play-state: paused; }
+/* Images waiting for home.js to give them their source after the background. */
+img[data-src] { visibility: hidden; }
+
 /* The hero text sits straight on the water. */
 .sea-ready .hero {
   --ink: #f7fbfd;
@@ -554,6 +561,7 @@ a:hover { opacity: .72; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .hero-title { animation: none; }
+  .hero > * { transition: none; }
   .tb3d-canvas { transition: none; }
   .card-scene svg { transition: none; }
 }

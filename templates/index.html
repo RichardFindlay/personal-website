@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     {% include 'seo_head.html' %}
     <script>try { var theme = localStorage.getItem('theme'); if (theme === 'dark' || theme === 'light') document.documentElement.dataset.theme = theme; } catch (e) {}</script>
+    <!-- The hero text waits for the background behind it (home.js lifts this once it has drawn), but never more than 20 s if the scripts fail. -->
+    <script>document.documentElement.classList.add('bg-wait'); setTimeout(function () { document.documentElement.classList.remove('bg-wait'); }, 20000);</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <!-- The font stylesheet loads off the render path; the text shows in the fallback face until the fonts swap in. -->
@@ -13,24 +15,27 @@
     <link rel="stylesheet" href="{% static 'css/chrome.css' %}">
     <link rel="stylesheet" href="{% static 'css/home.css' %}">
     <script type="importmap">{"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js"}}</script>
-    <!-- The scene's modules import each other four deep; preloading them, and three.js, fetches all of them at once. -->
-    <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js" crossorigin>
     <link rel="modulepreload" href="{% static 'js/nav.js' %}">
     <link rel="modulepreload" href="{% static 'js/turbine.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/scene.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/choreography.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/assumed.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/published.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/materials.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/index.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/table.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/shapes.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/loft.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/waves.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/rotor.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/drivetrain.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/nacelle.js' %}">
-    <link rel="modulepreload" href="{% static 'js/turbine3d/parts/support.js' %}">
+    <!-- Only one background is fetched: the 3D scene where the machine can run it (its modules import each other four deep, so
+         preloading them, and three.js, fetches all of them at once), else the static drawing home.js falls back to. -->
+    <script>
+        (function () {
+            var gl = null;
+            try { gl = document.createElement('canvas').getContext('webgl2', { failIfMajorPerformanceCaveat: true }); } catch (e) {}
+            window.webgl2Capable = !!gl;
+            if (gl && gl.getExtension('WEBGL_lose_context')) gl.getExtension('WEBGL_lose_context').loseContext();
+            var urls = gl ? ["https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.min.js", "{% static 'js/turbine3d/scene.js' %}", "{% static 'js/turbine3d/choreography.js' %}", "{% static 'js/turbine3d/assumed.js' %}", "{% static 'js/turbine3d/published.js' %}", "{% static 'js/turbine3d/materials.js' %}", "{% static 'js/turbine3d/parts/index.js' %}", "{% static 'js/turbine3d/parts/table.js' %}", "{% static 'js/turbine3d/parts/shapes.js' %}", "{% static 'js/turbine3d/parts/loft.js' %}", "{% static 'js/turbine3d/parts/waves.js' %}", "{% static 'js/turbine3d/parts/rotor.js' %}", "{% static 'js/turbine3d/parts/drivetrain.js' %}", "{% static 'js/turbine3d/parts/nacelle.js' %}", "{% static 'js/turbine3d/parts/support.js' %}"] : ["{% static 'image/turbine/turbine.svg' %}"];
+            urls.forEach(function (url) {
+                var link = document.createElement('link');
+                link.rel = gl ? 'modulepreload' : 'preload';
+                if (!gl) { link.as = 'fetch'; }
+                if (url.indexOf('https://') === 0 || !gl) link.crossOrigin = 'anonymous';
+                link.href = url;
+                document.head.appendChild(link);
+            });
+        })();
+    </script>
     <script type="module" src="{% static 'js/home.js' %}"></script>
 </head>
 <body>
@@ -80,7 +85,7 @@
                     {% if card.scene %}
                     <div class="card-scene scene-{{ card.scene }}" aria-hidden="true" data-svg="{% static 'image/thumbnails/'|add:card.scene|add:'/scene-colour.svg' %}" data-js="{% static 'image/thumbnails/'|add:card.scene|add:'/scene-colour.js' %}"></div>
                     {% else %}
-                    <img class="card-photo" src="{% static card.thumbnail %}" alt="">
+                    <img class="card-photo" data-src="{% static card.thumbnail %}" alt="">
                     {% endif %}
                     <div class="card-text">
                         <span class="card-label">{{ card.date|date:"M d, Y"|upper }}</span>
@@ -141,7 +146,7 @@
                     <p>I'm a data scientist with a strong foundation in renewable energy development, energy storage modelling, and data-driven innovation across the energy sector. Since 2017, I've worked on projects spanning wind farm development, hydro optimisation, and the application of AI and machine learning to accelerate decision-making in clean energy infrastructure.</p>
                     <p>My current focus lies in the convergence of advanced analytics and energy markets, particularly the optimisation of battery energy storage systems and the role of data science in enhancing short-term trading strategies.</p>
                 </div>
-                <img class="about-photo" src="{% static 'image/Profile_Image.jpeg' %}" alt="Richard Findlay" width="1000" height="1000" loading="lazy">
+                <img class="about-photo" data-src="{% static 'image/Profile_Image.jpeg' %}" alt="Richard Findlay" width="1000" height="1000" loading="lazy"><noscript><img class="about-photo" src="{% static 'image/Profile_Image.jpeg' %}" alt="Richard Findlay" width="1000" height="1000"></noscript>
             </div>
             <a href="{% url 'about' %}" class="more-link">FULL PROFILE →</a>
         </section>
@@ -154,7 +159,7 @@
             </div>
             <div class="shelf">
                 {% for book in shelf %}
-                <a class="book" href="{{ book.url }}" target="_blank" rel="noopener"><img class="book-cover" src="{% static 'image/books/'|add:book.file %}" alt="{{ book.title }}" width="120" height="180" loading="lazy"></a>
+                <a class="book" href="{{ book.url }}" target="_blank" rel="noopener"><img class="book-cover" data-src="{% static 'image/books/'|add:book.file %}" alt="{{ book.title }}" width="120" height="180" loading="lazy"><noscript><img class="book-cover" src="{% static 'image/books/'|add:book.file %}" alt="{{ book.title }}" width="120" height="180"></noscript></a>
                 {% endfor %}
             </div>
             <a href="{% url 'reading' %}" class="more-link more-link--quiet">FULL LIST →</a>
