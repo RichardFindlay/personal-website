@@ -287,7 +287,7 @@ img[data-src] { visibility: hidden; }
 
 /* Portrait cards: the post's scene fills the card, with the words in white over the top of it. */
 .cards > * {
-  flex: 0 0 clamp(240px, 38%, 400px);
+  flex: 0 0 clamp(210px, 32%, 340px);
   aspect-ratio: 4 / 5;
   scroll-snap-align: start;
 }
@@ -545,7 +545,7 @@ img[data-src] { visibility: hidden; }
     line-height: 1.6;
   }
 
-  .cards > * { flex-basis: 84%; }
+  .cards > * { flex-basis: 74%; }
   /* Titles take more lines on a narrow card, so the drawing starts lower to keep clear of them. */
   .card-scene { height: 52%; }
   .card-title { font-size: 16px; }
