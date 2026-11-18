@@ -16,6 +16,7 @@ const alongBlade = (degrees, d) => {
 // Coordinates are metres in nacelle axes: origin at the yaw axis on the tower top, +x upwind, +z up.
 // `carriedBy`: a part this one also rides with, so a blade drawn off the hub keeps pointing at it as the hub moves.
 // `revealedBy`: the part whose movement first exposes this one. Until then it is not drawn, which keeps the frame cost of everything sealed inside the nacelle out of the assembled view.
+// A scene that never comes apart does not build these parts at all: their builders live in `internals/` and are fetched only for one that does.
 export const PART_TABLE = [
   { key: "spin", channel: "d", explode: alongShaft(15.5) },
   { key: "hub", revealedBy: "blade0", channel: "d", explode: alongShaft(7.5) },

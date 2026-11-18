@@ -1,15 +1,26 @@
 import * as THREE from "three";
 import { CAMERA_SCALE, INTRO, VIEWBOX, displacement, heroCamera, introAmount, stateAt, viewAxis } from "./choreography.js";
-import { PARTS, SPEC } from "./parts/index.js";
+import { SPEC, partsFor } from "./parts/index.js";
 import { seaPoint } from "./assumed.js";
 import { LOOKS, createMaterials } from "./materials.js";
 
 const NARROW_WIDTH = 900;
-const SHADOW_SIZE = 2048;
-// A frame slower than this, averaged over QUALITY_WINDOW spinning frames, drops the canvas to the next pixel ratio down. It never climbs back up.
-const SLOW_FRAME_MS = 24;
+// The shadow map covers what the screen shows, so a phone's needs a quarter of the texels a desktop's does for the same sharpness.
+const SHADOW_SIZE = { wide: 2048, narrow: 1024 };
+// With nothing changing but the rotors and the swell, the scene is drawn at half a 60 Hz screen's rate, and at a third once the page has scrolled on and its panels cover most of the water (ms a frame).
+// The opening move, a view that is changing and the turbine coming apart are drawn at the screen's own rate.
+const REST_FRAME_MS = 1000 / 30;
+const COVERED_FRAME_MS = 1000 / 20;
+// requestAnimationFrame's times wander by a millisecond or two, so a frame this close to due is drawn rather than left a whole screen refresh late.
+const FRAME_SLACK_MS = 4;
+// Frames that come this much later than asked for, averaged over QUALITY_WINDOW of them, drop the canvas to the next pixel ratio down. It never climbs back up.
+const SLOW_FRAME_RATIO = 1.25;
+// At the screen's own rate a frame is late once it takes more than 24 ms, whatever the screen: the opening move is where a slow machine is found out, before the resting pace gives it room.
+const FREE_FRAME_MS = 24 / SLOW_FRAME_RATIO;
 const QUALITY_WINDOW = 45;
-const PIXEL_RATIO_STEPS = [1.5, 1.25];
+// Sharper than 1.5 device pixels a CSS pixel costs most of a retina screen's fill for a difference the anti-aliasing already hides.
+const MAX_PIXEL_RATIO = 1.5;
+const PIXEL_RATIO_STEPS = [1.25, 1];
 const CAMERA_DISTANCE = 1400;
 // How long to wait for the browser to hand back a lost GPU context before falling back to the static drawing.
 const RESTORE_WAIT_MS = 10000;
@@ -77,7 +88,8 @@ function fadeInPlace(root, fadeCopy) {
   return { materials: [...faded], twins, meshes };
 }
 
-export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
+// `still` is the scene that stays whole behind the hero: nothing inside the turbine is built or fetched, the farm behind is built light, and whatever is too small to reach the screen from the hero's distance is left out.
+export async function mountTurbine3D(figure, { signal, onLost, onSlow, still = false }) {
   const checkpoint = () => {
     if (signal.aborted) throw new Error("turbine build timed out");
   };
@@ -99,7 +111,8 @@ export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
 
     const sun = new THREE.DirectionalLight();
     sun.castShadow = true;
-    sun.shadow.mapSize.set(SHADOW_SIZE, SHADOW_SIZE);
+    const shadowSize = narrow() ? SHADOW_SIZE.narrow : SHADOW_SIZE.wide;
+    sun.shadow.mapSize.set(shadowSize, shadowSize);
     sun.shadow.autoUpdate = false;
     sun.shadow.bias = -0.00025;
     sun.shadow.radius = 2.2;
@@ -113,20 +126,30 @@ export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
     const spinning = [];
     const drivetrain = [];
     const rotors = [];
-    let seaSurface;
+    const seaSurfaces = [];
+    const seaSheets = [];
     const fading = { base: { roots: [], materials: [], twins: [], meshes: [] }, farm: { roots: [], materials: [], twins: [], meshes: [] } };
-    for (const part of PARTS) {
+    const spec = { ...SPEC, still };
+    const parts = await partsFor({ internals: !still });
+    checkpoint();
+    for (const part of parts) {
       await nextTask();
       checkpoint();
       const root = new THREE.Group();
-      root.add(part.build(SPEC, mats));
+      root.add(part.build(spec, mats));
+      const unseen = [];
       root.traverse((object) => {
         if (object.userData.spins) spinning.push(object);
         if (object.userData.turn !== undefined) drivetrain.push(object);
         if (object.userData.rotors) rotors.push(object);
-        if (object.userData.seaSurface) seaSurface = object;
+        if (object.userData.seaSurface) seaSurfaces.push(object);
+        if (object.userData.showSea) seaSheets.push(object.userData.showSea);
+        // A bolt head is a few centimetres across: from the hero's distance, a fraction of a pixel.
+        if (still && object.material === mats.bolt) unseen.push(object);
       });
-      if (part.fade) {
+      for (const object of unseen) object.removeFromParent();
+      // A scene that stays whole never fades the tower or the farm, so neither gets the see-through copies of its finishes: those are shader programs of their own, a third of all there would be to prepare.
+      if (part.fade && !still) {
         const { materials, twins, meshes } = fadeInPlace(root, fadeCopy);
         fading[part.fade].roots.push(root);
         fading[part.fade].materials.push(...materials);
@@ -181,7 +204,7 @@ export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
       canvas.style.top = `${-view.figureTop}px`;
       canvas.style.height = `${view.height}px`;
       fitHero();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, narrow() ? 1.5 : 2, pixelRatioLimit));
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO, pixelRatioLimit));
       renderer.setSize(view.width, view.height, false);
     };
     resize();
@@ -204,6 +227,11 @@ export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
 
     const target = new THREE.Vector3();
     const axis = new THREE.Vector3();
+    const sightline = new THREE.Vector3();
+    const corner = new THREE.Vector3();
+    const SCREEN_CORNERS = [[-1, -1], [1, -1], [-1, 1], [1, 1]];
+    // From above the highest crest to below the seabed's lowest hollow (m).
+    const SEA_LEVELS = [SPEC.published.waveHs - SPEC.published.towerTop, SPEC.published.seabed - SPEC.published.towerTop - 1];
     const rotorMatrix = new THREE.Matrix4();
     const rotorTurn = new THREE.Matrix4();
     const place = (state) => {
@@ -233,6 +261,20 @@ export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
       sun.target.position.copy(target);
       sun.position.copy(target).addScaledVector(sunDirection, 1000);
       sun.shadow.normalBias = (reach * 2 * 1.6) / sun.shadow.mapSize.x;
+
+      // The sea is far bigger than the screen: only the stretch of it the camera is over is drawn.
+      camera.getWorldDirection(sightline);
+      const over = { left: Infinity, right: -Infinity, back: Infinity, front: -Infinity };
+      for (const [x, y] of SCREEN_CORNERS) {
+        for (const level of SEA_LEVELS) {
+          corner.set(x, y, -1).unproject(camera).addScaledVector(sightline, (level - corner.z) / sightline.z);
+          over.left = Math.min(over.left, corner.x + corner.y);
+          over.right = Math.max(over.right, corner.x + corner.y);
+          over.back = Math.min(over.back, corner.x - corner.y);
+          over.front = Math.max(over.front, corner.x - corner.y);
+        }
+      }
+      for (const show of seaSheets) show(over);
     };
 
     const setFade = (group, amount) => {
@@ -287,9 +329,8 @@ export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
         for (const mesh of group.meshes) mesh.renderOrder = amount < 1 ? 7 : 1;
         for (const twin of group.twins) twin.renderOrder = amount < 1 ? 6 : 0;
       }
-      seaSurface.receiveShadow = state.seaShadows;
+      for (const surface of seaSurfaces) surface.receiveShadow = state.seaShadows;
       shared.uFarmFade.value = state.farmFade;
-
 
       renderer.render(scene, camera);
     };
@@ -301,14 +342,14 @@ export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
     };
 
     let qualityFrames = 0;
-    let qualityTime = 0;
+    let qualityLate = 0;
     let toldSlow = false;
-    const watchQuality = (now) => {
-      if (!lastFrame) return;
+    // `pace` is how long the frame now being drawn was meant to come after the one before (ms).
+    const watchQuality = (now, pace) => {
       qualityFrames++;
-      qualityTime += now - lastFrame;
+      qualityLate += (now - lastFrame) / pace;
       if (qualityFrames < QUALITY_WINDOW) return;
-      if (qualityTime / qualityFrames > SLOW_FRAME_MS) {
+      if (qualityLate / qualityFrames > SLOW_FRAME_RATIO) {
         const next = PIXEL_RATIO_STEPS.find((ratio) => ratio < renderer.getPixelRatio());
         if (next) {
           pixelRatioLimit = next;
@@ -320,23 +361,35 @@ export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
         }
       }
       qualityFrames = 0;
-      qualityTime = 0;
+      qualityLate = 0;
     };
 
-    // The rotor is the only thing that moves shadows while the page is still, and at 6.9 rpm or less every other frame is plenty.
+    // The rotor is the only thing that moves shadows while the page is still, and at 6.9 rpm or less thirty shadow maps a second is plenty: every resting frame, or every other frame at the screen's own rate.
     let shadowTurn = false;
+    let readout = null;
+    // Set by whatever changes the picture, so the next frame is drawn however recent the last.
+    let due = true;
     const tick = (now) => {
       frame = 0;
       const continuing = animating() && lastFrame > 0 && lastProgress === progress;
-      if (continuing) watchQuality(now);
+      const resting = continuing && !due && introTime >= INTRO.seconds && progress === 0;
+      const pace = window.scrollY > view.height / 2 ? COVERED_FRAME_MS : REST_FRAME_MS;
+      if (resting && now - lastFrame < pace - FRAME_SLACK_MS) {
+        frame = requestAnimationFrame(tick);
+        return;
+      }
+      if (continuing) watchQuality(now, resting ? pace : FREE_FRAME_MS);
       shadowTurn = !shadowTurn;
-      sun.shadow.needsUpdate = shadowTurn || !continuing;
+      sun.shadow.needsUpdate = shadowTurn || resting || !continuing;
       lastProgress = progress;
+      due = false;
       draw(now);
+      readout?.(now);
       if (animating()) frame = requestAnimationFrame(tick);
       else lastFrame = 0;
     };
     const request = () => {
+      due = true;
       if (!frame) frame = requestAnimationFrame(tick);
     };
 
@@ -378,13 +431,17 @@ export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
     place(stateAt(0));
     await renderer.compileAsync(scene, camera);
     checkpoint();
+    // `?fps` on the address shows what the scene is costing on this machine.
+    if (new URLSearchParams(window.location.search).has("fps")) readout = (await import("./readout.js")).mountReadout(renderer, figure);
     sun.shadow.needsUpdate = true;
     draw(performance.now());
     canvas.classList.add("is-ready");
     request();
 
     // `rest` is 1 at the top of the page and `frame` the hero's px on screen: the rotor's top, where the water ends and the width of a wide screen.
+    // The page calls this on every scroll, most often with nothing the scene shows changed: only a change asks for a frame.
     return (next, rest = 0, frame = null) => {
+      const same = rendered && next === progress && (!frame || (rest === heroRest && frame.top === heroFrame?.top && frame.edge === heroFrame?.edge && frame.width === heroFrame?.width));
       if (!rendered && next > 0) introTime = Infinity;
       rendered = true;
       progress = next;
@@ -394,7 +451,7 @@ export async function mountTurbine3D(figure, { signal, onLost, onSlow }) {
         heroShift = assembled?.shiftX ?? 0;
         heroRest = rest;
       }
-      request();
+      if (!same) request();
     };
   } catch (error) {
     canvas.remove();

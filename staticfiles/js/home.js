@@ -130,7 +130,7 @@ async function mountSceneFigure() {
   const load = async () => {
     const { mountTurbine3D } = await import('./turbine3d/scene.js');
     // On a machine the scene already runs slowly on, the bar drops its blur.
-    return mountTurbine3D(figure, { signal: limit.signal, onLost: () => fallBack('WebGL context lost'), onSlow: () => root.classList.add('is-slow') });
+    return mountTurbine3D(figure, { signal: limit.signal, still: STILL_SCENE, onLost: () => fallBack('WebGL context lost'), onSlow: () => root.classList.add('is-slow') });
   };
   try {
     renderTurbine = await Promise.race([load(), timedOut]);
