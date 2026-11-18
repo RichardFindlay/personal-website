@@ -4,6 +4,9 @@ import { seaPoint } from "../assumed.js";
 import { simpleNacelle } from "./nacelle.js";
 import { simpleRotor } from "./rotor.js";
 
+// How far each band of the sea's sheets runs from back to front (m): see `sheet` in buildSea.
+const SEA_BAND = 120;
+
 // Lathe angle whose radial direction lands on this azimuth once the lathe axis is turned onto +z.
 const azimuthToLathe = (azimuth) => azimuth + Math.PI / 2;
 const radial = (azimuth, r, z) => [r * Math.cos(azimuth), r * Math.sin(azimuth), z];
@@ -16,7 +19,8 @@ const towerRadius = (spec, elevation) => {
   return (lower.diam + (upper.diam - lower.diam) * t) / 2;
 };
 
-function towerProfile(spec) {
+// `plain` leaves out the weld seams between cans and draws each flange joint as one band, for towers seen from too far to show either.
+function towerProfile(spec, { plain = false } = {}) {
   const { published, assumed } = spec;
   const local = (elevation) => elevation - published.towerTop;
   const points = [];
@@ -24,14 +28,15 @@ function towerProfile(spec) {
   let elevation = published.towerBase;
   const seam = 0.06;
   while (elevation < published.towerTop - 0.01) {
-    const next = Math.min(published.towerTop, elevation + assumed.towerCanLength);
+    const next = Math.min(published.towerTop, elevation + assumed.towerCanLength * (plain ? 3 : 1));
     const joint = flanges.find((z) => z >= elevation && z < next);
     const r0 = towerRadius(spec, elevation);
     points.push([local(elevation), r0]);
     if (joint !== undefined) {
       const r = towerRadius(spec, joint);
-      points.push([local(joint - 0.28), r], [local(joint - 0.1), r + 0.02], [local(joint - 0.1), r + 0.17], [local(joint - 0.01), r + 0.17], [local(joint - 0.01), r + 0.02], [local(joint + 0.01), r + 0.02], [local(joint + 0.01), r + 0.17], [local(joint + 0.1), r + 0.17], [local(joint + 0.1), r + 0.02], [local(joint + 0.28), r]);
-    } else if (next < published.towerTop) {
+      if (plain) points.push([local(joint - 0.1), r], [local(joint - 0.1), r + 0.17], [local(joint + 0.1), r + 0.17], [local(joint + 0.1), r]);
+      else points.push([local(joint - 0.28), r], [local(joint - 0.1), r + 0.02], [local(joint - 0.1), r + 0.17], [local(joint - 0.01), r + 0.17], [local(joint - 0.01), r + 0.02], [local(joint + 0.01), r + 0.02], [local(joint + 0.01), r + 0.17], [local(joint + 0.1), r + 0.17], [local(joint + 0.1), r + 0.02], [local(joint + 0.28), r]);
+    } else if (!plain && next < published.towerTop) {
       const r1 = towerRadius(spec, next);
       points.push([local(next - seam), r1], [local(next - seam / 2), r1 + 0.012], [local(next), r1]);
     }
@@ -106,8 +111,12 @@ export function buildTower(spec, mats) {
 // Below the sleeve the pile is left plain: what the water shows of it reads as clutter.
 // `seg` is the lathe's resolution, high for the turbine in focus and lower for the farm's copies, which also leave out the
 // pieces too small to show at their distance: the flange bolts, the ladder's rungs and hoops, and the davit's line.
-function buildTransitionPiece(kit, spec, seg) {
+// `light` is for a farm seen only at the hero's distance, where a metre is a few pixels: square edges, half the rail posts and tubes of fewer sides.
+function buildTransitionPiece(kit, spec, seg, light = false) {
   const fine = seg >= 96;
+  const sides = (n) => (light ? Math.max(4, Math.ceil(n / 2)) : n);
+  const eased = (profile, size) => (light ? profile : chamfer(profile, size));
+  const bevel = (size) => (light ? 0 : size);
   const { published, assumed } = spec;
   const local = (elevation) => elevation - published.towerTop;
   const tp = assumed.transitionPiece;
@@ -115,7 +124,7 @@ function buildTransitionPiece(kit, spec, seg) {
   const pileR = published.monopileDiameter / 2;
   const baseR = published.tower[0].diam / 2;
 
-  kit.add("yellow", lathe(chamfer([[local(tp.darkBelow), R], [local(tp.top - 0.3), R], [local(tp.top - 0.3), R + 0.13], [local(tp.top), R + 0.13], [local(tp.top), baseR + 0.08], [local(tp.top + 0.06), baseR + 0.08], [local(tp.top + 0.06), baseR]], 0.012), { seg }), ALONG_Z);
+  kit.add("yellow", lathe(eased([[local(tp.darkBelow), R], [local(tp.top - 0.3), R], [local(tp.top - 0.3), R + 0.13], [local(tp.top), R + 0.13], [local(tp.top), baseR + 0.08], [local(tp.top + 0.06), baseR + 0.08], [local(tp.top + 0.06), baseR]], 0.012), { seg }), ALONG_Z);
   kit.add("hullDark", lathe([[local(tp.bottom - 0.3), pileR], [local(tp.bottom), R - 0.02], [local(tp.darkBelow), R]], { seg }), ALONG_Z);
   kit.add("pile", lathe([[local(published.seabed - spec.assumed.seaTile.pileEmbed), pileR], [local(tp.bottom - 0.3), pileR]], { seg }), ALONG_Z);
 
@@ -130,7 +139,7 @@ function buildTransitionPiece(kit, spec, seg) {
   const zDeck = local(P.z);
   kit.add("grating", lathe([[zDeck, R + 0.14], [zDeck, P.radius]].reverse(), { seg }), ALONG_Z);
   kit.add("grating", lathe([[zDeck - 0.03, P.radius], [zDeck - 0.03, R + 0.14]].reverse(), { seg }), ALONG_Z);
-  kit.add("galvanised", lathe(chamfer([[zDeck - 0.18, P.radius], [zDeck + 0.14, P.radius], [zDeck + 0.14, P.radius - 0.02], [zDeck - 0.18, P.radius - 0.02]], 0.002), { seg }), ALONG_Z);
+  kit.add("galvanised", lathe(eased([[zDeck - 0.18, P.radius], [zDeck + 0.14, P.radius], [zDeck + 0.14, P.radius - 0.02], [zDeck - 0.18, P.radius - 0.02]], 0.002), { seg }), ALONG_Z);
   const beams = [];
   const gussets = [];
   for (let k = 0; k < 16; k++) {
@@ -138,8 +147,8 @@ function buildTransitionPiece(kit, spec, seg) {
     beams.push(trs(radial(a, (R + P.radius) / 2, zDeck - 0.14), [0, 0, a]));
     gussets.push(aim(radial(a, R + 0.75, zDeck - 0.92), [Math.cos(a) * 0.72, Math.sin(a) * 0.72, 0.7]));
   }
-  kit.many("yellow", box(P.radius - R - 0.2, 0.14, 0.22, 0.01), beams);
-  kit.many("yellow", rod([0, 0, -0.95], [0, 0, 0.92], 0.05, 8), gussets);
+  kit.many("yellow", box(P.radius - R - 0.2, 0.14, 0.22, bevel(0.01)), beams);
+  kit.many("yellow", rod([0, 0, -0.95], [0, 0, 0.92], 0.05, sides(8)), gussets);
 
   const landing = assumed.boatLanding;
   const landingAz = landing.azimuth * DEG;
@@ -147,11 +156,11 @@ function buildTransitionPiece(kit, spec, seg) {
   const posts = [];
   const rails = [[landingAz + gapHalf, landingAz + TAU - gapHalf]];
   for (const [from, to] of rails) {
-    const count = 34;
+    const count = light ? 17 : 34;
     for (let k = 0; k <= count; k++) posts.push(radial(from + ((to - from) * k) / count, P.radius - 0.04, zDeck));
-    for (const h of [0.55, P.railHeight]) kit.add("galvanised", pipe(arc(P.radius - 0.04, zDeck + h, from, to, Math.round(seg * 0.75)), 0.028, { seg: 6 }));
+    for (const h of [0.55, P.railHeight]) kit.add("galvanised", pipe(arc(P.radius - 0.04, zDeck + h, from, to, Math.round(seg * 0.75)), 0.028, { seg: sides(6) }));
   }
-  kit.many("galvanised", rod([0, 0, 0], [0, 0, P.railHeight], 0.026, 6), posts.map((p) => trs(p)));
+  kit.many("galvanised", rod([0, 0, 0], [0, 0, P.railHeight], 0.026, sides(6)), posts.map((p) => trs(p)));
 
   const e = [Math.cos(landingAz), Math.sin(landingAz)];
   const t = [-e[1], e[0]];
@@ -159,12 +168,12 @@ function buildTransitionPiece(kit, spec, seg) {
   for (const side of [-1, 1]) {
     const px = e[0] * tubeR + t[0] * side * landing.halfSpacing;
     const py = e[1] * tubeR + t[1] * side * landing.halfSpacing;
-    kit.add("yellow", rod([px, py, local(landing.bottom)], [px, py, local(landing.top)], 0.16, 14));
-    kit.add("yellow", sphere([px, py, local(landing.top)], 0.16, 12, 6));
-    kit.add("yellow", sphere([px, py, local(landing.bottom)], 0.16, 12, 6));
+    kit.add("yellow", rod([px, py, local(landing.bottom)], [px, py, local(landing.top)], 0.16, sides(14)));
+    if (!light) kit.add("yellow", sphere([px, py, local(landing.top)], 0.16, 12, 6));
+    if (!light) kit.add("yellow", sphere([px, py, local(landing.bottom)], 0.16, 12, 6));
     for (const z of [landing.top - 0.5, 3.5, -0.5, landing.bottom + 0.7]) {
       const hub = R + 0.02;
-      kit.add("yellow", rod([e[0] * hub + t[0] * side * landing.halfSpacing, e[1] * hub + t[1] * side * landing.halfSpacing, local(z)], [px, py, local(z)], 0.085, 8));
+      kit.add("yellow", rod([e[0] * hub + t[0] * side * landing.halfSpacing, e[1] * hub + t[1] * side * landing.halfSpacing, local(z)], [px, py, local(z)], 0.085, sides(8)));
     }
   }
   const ladderR = R + landing.standoff - 0.32;
@@ -172,7 +181,7 @@ function buildTransitionPiece(kit, spec, seg) {
   for (const side of [-0.24, 0.24]) {
     const px = e[0] * ladderR + t[0] * side;
     const py = e[1] * ladderR + t[1] * side;
-    kit.add("galvanised", rod([px, py, local(landing.bottom)], [px, py, local(ladderTop)], 0.022, 6));
+    kit.add("galvanised", rod([px, py, local(landing.bottom)], [px, py, local(ladderTop)], 0.022, sides(6)));
   }
   const rungs = [];
   for (let z = landing.bottom + 0.1; z < P.z + 0.1; z += 0.3) rungs.push(trs([e[0] * ladderR, e[1] * ladderR, local(z)]));
@@ -188,19 +197,19 @@ function buildTransitionPiece(kit, spec, seg) {
   const jAz = assumed.jTube.azimuth * DEG;
   const jr = assumed.jTube.radius;
   const outer = R + jr + 0.14;
-  kit.add("hullDark", pipe([radial(jAz, outer, local(P.z - 0.1)), radial(jAz, outer, local(tp.bottom + 0.4))], jr, { seg: 12 }));
+  kit.add("hullDark", pipe([radial(jAz, outer, local(P.z - 0.1)), radial(jAz, outer, local(tp.bottom + 0.4))], jr, { seg: sides(12) }));
   const clamps = [8, 4, 0, -3.5].map((z) => trs(radial(jAz, R + 0.02, local(z)), [0, 0, jAz]));
-  kit.many("yellow", box(0.68, 0.58, 0.24, 0.012), clamps);
+  kit.many("yellow", box(0.68, 0.58, 0.24, bevel(0.012)), clamps);
 
   const davitAz = 10 * DEG;
   const dp = radial(davitAz, P.radius - 0.7, zDeck);
-  kit.add("yellow", rod(dp, [dp[0], dp[1], zDeck + 3.1], [0.11, 0.08], 12));
-  kit.add("yellow", rod([dp[0], dp[1], zDeck + 3.05], [dp[0] + 1.9 * Math.cos(davitAz), dp[1] + 1.9 * Math.sin(davitAz), zDeck + 3.5], [0.07, 0.04], 8));
+  kit.add("yellow", rod(dp, [dp[0], dp[1], zDeck + 3.1], [0.11, 0.08], sides(12)));
+  kit.add("yellow", rod([dp[0], dp[1], zDeck + 3.05], [dp[0] + 1.9 * Math.cos(davitAz), dp[1] + 1.9 * Math.sin(davitAz), zDeck + 3.5], [0.07, 0.04], sides(8)));
   if (fine) kit.add("steel", rod([dp[0] + 1.9 * Math.cos(davitAz), dp[1] + 1.9 * Math.sin(davitAz), zDeck + 3.5], [dp[0] + 1.9 * Math.cos(davitAz), dp[1] + 1.9 * Math.sin(davitAz), zDeck + 2.1], 0.012, 5));
-  kit.add("yellow", rod([dp[0], dp[1], zDeck], [dp[0], dp[1], zDeck + 0.06], 0.34, 16));
+  kit.add("yellow", rod([dp[0], dp[1], zDeck], [dp[0], dp[1], zDeck + 0.06], 0.34, sides(16)));
   const lockerAz = -118 * DEG;
   const lp = radial(lockerAz, P.radius - 1.1, zDeck + 0.42);
-  kit.add("galvanised", boxAt(lp, [1.1, 0.7, 0.84], 0.02, [0, 0, lockerAz]));
+  kit.add("galvanised", boxAt(lp, [1.1, 0.7, 0.84], bevel(0.02), [0, 0, lockerAz]));
 
   const doorAz = assumed.towerDoor.azimuth * DEG;
   const stepCount = 5;
@@ -214,9 +223,9 @@ function buildTransitionPiece(kit, spec, seg) {
     const tan = [-Math.sin(doorAz) * side * 0.56, Math.cos(doorAz) * side * 0.56];
     const low = radial(doorAz, R + 1.5, zDeck + 0.14);
     const high = radial(doorAz, R + 0.4, zDeck + 1.02);
-    kit.add("galvanised", rod([low[0] + tan[0], low[1] + tan[1], low[2]], [high[0] + tan[0], high[1] + tan[1], high[2]], 0.024, 6));
-    kit.add("galvanised", rod([low[0] + tan[0], low[1] + tan[1], low[2]], [low[0] + tan[0], low[1] + tan[1], low[2] + 0.95], 0.02, 6));
-    kit.add("galvanised", rod([low[0] + tan[0], low[1] + tan[1], low[2] + 0.95], [high[0] + tan[0], high[1] + tan[1], high[2] + 0.95], 0.02, 6));
+    kit.add("galvanised", rod([low[0] + tan[0], low[1] + tan[1], low[2]], [high[0] + tan[0], high[1] + tan[1], high[2]], 0.024, sides(6)));
+    kit.add("galvanised", rod([low[0] + tan[0], low[1] + tan[1], low[2]], [low[0] + tan[0], low[1] + tan[1], low[2] + 0.95], 0.02, sides(6)));
+    kit.add("galvanised", rod([low[0] + tan[0], low[1] + tan[1], low[2] + 0.95], [high[0] + tan[0], high[1] + tan[1], high[2] + 0.95], 0.02, sides(6)));
   }
 }
 
@@ -226,11 +235,6 @@ function seabedHeight(x, y) {
 
 function mix(a, b, t) {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-}
-
-function withColours(geometry, colours) {
-  geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(colours), 3));
-  return geometry;
 }
 
 const linear = (hex) => {
@@ -266,20 +270,22 @@ class Merged {
 }
 
 // Every other turbine in the farm, one draw call a finish: one rotor spins in `userData.rotors`, all else is fixed.
+// A farm that stays behind the still hero (`spec.still`) is only ever seen from the hero's distance, so it is built light: about a third of the triangles, with nothing left out that a screen could show.
 export function buildFarm(spec, mats) {
   const kit = new Kit(mats);
-  const { assumed } = spec;
+  const { assumed, still: light = false } = spec;
+  const seg = light ? 20 : 28;
   const places = assumed.farm.map((point) => trs([...seaPoint(point), 0]));
-  const shell = simpleNacelle(spec);
-  kit.many("paint", merge([lathe(towerProfile(spec), { seg: 28, smooth: 0.98 }).applyMatrix4(ALONG_Z), ...shell.paint]), places);
+  const shell = simpleNacelle(spec, { light });
+  kit.many("paint", merge([lathe(towerProfile(spec, { plain: light }), { seg, smooth: 0.98 }).applyMatrix4(ALONG_Z), ...shell.paint]), places);
   kit.many("glass", merge(shell.glass), places);
   // The same foundation as the turbine in focus, at fewer segments, stood at every place.
   const foundation = new Merged();
-  buildTransitionPiece(foundation, spec, 28);
+  buildTransitionPiece(foundation, spec, seg, light);
   foundation.standAt(kit, places);
 
   const random = seeded(2207);
-  const rotors = new THREE.InstancedMesh(simpleRotor(spec), mats.paint, places.length);
+  const rotors = new THREE.InstancedMesh(simpleRotor(spec, { light }), mats.paint, places.length);
   rotors.castShadow = true;
   rotors.receiveShadow = true;
   rotors.frustumCulled = false;
@@ -300,28 +306,56 @@ export function buildSea(spec, mats) {
   const sand = linear("#7f9a92");
   const sandDark = linear("#647f79");
 
-  const addMesh = (geometry, material) => kit.object(new THREE.Mesh(geometry, material));
   const spanU = tile.right - tile.left;
 
   // A flat sheet over the sea in view axes as far as `front`: `fill` writes each point, and the winding faces up.
+  // It is far bigger than any screen, so it is cut into bands from back to front that share its points, each band's triangles in order from left to right. `show` then draws only what lies under the camera: the bands it is over, and of each just the run of columns it is over.
   const sheet = (step, front, fill) => {
     const spanV = front - tile.back;
     const columns = Math.ceil(spanU / step);
     const rows = Math.ceil(spanV / step);
     const positions = new Float32Array((columns + 1) * (rows + 1) * 3);
-    const indices = [];
     for (let i = 0; i <= columns; i++) {
       for (let j = 0; j <= rows; j++) {
         const [x, y] = seaPoint([tile.left + (spanU * i) / columns, tile.back + (spanV * j) / rows]);
-        const v = i * (rows + 1) + j;
-        positions.set([x, y, fill(x, y)], v * 3);
-        if (i < columns && j < rows) indices.push(v, v + 1, v + rows + 1, v + 1, v + rows + 2, v + rows + 1);
+        positions.set([x, y, fill(x, y)], (i * (rows + 1) + j) * 3);
       }
     }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setIndex(indices);
-    return { geometry, count: positions.length / 3 };
+    const attributes = { position: new THREE.BufferAttribute(positions, 3) };
+    const bandCount = Math.ceil(spanV / SEA_BAND);
+    const bands = Array.from({ length: bandCount }, (_, k) => {
+      const [from, to] = [Math.round((rows * k) / bandCount), Math.round((rows * (k + 1)) / bandCount)];
+      const indices = [];
+      for (let i = 0; i < columns; i++) {
+        for (let j = from; j < to; j++) {
+          const v = i * (rows + 1) + j;
+          indices.push(v, v + 1, v + rows + 1, v + 1, v + rows + 2, v + rows + 1);
+        }
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setIndex(indices);
+      return { geometry, perColumn: (to - from) * 6, back: tile.back + (spanV * from) / rows, front: tile.back + (spanV * to) / rows };
+    });
+    const meshes = [];
+    const add = (material, prepare) => {
+      for (const band of bands) {
+        for (const [name, attribute] of Object.entries(attributes)) band.geometry.setAttribute(name, attribute);
+        const mesh = new THREE.Mesh(band.geometry, material);
+        mesh.frustumCulled = false;
+        prepare?.(mesh);
+        kit.object(mesh);
+        meshes.push(mesh);
+      }
+    };
+    const show = (over) => {
+      const first = Math.max(0, Math.floor(((over.left - tile.left) / spanU) * columns));
+      const last = Math.min(columns, Math.ceil(((over.right - tile.left) / spanU) * columns));
+      bands.forEach((band, k) => {
+        meshes[k].visible = last > first && band.front > over.back && band.back < over.front;
+        band.geometry.setDrawRange(first * band.perColumn, Math.max(0, last - first) * band.perColumn);
+      });
+    };
+    return { attributes, bands, count: positions.length / 3, add, show };
   };
 
   // The seabed stops where it passes out from under the water's front edge on screen, flattening so the two lines meet exactly.
@@ -331,19 +365,27 @@ export function buildSea(spec, mats) {
     const h = seabedHeight(x, y) * Math.min(1, (bedFront - (x - y)) / 12);
     colours.push(...mix(sand, sandDark, Math.min(1, Math.max(0, 0.5 - h * 1.1 + (random() - 0.5) * 0.32))));
     return bedZ + h;
-  }).geometry;
-  bed.computeVertexNormals();
-  addMesh(withColours(bed, colours), mats.sand);
+  });
+  // The normals come from the whole sheet at once, so no band's edge shows as a crease.
+  const whole = new THREE.BufferGeometry();
+  whole.setAttribute("position", bed.attributes.position);
+  whole.setIndex(bed.bands.flatMap((band) => [...band.geometry.index.array]));
+  whole.computeVertexNormals();
+  bed.attributes.normal = whole.attributes.normal;
+  bed.attributes.color = new THREE.BufferAttribute(new Float32Array(colours), 3);
+  bed.add(mats.sand);
 
-  const { geometry: surface, count: surfaceCount } = sheet(5, tile.front, () => seaZ);
-  surface.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(surfaceCount * 3).map((_, i) => (i % 3 === 2 ? 1 : 0)), 3));
+  const surface = sheet(5, tile.front, () => seaZ);
+  surface.attributes.normal = new THREE.BufferAttribute(new Float32Array(surface.count * 3).map((_, i) => (i % 3 === 2 ? 1 : 0)), 3);
+  surface.add(mats.water, (mesh) => {
+    mesh.receiveShadow = true;
+    mesh.userData.seaSurface = true;
+    mesh.renderOrder = 4;
+  });
 
-  const surfaceMesh = new THREE.Mesh(surface, mats.water);
-  surfaceMesh.receiveShadow = true;
-  surfaceMesh.userData.seaSurface = true;
-  surfaceMesh.renderOrder = 4;
-  surfaceMesh.frustumCulled = false;
-  kit.object(surfaceMesh);
-
+  kit.group.userData.showSea = (over) => {
+    bed.show(over);
+    surface.show(over);
+  };
   return kit.finish();
 }

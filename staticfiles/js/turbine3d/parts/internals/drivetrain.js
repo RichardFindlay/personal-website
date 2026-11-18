@@ -1,5 +1,5 @@
-import { gearTrain, hssOffset } from "../assumed.js";
-import { BOLT, DEG, Kit, TAU, aim, boltCircle, box, boxAt, chamfer, gear, inShaftFrame, lathe, pipe, prism, rod, section, trs } from "./shapes.js";
+import { gearTrain, hssOffset } from "../../assumed.js";
+import { BOLT, DEG, Kit, TAU, aim, boltCircle, box, boxAt, chamfer, gear, inShaftFrame, lathe, pipe, prism, rod, section, trs } from "../shapes.js";
 
 // The casing is cut away on the side the isometric camera looks from: 135 deg about the shaft, between -y and +z.
 const WINDOW = { from: 76 * DEG, to: 194 * DEG };
