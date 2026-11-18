@@ -89,7 +89,8 @@
   isolation: isolate;
 }
 
-/* The bar's frosted glass, on its own layer so the words can be cut out of it: nav.js draws the name, and on a wide screen the links, into --etch-mask, a canvas the size of this layer, in the page's own font and at their places. */
+/* The bar's frosted glass, on its own layer so the words can be cut out of it: nav.js draws the name, and on a wide screen the links, into --etch-mask, a canvas the size of this layer, in the page's own font and at their places.
+   The cut is only made once the sea is there to show through it (.sea-ready, from home.js): over the bare page the cut words would vanish, so until then, and if the sea never comes, they stay ordinary text. */
 .nav::before {
   content: "";
   position: absolute;
@@ -101,7 +102,7 @@
   backdrop-filter: blur(10px) saturate(1.1);
 }
 
-.nav.is-etched::before {
+.sea-ready .is-etched::before {
   -webkit-mask: linear-gradient(#000 0 0), var(--etch-mask) no-repeat 0 0 / 100% 100%;
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0), var(--etch-mask) no-repeat 0 0 / 100% 100%;
@@ -109,7 +110,7 @@
 }
 
 /* The cut's lower inside edge catches the light: the letters less the same letters raised half a pixel leave a hairline along each one's foot. */
-.nav.is-etched::after {
+.sea-ready .is-etched::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -123,13 +124,20 @@
   mask-composite: subtract;
 }
 
-/* Cut through, the words show the sea itself. They stay in the page as text for reading, selecting and clicking. */
-.nav.is-etched .nav-brand { color: transparent; }
-.nav.is-etched-links .nav-link { color: transparent; }
+/* Cut through, the words show the sea itself. They stay in the page as text for reading, selecting and clicking.
+   The ordinary words fade out as the sea fades in behind the cut, so the name never drops out of sight. */
+.sea-ready .is-etched .nav-brand { color: transparent; animation: etch-brand 0.7s ease backwards; }
+.sea-ready .is-etched-links .nav-link { color: transparent; animation: etch-link 0.7s ease backwards; }
+@keyframes etch-brand { from { color: var(--ink); } }
+@keyframes etch-link { from { color: var(--muted); } }
+@media (prefers-reduced-motion: reduce) {
+  .sea-ready .is-etched .nav-brand,
+  .sea-ready .is-etched-links .nav-link { animation: none; }
+}
 
 /* Under the pointer a cut word frosts over, a pale wash on the sea, since fading transparent text would show nothing. */
-.nav.is-etched .nav-brand:hover,
-.nav.is-etched-links .nav-link:hover { color: rgba(255, 255, 255, 0.55); opacity: 1; }
+.sea-ready .is-etched .nav-brand:hover,
+.sea-ready .is-etched-links .nav-link:hover { color: rgba(255, 255, 255, 0.55); opacity: 1; }
 
 /* The dark glass barely differs from the dark sea, so cut words are lost against it; at night they are plain light text again. */
 [data-theme="dark"] .nav.is-etched::before { -webkit-mask: none; mask: none; }
